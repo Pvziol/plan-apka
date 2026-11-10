@@ -305,9 +305,10 @@ function zakupy(w) {
     const f = pozostalo(g);                 // niezjedzona część garnka
     if (f < 0.001) continue;
     for (const i of g.dish.skladniki) {
-      if (i.ilosc && i.produkt) dodaj(i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
-      if (stala(i) && f > 0.999) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa });   // woreczek na to danie
-      else inne.add(i.nazwa + (g.dish.warianty && g.dish.warianty.length && i.nazwa.startsWith('GLAZURA') ? '' : '') + ' — ' + g.dish.nazwa);
+      if (i.ilosc && i.produkt) {
+        dodaj(i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
+        if (stala(i) && f > 0.999) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa });   // woreczek na to danie
+      } else inne.add(i.nazwa + (g.dish.warianty && g.dish.warianty.length && i.nazwa.startsWith('GLAZURA') ? '' : '') + ' — ' + g.dish.nazwa);
     }
     (g.dish.przyprawy || []).forEach(t => przyprawy.push(t));
     if (g.dosypka) { dodaj('odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala * f, 'g'); dodaj('skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala * f, 'g'); }

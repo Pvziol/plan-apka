@@ -1,6 +1,6 @@
 // Sieć najpierw, pamięć jako zapas: odświeżenie zawsze bierze nową bazę, a bez sieci działa ostatnia pobrana.
 // Obsługuję tylko pliki aplikacji i biblioteki Firebase — samego ruchu bazy (firestore.googleapis.com) nie dotykam.
-const CACHE = 'plan-v16';
+const CACHE = 'plan-v17';
 const PLIKI = ['./', 'index.html', 'style.css', 'app.js', 'obrazki.js', 'sync.js', 'manifest.json',
   'data/dania.json', 'data/dania-dodane.json', 'data/shake.json', 'data/opakowania.json', 'data/firebase.json',
   'icons/icon-180.png', 'icons/icon-192.png'];

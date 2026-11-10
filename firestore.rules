@@ -1,0 +1,11 @@
+rules_version = '2';
+// Wklej w Firebase: Firestore Database -> Rules -> Publish.
+// Wspólny plan to jeden dokument domy/{kod}. Dostęp ma tylko ktoś, kto zna 24-znakowy kod;
+// listowania wszystkich planów nie ma (brak reguły "list").
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /domy/{kod} {
+      allow get, create, update: if request.auth != null && kod.size() >= 20;
+    }
+  }
+}

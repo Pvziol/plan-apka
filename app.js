@@ -366,6 +366,8 @@ function widokTydzien() {
 const kluczZ = (d, slot) => `${plan.start}|${d}|${slot}`;
 // jaka część garnka przypada na posiłek danego dnia (garnek na 2 dni dzieli się wg kcal)
 const udzialDnia = (g, d) => sum(g.porcje.filter(q => q.d === d), q => q.kcal) / g.K;
+// ile składnika schodzi z lodówki: sztuki, kromki i puszki tylko w całości (jak w przepisie: połówka w dół, minimum 1)
+const ileZuzyto = (q, u, f = 1) => { const x = q * f; return (u === 'szt.' || u === 'krom.' || u === 'pusz.') ? Math.max(1, Math.ceil(x - 0.5 - 1e-9)) : Math.round(x * 100) / 100; };
 const dniGarnka = g => [...new Set(g.porcje.map(q => q.d))];
 const pozostalo = g => sum(dniGarnka(g).filter(d => !zuzyte[kluczZ(d, g.slot)]), d => udzialDnia(g, d));
 // zaznacza / cofa „zjedzone” dla posiłku (garnek g, dzień d) i odpowiednio zdejmuje / zwraca składniki w lodówce
@@ -375,7 +377,7 @@ function zjedz(g, d, on) {
     if (zuzyte[k]) return;
     const f = udzialDnia(g, d), odj = {};
     for (const [pp, , q, uu] of skladGarnka(g)) if (lodowka[pp] && lodowka[pp][uu] != null) {
-      const x = Math.round(q * f * 100) / 100;
+      const x = ileZuzyto(q, uu, f);
       zmienLodowke(pp, uu, -x); (odj[pp] = odj[pp] || {})[uu] = Math.round(((odj[pp][uu] || 0) + x) * 100) / 100;
     }
     zuzyte[k] = odj;
@@ -810,7 +812,7 @@ function prognoza(w) {
     for (const [p, , q, u] of skladGarnka(g)) {
       const k = p + '|' + u;
       if (!(k in stan)) continue;                        // śledzę tylko to, co jest w lodówce
-      stan[k] -= q * f;
+      stan[k] -= ileZuzyto(q, u, f);
       if (stan[k] < -0.5 && !pierwszy[k]) pierwszy[k] = { d: dd, dish: g.dish.nazwa };
     }
   }
@@ -963,7 +965,7 @@ document.addEventListener('click', e => {
   else if (t.id === 'szybkie') szybkieDodanie(($('#szybkie-tekst') || {}).value || '');
   else if (t.id === 'spont') oknoSpont();
   else if (t.dataset.przepisSpont) { const x = mozliwosci().find(m => m.d.id === t.dataset.przepisSpont); if (x) pokazPrzepis(garnekSpont(x.d, x.skala), true); }
-  else if (t.dataset.spontGotuj) { const g = spontG; if (g) { for (const [pp, , q, uu] of skladGarnka(g)) if (lodowka[pp] && lodowka[pp][uu] != null) zmienLodowke(pp, uu, -q); } spontWroc = false; spontG = null; $('#modal').hidden = true; rysuj(); }
+  else if (t.dataset.spontGotuj) { const g = spontG; if (g) { for (const [pp, , q, uu] of skladGarnka(g)) if (lodowka[pp] && lodowka[pp][uu] != null) zmienLodowke(pp, uu, -ileZuzyto(q, uu)); } spontWroc = false; spontG = null; $('#modal').hidden = true; rysuj(); }
   else if (t.tagName === 'SUMMARY') { const d = +t.parentElement.dataset.d; otwartyDzien = t.parentElement.open ? -1 : d; }
 });
 document.addEventListener('input', e => {

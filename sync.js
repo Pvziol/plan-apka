@@ -73,7 +73,7 @@ function wyslij(zm) {
   if (!S.kod || !zm || !zm.length) return;
   if (!ref) { kolejka.push(zm); return; }
   const args = [];
-  for (const [sciezka, v] of zm) args.push(new F.FieldPath(...sciezka.map(String)), v === undefined ? F.deleteField() : v);
+  for (const [sciezka, v] of zm) args.push(new F.FieldPath(...sciezka.map(String)), v === undefined ? F.deleteField() : (v && v.__inc !== undefined ? F.increment(v.__inc) : v));
   F.updateDoc(ref, ...args).catch(e => { S.stan = 'blad'; S.blad = opisBledu(e); powiadom(); });
 }
 

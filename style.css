@@ -124,3 +124,36 @@ ol.kroki li { margin: 6px 0; }
 .wynik.ona { background: var(--ona-tlo); color: var(--ink); } .wynik.on { background: var(--on-tlo); color: var(--ink); }
 .ostrz-txt { color: var(--ostrz); }
 .uwaga { background: var(--ostrz-tlo); color: var(--ostrz); border-radius: 10px; padding: 8px 12px; font-size: 14px; margin: 8px 0; }
+
+/* obrazki dań */
+.obr { display: inline-block; width: 44px; height: 44px; flex: none; }
+.obr svg { width: 100%; height: 100%; display: block; }
+.obr.duzy { width: 84px; height: 84px; }
+.posilek .gora { justify-content: flex-start; }
+.posilek .gora .nazwa { flex: 1; }
+.posilek .gora .btn { flex: none; }
+.przepis-gora { display: flex; gap: 12px; align-items: center; margin: 6px 0 10px; }
+.oceny { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn.ocena.wl { background: var(--zielony-tlo); border-color: var(--zielony); color: var(--zielony); }
+.wiersz { margin: 8px 0; }
+.wiersz.ukryte { opacity: .55; }
+.wiersz .oceny { margin-top: 4px; }
+.wybor { display: flex; gap: 10px; align-items: center; margin: 0; }
+.wybor .tx { flex: 1; }
+.ok-txt { color: var(--zielony); font-size: 14px; }
+/* przypomnienia */
+.przyp { background: var(--zielony-tlo); border-radius: 12px; padding: 8px 12px; margin: 10px 0; font-size: 14px; }
+.przyp ul { margin: 4px 0 0; padding-left: 18px; }
+.przyp > div + div { margin-top: 8px; }
+/* waga i lodówka */
+.wykres { width: 100%; height: auto; }
+.wykres text { fill: var(--mute); font-size: 9px; }
+.wykres.ona { color: var(--ona); } .wykres.on { color: var(--on); }
+.wpis { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.stan { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.stan .co { flex: 1; }
+.stan input { width: 84px; min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; background: var(--card); text-align: right; }
+.zuzyj { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--mute); margin-top: 4px; }
+.zuzyj input { width: 18px; height: 18px; accent-color: var(--zielony); }
+textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); margin-bottom: 8px; font: inherit; }
+#tabs button { font-size: 13px; }

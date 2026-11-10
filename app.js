@@ -662,7 +662,7 @@ function widokUstawienia(pierwszy) {
     ${pierwszy ? kartaDolacz() : ''}${blok('ona')}${blok('on')}
     <button class="btn glowny szeroki" id="zapisz">${pierwszy ? 'Ułóż mój tydzień' : 'Zapisz i przelicz plan'}</button>
     ${pierwszy ? '' : kartaUkryte() + kartaWspolny() + `<h2>Baza dań</h2><div class="karta"><p>${DB.dania.size} dań w bazie (w tym ${[...DB.dania.values()].filter(d => d.dodane).length} dodanych poza planem z PDF-ów).</p><p class="mute">Nowe dania pojawiają się po odświeżeniu aplikacji.</p>
-    <div class="rzad"><button class="btn" id="odswiez">Odśwież bazę</button><button class="btn" id="wyczysc">Wyczyść dane</button></div></div>`}`;
+    <div class="rzad"><button class="btn" id="odswiez">Odśwież bazę</button><button class="btn" id="wyczysc">Wyczyść dane</button></div></div><h2>Aplikacja</h2><div class="karta"><p class="mute">Nowa wersja pobiera się sama, gdy wracasz do aplikacji. Jeśli mimo to widzisz starą, wymuś aktualizację — plan i dane zostają.</p><button class="btn szeroki" id="aktualizuj">Zaktualizuj aplikację</button><p class="mute" id="wersja"></p></div>`}`;
   const zbierz = () => { const o = { ona: {}, on: {} }; document.querySelectorAll('[data-p]').forEach(el => { const v = el.value.trim().replace(',', '.'); o[el.dataset.p][el.dataset.k] = el.tagName === 'SELECT' ? v : (v === '' ? null : +v); }); return o; };
   const podglad = () => { const o = zbierz(); OS.forEach(p => { const z = zapotrzebowanie(o[p]); $(`[data-wynik="${p}"]`).innerHTML = z ? `<b>${z.kcal} kcal / dzień</b> · białko ${z.bMin}–${z.bMax} g<br><span class="mute">podstawowa przemiana ${z.bmr} kcal · z aktywnością ${z.cpm} kcal</span>` : '<span class="mute">Podaj wiek, wagę i wzrost.</span>'; }); };
   $('#view').oninput = podglad; podglad();
@@ -680,6 +680,7 @@ function widokUstawienia(pierwszy) {
   };
   if (!pierwszy) {
     $('#odswiez').onclick = async () => { await wczytajBaze(); rysuj(); };
+    if (window.caches) caches.keys().then(ks => { const e = $('#wersja'); if (e) e.textContent = 'Wersja: ' + (ks.find(k => k.startsWith('plan-')) || 'brak'); }).catch(() => {});
     $('#wyczysc').onclick = () => {
       if (!confirm('Usunąć zapisane dane, plan i odhaczone zakupy z tego telefonu?' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu — u drugiej osoby plan zostaje.' : ''))) return;
       if (window.Sync && window.Sync.kod) window.Sync.odlacz();
@@ -977,6 +978,8 @@ document.addEventListener('click', e => {
     else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => alert('Lista skopiowana — wklej ją do notatek albo SMS-a.'), () => alert(tekst));
     else alert(tekst);
   }
+  else if (t.id === 'przeladuj') location.reload();
+  else if (t.id === 'aktualizuj') aktualizujApke();
   else if (t.id === 'kupWszystko') {
     for (const kat of ['świeże', 'zamrażarka', 'zapas']) for (const pp of window._z.wynik[kat]) odhaczKup(plan.start + '|' + pp.produkt, true);
     LS.set('odhaczone', odhaczone); rysuj();
@@ -1069,10 +1072,42 @@ window.App = {
   }
 };
 
+// ---------- aktualizacje aplikacji ----------
+let swReg = null;
+function pokazNowaWersja() {
+  if ($('#nowa-wersja')) return;
+  const d = document.createElement('div'); d.id = 'nowa-wersja'; d.className = 'nowa-wersja';
+  d.innerHTML = 'Jest nowa wersja aplikacji. <button class="btn maly" id="przeladuj">Odśwież</button>';
+  document.body.appendChild(d);
+}
+// twarda aktualizacja: kasuje pamięć podręczną i service workera, po czym ładuje wszystko od nowa (dane planu zostają)
+async function aktualizujApke() {
+  try {
+    if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+    if (navigator.serviceWorker) await Promise.all((await navigator.serviceWorker.getRegistrations()).map(r => r.unregister()));
+  } catch (e) { /* nic */ }
+  location.reload();
+}
+
 // ---------- start ----------
 (async function start() {
   try { await wczytajBaze(); }
   catch (e) { $('#view').innerHTML = '<p class="pusty">Nie udało się wczytać bazy dań. Sprawdź połączenie i odśwież.</p>'; return; }
   rysuj();
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // Aplikacja z ekranu głównego jest tylko wznawiana, nie ładowana od nowa — dlatego sama sprawdzam aktualizacje przy powrocie do niej.
+    const mialKontroler = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!mialKontroler) return;                       // pierwsza instalacja: nie ma czego odświeżać
+      const ae = document.activeElement;
+      if (!$('#modal').hidden || (ae && ae.matches('input, textarea, select'))) pokazNowaWersja(); else location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      swReg = reg;
+      const sprawdz = () => reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) sprawdz(); });
+      window.addEventListener('focus', sprawdz);
+      setInterval(sprawdz, 10 * 60 * 1000);
+    }).catch(() => {});
+  }
 })();

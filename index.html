@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Plan</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1f7045">
+<meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1311" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Plan">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -15,11 +16,11 @@
 <body>
 <main id="view"><p class="pusty">Wczytuję bazę dań…</p></main>
 <nav id="tabs" hidden>
-  <button data-tab="tydzien">Tydzień</button>
-  <button data-tab="zakupy">Zakupy</button>
-  <button data-tab="lodowka">Lodówka</button>
-  <button data-tab="waga">Waga</button>
-  <button data-tab="ustawienia">Ustawienia</button>
+  <button data-tab="tydzien"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Tydzień</span></button>
+  <button data-tab="zakupy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5h14l-1.2 11.5H6.2z"/><path d="M9 8.5a3 3 0 0 1 6 0"/></svg><span>Zakupy</span></button>
+  <button data-tab="lodowka"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3.5"/><path d="M6 10.5h12M9.5 6v1.8M9.5 13.5v3"/></svg><span>Lodówka</span></button>
+  <button data-tab="waga"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4.5"/><path d="M8.2 9.8a5 5 0 0 1 7.6 0M12 14l2.2-3"/></svg><span>Waga</span></button>
+  <button data-tab="ustawienia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Ustawienia</span></button>
 </nav>
 <div id="modal" hidden><div id="modal-box"></div></div>
 <script src="obrazki.js"></script>

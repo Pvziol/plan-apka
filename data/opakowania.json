@@ -1,0 +1,68 @@
+{
+ "gnocchi": {
+  "rodzaj": "opak.",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "jaja": {
+  "rodzaj": "opak.",
+  "wielkosc": 10,
+  "jednostka": "szt."
+ },
+ "jogurt naturalny": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "mleko 2%": {
+  "rodzaj": "karton",
+  "wielkosc": 1000,
+  "jednostka": "ml"
+ },
+ "pieczarki": {
+  "rodzaj": "opak.",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "pomidorki koktajlowe": {
+  "rodzaj": "opak.",
+  "wielkosc": 250,
+  "jednostka": "g",
+  "sztuk_ok": 20
+ },
+ "pomidory krojone (puszka)": {
+  "rodzaj": "puszka",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "ser topiony": {
+  "rodzaj": "bloczek",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "szpinak świeży": {
+  "rodzaj": "opak.",
+  "wielkosc": 150,
+  "jednostka": "g"
+ },
+ "twaróg półtłusty": {
+  "rodzaj": "kostka",
+  "wielkosc": 250,
+  "jednostka": "g"
+ },
+ "zakwas na barszcz biały": {
+  "rodzaj": "butelka",
+  "wielkosc": 500,
+  "jednostka": "ml"
+ },
+ "zakwas na żurek": {
+  "rodzaj": "butelka",
+  "wielkosc": 500,
+  "jednostka": "ml"
+ },
+ "śmietana 12%": {
+  "rodzaj": "kubek",
+  "wielkosc": 200,
+  "jednostka": "g"
+ }
+}

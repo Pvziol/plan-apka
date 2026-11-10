@@ -125,41 +125,41 @@ async function wczytajBaze() {
 
 // ---------- silnik: skalowanie garnka ----------
 // Kc = ile kcal ma mieć cały garnek. ratio = docelowe białko na 1 kcal (ustawiane przy zamianie dania).
-function rozwiaz(dish, Kc, ratio) {
-  const ing = dish.skladniki, K = dish.razem.kcal;
-  const pf = dish.razem.bialko / (sum(ing, i => i.bialko) || 1);
-  let s = Kc / K;
-  let a = s, b = s, lev = new Set(), dodatek = null;
-  let P = dish.razem.bialko * s;
-  if (ratio) {
-    // 1) dźwignia: składniki bogatsze w białko niż średnia dania skaluję osobno od reszty (od 0,35× do 2,5× porcji)
-    const MIN = 0.35 * s, MAX = 2.5 * s;
-    const srednia = dish.razem.bialko / K;
+// Mięso i ryby z zamrażarki to stałe woreczki z pierwotnego planu (np. pierś 360 g na środę, 280 g na sobotę, 2 × 160 g kotlety):
+// zawsze 1× gramatura z przepisu, niezależnie od kcal. Resztę składników dopasowuję tak, żeby kalorie się zgadzały.
+// Owoce mrożone się nie liczą — odważasz je z dużej paczki.
+const stala = i => !!(i.ilosc && i.produkt && i.kategoria === 'zamrażarka' && i.jednostka === 'g' && !/mrożon/.test(i.produkt));
+// Białka nie wyrównuję już osobnym skyrem „obok dania” ani zmianą mięsa w obiedzie, tylko gramaturami pozostałych składników w daniu.
+function rozwiaz(dish, Kc, ratio, skyrMax = 0, lever = true) {
+  const all = dish.skladniki, K = dish.razem.kcal, Ptot = dish.razem.bialko;
+  const pf = Ptot / (sum(all, i => i.bialko) || 1);
+  const fix = all.filter(stala), ing = all.filter(i => !stala(i));
+  const Kf = sum(fix, i => i.kcal), Pf = sum(fix, i => i.bialko * pf);
+  const KR = K - Kf, PR = Ptot - Pf, s0 = Kc / K;
+  const sw = fix.length && KR > 0 ? clamp((Kc - Kf) / KR, 0.3, 2.5) : s0;      // skala składników spoza woreczków
+  const Kreal = fix.length ? Kf + KR * sw : Kc;
+  let a = sw, b = sw, lev = new Set();
+  let P = Pf + PR * sw;
+  if (ratio && lever) {
+    // dźwignia: składniki bogatsze w białko niż średnia dania skaluję osobno od reszty (0,7×–1,35× porcji, czyli +35% / −30%)
+    const MIN = 0.7 * sw, MAX = 1.35 * sw, Kcw = KR * sw, rf = Math.max(0, (ratio * Kreal - Pf) / Kcw);
+    const srednia = PR / KR;
     const L = ing.filter(i => i.ilosc && i.kcal > 0 && i.bialko * pf / i.kcal > srednia);
-    const Kl = sum(L, i => i.kcal), Pl = sum(L, i => i.bialko * pf), Kr = K - Kl, Pr = dish.razem.bialko - Pl;
+    const Kl = sum(L, i => i.kcal), Pl = sum(L, i => i.bialko * pf), Kr = KR - Kl, Pr = PR - Pl;
     const det = Kl * Pr - Kr * Pl;
     if (Kl > 0 && Kr > 0 && Math.abs(det) > 1e-6) {
-      let aa = clamp(Kc * (Pr - Kr * ratio) / det, MIN, MAX);
-      let bb = (Kc - aa * Kl) / Kr;
-      if (bb < MIN || bb > MAX) { bb = clamp(bb, MIN, MAX); aa = (Kc - bb * Kr) / Kl; }
-      if (aa >= MIN - 1e-9 && aa <= MAX + 1e-9) { a = aa; b = bb; lev = new Set(L); P = a * Pl + b * Pr; }
-    }
-    // 2) nadal za mało białka: dokładam skyr obok dania (najwyżej 30% kcal posiłku), a danie odpowiednio zmniejszam
-    if (P < ratio * Kc - 0.5) {
-      const ro = P / Kc, ros = SKYR.b / SKYR.kcal;
-      const x = clamp((ratio - ro) / (ros - ro), 0, 0.3);
-      if (x > 0.01) {
-        a *= 1 - x; b *= 1 - x; s *= 1 - x;
-        dodatek = { g: x * Kc / SKYR.kcal, kcal: x * Kc, b: x * Kc * ros };
-        P = P * (1 - x) + dodatek.b;
-      }
+      let aa = clamp(Kcw * (Pr - Kr * rf) / det, MIN, MAX);
+      let bb = (Kcw - aa * Kl) / Kr;
+      if (bb < MIN || bb > MAX) { bb = clamp(bb, MIN, MAX); aa = (Kcw - bb * Kr) / Kl; }
+      if (aa >= MIN - 1e-9 && aa <= MAX + 1e-9) { a = aa; b = bb; lev = new Set(L); P = Pf + a * Pl + b * Pr; }
     }
   }
-  const roznica = ratio ? P - ratio * Kc : 0;
-  return { a, b, lev, s, P, dodatek, roznica, wyrownane: ratio ? Math.abs(roznica) < 1 : null };
+  const roznica = ratio ? P - ratio * Kreal : 0;
+  return { a, b, lev, s: s0, sw, P, dodatek: null, roznica, wyrownane: ratio ? Math.abs(roznica) < 1 : null, Kreal };
 }
+const rz = (dish, K, ratio, slot) => rozwiaz(dish, K, ratio, 0, slot !== 'ob');     // w obiadach nie ruszam proporcji (mięso zostaje, jak w woreczku)
 const SKYR = { kcal: 0.63, b: 0.11 };   // na 1 g, jak w PDF-ach
-const skala = (g, i) => g.lev.has(i) ? g.a : g.b;
+const skala = (g, i) => stala(i) ? 1 : (g.lev.has(i) ? g.a : g.b);
 
 // ---------- silnik: cały tydzień ----------
 function oblicz(pl, c) {
@@ -169,8 +169,10 @@ function oblicz(pl, c) {
   function garnek(id, slot, d, porcje, ratio) {
     const dish = DB.dania.get(id);
     if (!dish) return null;
-    const K = sum(porcje, x => x.kcal);
-    const g = Object.assign({ dish, slot, d, porcje, K, ratio }, rozwiaz(dish, K, ratio));
+    let K = sum(porcje, x => x.kcal);
+    const r = rz(dish, K, ratio, slot);
+    if (Math.abs(r.Kreal - K) > 0.5) { const f = r.Kreal / K; porcje.forEach(x => { x.kcal *= f; }); K = r.Kreal; }   // stałe woreczki mogą lekko zmienić kcal posiłku
+    const g = Object.assign({ dish, slot, d, porcje, K, ratio }, r);
     for (const x of porcje) {
       x.udzial = x.kcal / K; x.b = x.udzial * g.P;
       dni[x.d][x.p].kcal += x.kcal; dni[x.d][x.p].b += x.b;
@@ -247,7 +249,7 @@ function ocena(pl, c) {
   });
   kara += 20 * Math.max(0, tunczyk - 1);
   pl.dni.flatMap(day => [day.sn, day.k18, day.ob, day.m13.wsp, day.m13.ona, day.m13.on]).filter(Boolean).forEach(id => { if (oceny[id] === 1) kara -= 6; else if (ukryte(id)) kara += 200; });
-  w.garnki.forEach(g => { if (g.s > 1.7 || g.s < 0.55) kara += 10; });
+  w.garnki.forEach(g => { if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) kara += 10; });
   return kara;
 }
 function ulozTydzien() {
@@ -266,8 +268,34 @@ function planAktualny() {
 }
 
 // ---------- lista zakupów ----------
+// W bazie przyprawy to jeden tekst na danie („czosnek 3 ząbki, oregano, sól”). Rozbijam je na pojedyncze pozycje,
+// łączę te same i sumuję ilości w tych samych jednostkach (czosnek: 14 ząbków).
+function przyprawyZbiorczo(teksty) {
+  const alias = { 'gałka': 'gałka muszkatołowa', 'ziele': 'ziele angielskie', 'natka': 'natka pietruszki', 'szczypta cukru': 'cukier', 'cukier szczypta': 'cukier' };
+  const jedn = { 'zębki': 'ząbki', 'ząbki': 'ząbki', 'zębek': 'ząbki', 'ząbek': 'ząbki', 'zębków': 'ząbki', 'łyżeczka': 'łyżeczki', 'łyżeczki': 'łyżeczki', 'łyżeczek': 'łyżeczki', 'łyżka': 'łyżki', 'łyżki': 'łyżki', 'l': 'l', 'ml': 'ml', 'g': 'g' };
+  const m = new Map();
+  for (const t of teksty) for (const el of String(t).split(/,\s+(?![^()]*\))/)) {
+    let x = el.trim(); if (!x) continue;
+    const nota = (x.match(/\(([^)]*)\)/) || [])[1];
+    x = x.replace(/\([^)]*\)/g, '').trim();
+    const k = x.match(/^([^\d]*?)[:\s]*(\d+(?:,\d+)?)\s*(\S*)/);
+    let nazwa = (k ? k[1] : x).trim().replace(/[:\s]+$/, '').toLowerCase(), ilosc = k ? parseFloat(k[2].replace(',', '.')) : null, u = k ? (jedn[k[3].toLowerCase().replace(/[.,/]+$/, '')] || '') : '';
+    nazwa = alias[nazwa] || nazwa;
+    if (!nazwa) continue;
+    if (!m.has(nazwa)) m.set(nazwa, { il: {}, bez: false, nota: nota || '' });
+    const e = m.get(nazwa);
+    if (ilosc === null) e.bez = true; else e.il[u] = (e.il[u] || 0) + ilosc;
+    if (nota && !e.nota) e.nota = nota;
+  }
+  const f = n => (Math.round(n * 10) / 10).toString().replace('.', ',');
+  return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pl')).map(([n, e]) => {
+    const skrot = { 'ząbki': 'ząb.', 'łyżeczki': 'łyżecz.', 'łyżki': 'łyż.' };
+    const il = Object.entries(e.il).map(([u, q]) => `${f(q)}${u ? ' ' + (skrot[u] || u) : ''}`).join(' + ');
+    return n + (il ? ' — ' + il : '') + (e.nota ? ` (${e.nota})` : '');
+  });
+}
 function zakupy(w) {
-  const poz = new Map(), inne = new Set(), przyprawy = new Set();
+  const poz = new Map(), inne = new Set(), przyprawy = [], worki = {};
   const dodaj = (produkt, kat, q, u) => {
     if (!poz.has(produkt)) poz.set(produkt, { produkt, kat: kat || 'zapas', il: {} });
     const p = poz.get(produkt); p.il[u] = (p.il[u] || 0) + q;
@@ -278,9 +306,10 @@ function zakupy(w) {
     if (f < 0.001) continue;
     for (const i of g.dish.skladniki) {
       if (i.ilosc && i.produkt) dodaj(i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
+      if (stala(i) && f > 0.999) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa });   // woreczek na to danie
       else inne.add(i.nazwa + (g.dish.warianty && g.dish.warianty.length && i.nazwa.startsWith('GLAZURA') ? '' : '') + ' — ' + g.dish.nazwa);
     }
-    (g.dish.przyprawy || []).forEach(t => przyprawy.add(t));
+    (g.dish.przyprawy || []).forEach(t => przyprawy.push(t));
     if (g.dosypka) { dodaj('odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala * f, 'g'); dodaj('skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala * f, 'g'); }
     if (g.dodatek) dodaj('skyr naturalny', 'świeże', g.dodatek.g * f, 'g');
   }
@@ -314,10 +343,10 @@ function zakupy(w) {
       else { const krok = (u === 'szt.' || u === 'krom.' || u === 'pusz.') ? 1 : 0.5; kupno[u] = Math.ceil(q / krok - 1e-6) * krok; }
     }
     const st = Object.entries(masz).filter(([, q]) => q > 0.5).map(([u, q]) => fmtStan(q, u));
-    (wynik[p.kat] || wynik.zapas).push({ produkt: p.produkt, ile: czesci.join(' + '), dop, kupno, stan: st.join(' + ') });
+    (wynik[p.kat] || wynik.zapas).push({ produkt: p.produkt, ile: czesci.join(' + '), dop, kupno, stan: st.join(' + '), worki: worki[p.produkt] || null });
   }
   Object.values(wynik).forEach(a => a.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
-  return { wynik, inne: [...inne], przyprawy: [...przyprawy] };
+  return { wynik, inne: [...inne], przyprawy: przyprawyZbiorczo(przyprawy) };
 }
 
 // ---------- widoki ----------
@@ -347,7 +376,7 @@ function widokTydzien() {
       else if (g.porcje.length > 2) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
       if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
       if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
-      if (g.s > 1.7 || g.s < 0.55) zn += `<span class="znaczek ostrz">porcja ×${g.s.toFixed(2)} względem przepisu</span>`;
+      if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
       h += `<div class="posilek"><div class="pora">${PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
         <div class="gora">${Obr.html(g.dish)}<button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button>
         ${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">zmień</button>`}</div>
@@ -414,7 +443,7 @@ function pokazPrzepis(g, spont) {
   let wiersze = '', grupa = null;
   for (const i of dish.skladniki) {
     if (i.grupa && i.grupa !== grupa) { grupa = i.grupa; wiersze += `<tr class="grupa"><td colspan="2">${esc(grupa)}</td></tr>`; }
-    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}</td></tr>`;
+    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
   }
   if (g.dodatek) wiersze += `<tr class="grupa"><td colspan="2">DODATEK BIAŁKOWY — OBOK DANIA</td></tr><tr><td>skyr naturalny<br><span class="mute">wyrównuje białko po zamianie dania; dzielicie jak danie</span></td><td>${fq(g.dodatek.g, 'g')}</td></tr>`;
   const masa = dish.masa_g ? dish.masa_g * g.s : null;
@@ -433,7 +462,7 @@ function pokazPrzepis(g, spont) {
     <table class="skl">${wiersze}</table>
     ${(dish.przyprawy || []).length ? `<p class="mute">Do tego: ${esc(dish.przyprawy.join('; '))}</p>` : ''}
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
-    ${spont ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
+    ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
     <h3>Kto ile bierze</h3><div class="podzial">${pod}</div>
     ${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk i łyżek bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => `<li>${esc(krokPrzeliczony(g, k))}</li>`).join('')}</ol>` : ''}
     ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
@@ -518,9 +547,9 @@ function opcjeBialka(p, w) {
   for (const g of dostepne) {
     const udz = sum(g.porcje.filter(q => q.p === p), q => q.udzial), udzI = sum(g.porcje.filter(q => q.p === inny), q => q.udzial), cur = g.P / g.K, wspolny = udzI > 0;
     const pkt = (n) => udz * (n.P - g.P) / 7;
-    const maxr = rozwiaz(g.dish, g.K, 1).P / g.K;
+    const maxr = rz(g.dish, g.K, 1, g.slot).P / g.K;
     if (maxr > cur + 0.002) {
-      const r = cur + 0.6 * (maxr - cur), n = rozwiaz(g.dish, g.K, r), zysk = pkt(n);
+      const r = cur + 0.6 * (maxr - cur), n = rz(g.dish, g.K, r, g.slot), zysk = pkt(n);
       if (zysk > 0.3 && n.a <= 1.8 * g.a + 1e-9 && n.b >= 0.5 * g.b) {   // bez absurdalnych zmian ilości
         const zm = [...n.lev].filter(i => i.ilosc).slice(0, 3).map(i => `${i.nazwa}: ${fq(i.ilosc * skala(g, i), i.jednostka)} → ${fq(i.ilosc * n.a, i.jednostka)}`);
         if (n.dodatek && !g.dodatek) zm.push(`+ skyr ${fq(n.dodatek.g, 'g')} obok dania`);
@@ -529,9 +558,9 @@ function opcjeBialka(p, w) {
     }
     for (const c of puleDla(g)) {
       if (c.id === g.dish.id || ukryte(c.id)) continue;
-      const mr = rozwiaz(c, g.K, 1).P / g.K;
+      const mr = rz(c, g.K, 1, g.slot).P / g.K;
       if (mr <= cur + 0.002) continue;
-      const r = cur + 0.7 * (mr - cur), n = rozwiaz(c, g.K, r), zysk = pkt(n);
+      const r = cur + 0.7 * (mr - cur), n = rz(c, g.K, r, g.slot), zysk = pkt(n);
       if (zysk > 0.8) zamiany.push({ g, c, r, zysk, wspolny, real: udz * (n.P - g.P) / 7 });
     }
   }
@@ -541,24 +570,25 @@ function opcjeBialka(p, w) {
   return { prop, zamiany };
 }
 function autoPopraw(p) {
-  let n = 0;
-  for (let i = 0; i < 40; i++) {
+  let prop = 0, zam = 0;
+  for (let i = 0; i < 60; i++) {
     const c = cele(), w = oblicz(plan, c);
     if (sum(w.dni, x => x[p].b) / 7 >= c[p].bMin + 1) break;
-    const o = opcjeBialka(p, w).prop[0];
-    if (!o) break;
-    ustawDanie(o.g.d, o.g.slot, o.g.dish.id, o.r); n++;
+    const o = opcjeBialka(p, w), a = o.prop[0], b = o.zamiany[0];
+    if (a && (!b || a.wspolny <= b.wspolny)) { ustawDanie(a.g.d, a.g.slot, a.g.dish.id, a.r); prop++; }   // najpierw drobne zmiany gramatur
+    else if (b && zam < 3) { ustawDanie(b.g.d, b.g.slot, b.c.id, b.r); zam++; }                         // potem wymiana dania (najwyżej 3 dania)
+    else break;
   }
-  return n;
+  return { prop, zam };
 }
 function oknoSugestie(p, ile) {
   sugOsoba = p;
   const c = cele(), w = oblicz(plan, c), sr = sum(w.dni, x => x[p].b) / 7, brak = c[p].bMin - sr, o = opcjeBialka(p, w);
   let h = `<div class="okno-gora"><h2 class="${p}">Białko — ${ETY[p]}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>`;
-  if (ile !== undefined) h += `<div class="uwaga">${ile ? `Dopasowałem proporcje w ${ile} ${ile === 1 ? 'daniu' : 'daniach'}.` : 'Nie ma już czego dopasować bez zmiany dań.'}</div>`;
+  if (ile !== undefined) h += `<div class="uwaga">${ile.prop || ile.zam ? `Dopasowałem proporcje w ${ile.prop} ${ile.prop === 1 ? 'daniu' : 'daniach'}${ile.zam ? ` i wymieniłem ${ile.zam} ${ile.zam === 1 ? 'danie' : 'dania'}` : ''}.` : 'Nie ma już czego poprawić.'}</div>`;
   if (brak <= 0) h += `<p>Średnio ${r0(sr)} g dziennie — to już w celu (min. ${c[p].bMin} g).</p>`;
   else h += `<p>Średnio ${r0(sr)} g dziennie, cel min. ${c[p].bMin} g. Brakuje ok. <b>${r0(brak)} g</b> dziennie. Kalorie zostają bez zmian, a przeliczą się gramatury, lista zakupów i lodówka.</p>
-    <button class="btn glowny szeroki" data-auto-popraw="${p}">Popraw automatycznie (same proporcje)</button>`;
+    <button class="btn glowny szeroki" data-auto-popraw="${p}">Popraw automatycznie</button><p class="mute">Najpierw lekko zmienia gramatury składników w daniach, a jeśli to za mało — wymienia dania na bogatsze w białko.</p>`;
   h += `<h3>Zmień proporcje w daniu</h3>` + (o.prop.length ? o.prop.slice(0, 5).map(x => `<div class="karta"><b>${esc(opisPosilku(x.g))}</b> — ${esc(x.g.dish.nazwa)}<br><span class="mute">${x.zm.length ? esc(x.zm.join(' · ')) : 'więcej składników białkowych kosztem reszty'}</span><br><span class="znak ok">+${(Math.round(x.real * 10) / 10).toString().replace('.', ',')} g / dzień</span>${x.wspolny ? ' <span class="mute">· wspólne danie, zmieni też porcję drugiej osoby</span>' : ` <span class="mute">· tylko ${ETY[p]}</span>`}
     <button class="btn maly" style="float:right" data-sug="${x.g.d}|${x.g.slot}|${esc(x.g.dish.id)}|${x.r}">Zastosuj</button></div>`).join('') : '<p class="mute">Nic więcej nie da się dopasować w obecnych daniach.</p>');
   h += `<h3>Wymień danie jednym kliknięciem</h3>` + (o.zamiany.length ? o.zamiany.slice(0, 6).map(x => `<div class="karta"><b>${esc(opisPosilku(x.g))}</b><br>${esc(x.g.dish.nazwa)} → <b>${esc(x.c.nazwa)}</b><br><span class="znak ok">+${(Math.round(x.real * 10) / 10).toString().replace('.', ',')} g / dzień</span>${x.wspolny ? ' <span class="mute">· wspólne danie, dotyczy też drugiej osoby</span>' : ` <span class="mute">· tylko ${ETY[p]}</span>`}
@@ -576,9 +606,11 @@ function widokZakupy() {
     if (!z.wynik[kat].length) continue;
     h += `<h2>${nazwy[kat]}</h2><div class="karta">` + z.wynik[kat].map(p => {
       const k = klucz(p.produkt), on = !!odhaczone[k];
-      return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}</span></label>`;
+      return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}${p.worki ? `<small>podziel na woreczki: ${esc(p.worki.sort((x, y) => x.d - y.d).map(x => `${x.g} g (${DNI_KR[x.d]}: ${x.dish.length > 28 ? x.dish.slice(0, 26) + '…' : x.dish})`).join(' · '))}</small>` : ''}</span></label>`;
     }).join('') + `</div>`;
   }
+  if (Object.values(z.wynik).some(a => a.some && a.some(p => p.worki))) h += `<h2>Do zamrażarki — jak porcjować</h2><div class="karta"><p class="mute">Jeden woreczek = jedno danie, zawsze o tej samej wadze (jak w pierwotnym planie). Danie zawsze dostaje cały woreczek, a resztę składników apka dopasowuje do kalorii, dlatego mięso się nie zmienia.</p>
+    <ul class="mute" style="margin:6px 0 0;padding-left:18px"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Etykieta: co · ile g · na co · data, np. „pierś 360 g · środa · 14.10”.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej; surowego mięsa po rozmrożeniu nie zamrażasz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy. Owoców mrożonych nie porcjujesz — odważasz z dużej paczki.</li></ul></div>`;
   if (z.wynik.masz.length) h += `<h2>Masz już w lodówce</h2><div class="karta">${z.wynik.masz.map(p => `<p><b>${esc(p.produkt)}</b> <span class="mute">— potrzeba ${esc(p.ile)}, masz ${esc(p.stan)}</span></p>`).join('')}</div>`;
   if (z.inne.length) h += `<h2>Bez gramatury</h2><div class="karta">${z.inne.map(t => `<p>${esc(t)}</p>`).join('')}</div>`;
   if (z.przyprawy.length) h += `<h2>Przyprawy i dodatki</h2><div class="karta"><p class="mute">Sprawdź w szafce:</p>${z.przyprawy.map(t => `<p>${esc(t)}</p>`).join('')}</div>`;
@@ -950,7 +982,7 @@ document.addEventListener('click', e => {
     const [d, sl, kier] = t.dataset.nudge.split(':'), g = window._w.garnki.find(x => x.d === +d && x.slot === sl);
     if (g) {
       const cur = g.P / g.K, y = $('#modal-box').scrollTop;
-      const r = +kier > 0 ? cur + 0.25 * (rozwiaz(g.dish, g.K, 1).P / g.K - cur) : cur - 0.25 * (cur - rozwiaz(g.dish, g.K, 0.0001).P / g.K);
+      const r = +kier > 0 ? cur + 0.25 * (rz(g.dish, g.K, 1, g.slot).P / g.K - cur) : cur - 0.25 * (cur - rz(g.dish, g.K, 0.0001, g.slot).P / g.K);
       ustawDanie(+d, sl, g.dish.id, r); rysuj();
       const gi = window._w.garnki.findIndex(x => x.d === +d && x.slot === sl);
       if (gi >= 0) { oknoPrzepis(gi); $('#modal-box').scrollTop = y; }

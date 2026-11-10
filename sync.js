@@ -27,26 +27,18 @@ function wyluskaj(t) {
 function opisBledu(e) {
   const c = (e && e.code) || '';
   if (c.includes('permission-denied')) return 'Brak dostępu — sprawdź reguły bazy w Firebase.';
-  if (c.includes('admin-restricted') || c.includes('operation-not-allowed')) return 'Włącz logowanie anonimowe w Firebase (Authentication).';
   if (c.includes('unavailable') || c.includes('network')) return 'Brak połączenia z siecią.';
   return 'Błąd synchronizacji' + (c ? ' (' + c + ')' : '') + '.';
 }
 
 async function sdk() {
   if (F) return F;
-  const [app, fs, au] = await Promise.all([
-    import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js'), import(SDK + 'firebase-auth.js')
-  ]);
+  // bez logowania: dostęp do planu daje sam 24-znakowy kod (patrz tools/firestore.rules)
+  const [app, fs] = await Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]);
   const a = app.initializeApp(cfg);
   let d;
   try { d = fs.initializeFirestore(a, { localCache: fs.persistentLocalCache(), ignoreUndefinedProperties: true }); }
   catch (e) { d = fs.initializeFirestore(a, { ignoreUndefinedProperties: true }); }
-  const auth = au.getAuth(a);
-  await new Promise((res, rej) => {
-    const off = au.onAuthStateChanged(auth, u => {
-      if (u) { off(); res(u); } else au.signInAnonymously(auth).catch(e => { off(); rej(e); });
-    });
-  });
   db = d; F = fs;
   return F;
 }

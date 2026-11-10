@@ -615,6 +615,7 @@ function widokZakupy() {
   if (z.inne.length) h += `<h2>Bez gramatury</h2><div class="karta">${z.inne.map(t => `<p>${esc(t)}</p>`).join('')}</div>`;
   if (z.przyprawy.length) h += `<h2>Przyprawy i dodatki</h2><div class="karta"><p class="mute">Sprawdź w szafce:</p>${z.przyprawy.map(t => `<p>${esc(t)}</p>`).join('')}</div>`;
   if (['świeże', 'zamrażarka', 'zapas'].some(k => z.wynik[k].some(p => !odhaczone[klucz(p.produkt)]))) h += `<button class="btn szeroki" id="kupWszystko" style="margin-bottom:8px">Kupione wszystko — dopisz do lodówki</button>`;
+  if (Object.keys(odhaczone).some(k => k.startsWith(plan.start + '|'))) h += `<button class="btn szeroki" id="odznaczWszystko" style="margin-bottom:8px">Odznacz wszystko — usuń z lodówki</button>`;
   h += `<button class="btn glowny szeroki" id="udostepnij">Udostępnij listę</button>`;
   $('#view').innerHTML = h;
   window._z = z;
@@ -629,7 +630,12 @@ function odhaczKup(k, on) {
     odhaczone[k] = kup;
   } else {
     if (!prev) return;
-    if (typeof prev === 'object') for (const [u, q] of Object.entries(prev)) zmienLodowke(prod, u, -q);
+    if (typeof prev === 'object') {
+      for (const [u, q] of Object.entries(prev)) zmienLodowke(prod, u, -q);
+      for (const u of Object.keys(prev)) if (lodowka[prod] && Math.abs(lodowka[prod][u]) < 0.01) { delete lodowka[prod][u]; Z([[['lodowka', prod, u], undefined]]); }   // wyzerowane pozycje znikają z lodówki
+      if (lodowka[prod] && !Object.keys(lodowka[prod]).length) delete lodowka[prod];
+      LS.set('lodowka', lodowka);
+    }
     delete odhaczone[k];
   }
   Z([[['odhaczone', k], on ? odhaczone[k] : undefined]]);
@@ -973,6 +979,11 @@ document.addEventListener('click', e => {
   }
   else if (t.id === 'kupWszystko') {
     for (const kat of ['świeże', 'zamrażarka', 'zapas']) for (const pp of window._z.wynik[kat]) odhaczKup(plan.start + '|' + pp.produkt, true);
+    LS.set('odhaczone', odhaczone); rysuj();
+  }
+  else if (t.id === 'odznaczWszystko') {
+    if (!confirm('Odznaczyć wszystkie zakupy i odjąć kupione ilości z lodówki?')) return;
+    for (const k of Object.keys(odhaczone).filter(x => x.startsWith(plan.start + '|'))) odhaczKup(k, false);
     LS.set('odhaczone', odhaczone); rysuj();
   }
   else if (t.dataset.sugestie) oknoSugestie(t.dataset.sugestie);

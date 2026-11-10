@@ -307,6 +307,24 @@ function przyprawyZbiorczo(teksty) {
     return n + (il ? ' — ' + il : '') + (e.nota ? ` (${e.nota})` : '');
   });
 }
+// Przyprawy dania jako wiersze tabeli składników: nazwa + ilość (albo pusto = „do smaku”) + ewentualna uwaga.
+function przyprawyWiersze(dish) {
+  const wynik = [];
+  for (const t of dish.przyprawy || []) for (const el of String(t).split(/,\s+(?![^()]*\))/)) {
+    let x = el.trim(); if (!x) continue;
+    const nota = (x.match(/\(([^)]*)\)/) || [])[1] || '';
+    x = x.replace(/\([^)]*\)/g, '').trim();
+    let nazwa, ilosc = '';
+    if (/^(szczypta cukru|cukier szczypta)$/i.test(x)) { nazwa = 'cukier'; ilosc = 'szczypta'; }
+    else { const m = x.match(/^([^\d]*?)[:\s]*(\d.*)$/); if (m) { nazwa = m[1].trim(); ilosc = m[2].trim(); } else nazwa = x.replace(/[:\s]+$/, ''); }
+    if (!nazwa) continue;
+    ilosc = ilosc.replace(/\bzębki\b/g, 'ząbki').replace(/\bzębek\b/g, 'ząbek').replace(/\bzębków\b/g, 'ząbków');
+    const pelna = { 'gałka': 'gałka muszkatołowa', 'ziele': 'ziele angielskie', 'natka': 'natka pietruszki' };
+    nazwa = pelna[nazwa.toLowerCase()] || nazwa;
+    wynik.push({ nazwa: nazwa.charAt(0).toUpperCase() + nazwa.slice(1), ilosc, nota });
+  }
+  return wynik;
+}
 function zakupy(w) {
   const poz = new Map(), inne = new Set(), przyprawy = [], worki = {};
   const dodaj = (produkt, kat, q, u) => {
@@ -371,6 +389,7 @@ function stan(b, c) { return b < c.bMin ? ['za mało', 'zle'] : b > c.bMax ? ['z
 function widokTydzien() {
   const c = cele(), w = oblicz(plan, c);
   if (otwartyDzien === null) otwartyDzien = dzisIdx();
+  const dzisRz = (() => { const t = new Date(); t.setHours(12, 0, 0, 0); return Math.round((t - dataDnia(0)) / 864e5); })();
   const sr = p => sum(w.dni, x => x[p].b) / 7, srK = p => sum(w.dni, x => x[p].kcal) / 7;
   let h = `<h1>Tydzień ${dataDnia(0).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}–${dataDnia(6).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</h1>
   ${przypomnieniaDzis(w)}
@@ -379,7 +398,7 @@ function widokTydzien() {
     <small>średnio / dzień · cel ${c[p].kcal}</small><small>białko ${r0(sr(p))} g · cel ${c[p].bMin}–${c[p].bMax} g <span class="znak ${kl}">${t}</span></small>${t === 'za mało' ? `<button class="btn maly sug" data-sugestie="${p}">Jak poprawić?</button>` : ''}</div>`; }).join('')}</div>`;
   w.dni.forEach((x, d) => {
     const day = plan.dni[d];
-    h += `<details class="dzien" data-d="${d}" ${d === otwartyDzien ? 'open' : ''}><summary><b>${DNI[d]} <span class="mute">${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</span></b>
+    h += `<details class="dzien ${d === dzisRz ? 'dzis' : ''}" data-d="${d}" ${d === otwartyDzien ? 'open' : ''}><summary><b>${DNI[d]} <span class="mute">${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</span>${d === dzisRz ? '<span class="dzis-znacz">dziś</span>' : ''}</b>
       <span><span class="ona">${r0(x.ona.kcal)} kcal · ${r0(x.ona.b)} g</span><br><span class="on">${r0(x.on.kcal)} kcal · ${r0(x.on.b)} g</span></span></summary><div class="dzien-tresc">
       <div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>`;
     x.sloty.forEach(({ g, odgrzewane }) => {
@@ -459,6 +478,9 @@ function pokazPrzepis(g, spont) {
     if (i.grupa && i.grupa !== grupa) { grupa = i.grupa; wiersze += `<tr class="grupa"><td colspan="2">${esc(grupa)}</td></tr>`; }
     wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
   }
+  // przyprawy i dodatki: osobne wiersze tabeli, z ilością albo „do smaku”
+  const spr = przyprawyWiersze(dish);
+  if (spr.length) wiersze += `<tr class="grupa"><td colspan="2">PRZYPRAWY I DODATKI</td></tr>` + spr.map(x => `<tr><td>${esc(x.nazwa)}${x.nota ? `<br><span class="mute">${esc(x.nota)}</span>` : ''}</td><td>${x.ilosc ? esc(x.ilosc) : '<span class="mute">do smaku</span>'}</td></tr>`).join('');
   if (g.dodatek) wiersze += `<tr class="grupa"><td colspan="2">DODATEK BIAŁKOWY — OBOK DANIA</td></tr><tr><td>skyr naturalny<br><span class="mute">wyrównuje białko po zamianie dania; dzielicie jak danie</span></td><td>${fq(g.dodatek.g, 'g')}</td></tr>`;
   const masa = dish.masa_g ? dish.masa_g * g.s : null;
   const pod = g.porcje.map(q => {
@@ -474,7 +496,6 @@ function pokazPrzepis(g, spont) {
     ${dish.dodane ? '<p class="mute">Danie dodane do bazy — wartości liczone z tabel, nie z Twojego planu.</p>' : ''}
     <h3>Składniki — ${g.porcje.length > 2 ? 'na 2 dni' : g.porcje.length === 1 ? 'jedna porcja' : 'dla Was dwojga'}</h3>
     <table class="skl">${wiersze}</table>
-    ${(dish.przyprawy || []).length ? `<p class="mute">Do tego: ${esc(dish.przyprawy.join('; '))}</p>` : ''}
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
     ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
     <h3>Kto ile bierze</h3><div class="podzial">${pod}</div>

@@ -122,4 +122,5 @@ ol.kroki li { margin: 6px 0; }
 .dwa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .wynik { border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: 15px; }
 .wynik.ona { background: var(--ona-tlo); color: var(--ink); } .wynik.on { background: var(--on-tlo); color: var(--ink); }
+.ostrz-txt { color: var(--ostrz); }
 .uwaga { background: var(--ostrz-tlo); color: var(--ostrz); border-radius: 10px; padding: 8px 12px; font-size: 14px; margin: 8px 0; }

@@ -30,6 +30,11 @@ let plan = LS.get('plan', null);
 let odhaczone = LS.get('odhaczone', {});
 let zakladka = 'tydzien';
 let otwartyDzien = null;
+let odroczone = false, ekranStartowy = false, ekranCzekania = false, formStart = null;
+// wspólny plan: wysyła tylko zmienione pola, np. [[['dni', 3, 'sn'], 'id-dania']]; undefined = usuń pole
+const Z = zm => { if (window.Sync && window.Sync.kod) window.Sync.zapisz(zm); };
+const dniMapa = () => Object.fromEntries(plan.dni.map((d, i) => [String(i), d]));
+const stabilny = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(x => [x, v[x]])) : v);
 
 // ---------- formatowanie ilości ----------
 function ulamek(x) {
@@ -238,6 +243,7 @@ function ulozTydzien() {
   if (plan) naj.dni.forEach((d, i) => { d.tr = Object.assign({ ona: false, on: false }, plan.dni[i] && plan.dni[i].tr); });
   plan = naj; odhaczone = {};
   LS.set('plan', plan); LS.set('odhaczone', odhaczone);
+  Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], {}]]);
 }
 function planAktualny() {
   if (!plan || !plan.dni || plan.dni.length !== 7) return false;
@@ -389,7 +395,12 @@ function wybierz(d, slot, id) {
     if (stary) day.ratio[slot] = stary.P / stary.K;      // białko na kcal w zastępowanym daniu
     if (slot === 'm13') day.m13.wsp = id; else if (slot === 'm13ona') day.m13.ona = id; else if (slot === 'm13on') day.m13.on = id; else day[slot] = id;
     LS.set('plan', plan);
+    const pole = slot === 'm13' ? ['m13', 'wsp'] : slot === 'm13ona' ? ['m13', 'ona'] : slot === 'm13on' ? ['m13', 'on'] : [slot];
+    const zm = [[['dni', d, ...pole], id]];
+    if (stary) zm.push([['dni', d, 'ratio', slot], day.ratio[slot]]);
+    Z(zm);
   }
+  odroczone = false;
   $('#modal').hidden = true;
   rysuj();
 }
@@ -431,30 +442,96 @@ function widokUstawienia(pierwszy) {
     <div class="wynik ${p}" data-wynik="${p}"></div></div>`;
   $('#view').innerHTML = `<h1>${pierwszy ? 'Zacznijmy od Was' : 'Ustawienia'}</h1>
     <p class="mute">Z tych danych liczę dzienne zapotrzebowanie (wzór Mifflina-St Jeora) i pod nie układam tydzień. To szacunek, nie zalecenie medyczne.</p>
-    ${blok('ona')}${blok('on')}
+    ${pierwszy ? kartaDolacz() : ''}${blok('ona')}${blok('on')}
     <button class="btn glowny szeroki" id="zapisz">${pierwszy ? 'Ułóż mój tydzień' : 'Zapisz i przelicz plan'}</button>
-    ${pierwszy ? '' : `<h2>Baza dań</h2><div class="karta"><p>${DB.dania.size} dań w bazie (w tym ${[...DB.dania.values()].filter(d => d.dodane).length} dodanych poza planem z PDF-ów).</p><p class="mute">Nowe dania pojawiają się po odświeżeniu aplikacji.</p>
+    ${pierwszy ? '' : kartaWspolny() + `<h2>Baza dań</h2><div class="karta"><p>${DB.dania.size} dań w bazie (w tym ${[...DB.dania.values()].filter(d => d.dodane).length} dodanych poza planem z PDF-ów).</p><p class="mute">Nowe dania pojawiają się po odświeżeniu aplikacji.</p>
     <div class="rzad"><button class="btn" id="odswiez">Odśwież bazę</button><button class="btn" id="wyczysc">Wyczyść dane</button></div></div>`}`;
   const zbierz = () => { const o = { ona: {}, on: {} }; document.querySelectorAll('[data-p]').forEach(el => { const v = el.value.trim().replace(',', '.'); o[el.dataset.p][el.dataset.k] = el.tagName === 'SELECT' ? v : (v === '' ? null : +v); }); return o; };
   const podglad = () => { const o = zbierz(); OS.forEach(p => { const z = zapotrzebowanie(o[p]); $(`[data-wynik="${p}"]`).innerHTML = z ? `<b>${z.kcal} kcal / dzień</b> · białko ${z.bMin}–${z.bMax} g<br><span class="mute">podstawowa przemiana ${z.bmr} kcal · z aktywnością ${z.cpm} kcal</span>` : '<span class="mute">Podaj wiek, wagę i wzrost.</span>'; }); };
   $('#view').oninput = podglad; podglad();
+  formStart = JSON.parse(JSON.stringify(p0));
   $('#zapisz').onclick = () => {
     const o = zbierz();
     if (!zapotrzebowanie(o.ona) || !zapotrzebowanie(o.on)) { alert('Uzupełnij wiek, wagę i wzrost dla obojga.'); return; }
-    profil = o; LS.set('profil', profil);
+    // zapisuję tylko osobę, której dane ktoś tu zmienił — nie nadpiszę zmian zrobionych w tym czasie na drugim telefonie
+    const zmienione = OS.filter(p => !profil || stabilny(o[p]) !== stabilny(formStart[p]));
+    profil = { ona: zmienione.includes('ona') ? o.ona : profil.ona, on: zmienione.includes('on') ? o.on : profil.on };
+    LS.set('profil', profil);
+    Z(zmienione.map(p => [['profil', p], o[p]]));
     if (!planAktualny()) ulozTydzien();
     zakladka = 'tydzien'; rysuj();
   };
   if (!pierwszy) {
     $('#odswiez').onclick = async () => { await wczytajBaze(); rysuj(); };
-    $('#wyczysc').onclick = () => { if (confirm('Usunąć zapisane dane, plan i odhaczone zakupy z tego telefonu?')) { ['profil', 'plan', 'odhaczone'].forEach(LS.del); profil = plan = null; odhaczone = {}; rysuj(); } };
+    $('#wyczysc').onclick = () => {
+      if (!confirm('Usunąć zapisane dane, plan i odhaczone zakupy z tego telefonu?' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu — u drugiej osoby plan zostaje.' : ''))) return;
+      if (window.Sync && window.Sync.kod) window.Sync.odlacz();
+      ['profil', 'plan', 'odhaczone'].forEach(LS.del); profil = plan = null; odhaczone = {}; rysuj();
+    };
   }
+}
+
+// ---------- wspólny plan ----------
+function opisSync() {
+  const S = window.Sync;
+  if (!S) return '';
+  const t = {
+    brak: 'Plan zapisany tylko na tym telefonie.', lokalny: 'Plan zapisany tylko na tym telefonie.', start: '',
+    laczenie: 'Łączę ze wspólnym planem…', polaczony: '✓ Wspólny plan — zmiany widać na obu telefonach na bieżąco.',
+    offline: 'Wspólny plan — brak sieci, zmiany wyślę, gdy wróci.', blad: 'Problem z połączeniem.'
+  }[S.stan] || '';
+  return esc(t) + (S.blad ? ` <span class="ostrz-txt">${esc(S.blad)}</span>` : '');
+}
+function kartaDolacz() {
+  const S = window.Sync;
+  if (!S || !S.dostepny) return '';
+  return `<div class="karta"><h2 style="margin-top:0">Masz już wspólny plan?</h2>
+    <p class="mute">Jeśli druga osoba założyła plan, wklej kod albo link od niej — wtedy niczego poniżej nie wypełniasz.</p>
+    <label class="pole"><span>Kod lub link</span><input id="kodDom" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <button class="btn szeroki" id="dolacz">Dołącz</button><p class="mute" id="sync-status">${opisSync()}</p></div>`;
+}
+function kartaWspolny() {
+  const S = window.Sync;
+  let h = `<h2>Wspólny plan</h2><div class="karta"><p id="sync-status">${opisSync()}</p>`;
+  if (!S || !S.dostepny) h += `<p class="mute">Praca na jednym planie z dwóch telefonów wymaga jednorazowego podłączenia darmowej bazy (Firebase). Dopóki jej nie ma, plan zostaje tylko na tym telefonie.</p>`;
+  else if (!S.kod) h += `<p class="mute">Udostępnij plan drugiej osobie — oboje będziecie widzieć i zmieniać ten sam tydzień, profile i listę zakupów na bieżąco.</p>
+    <button class="btn glowny szeroki" id="udostepnijPlan">Udostępnij plan</button>
+    <label class="pole"><span>…albo dołącz do planu drugiej osoby: kod lub link</span><input id="kodDom" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <button class="btn szeroki" id="dolacz">Dołącz</button>`;
+  else h += `<p class="mute">Kod planu: <b>${esc(S.kod)}</b></p>
+    <div class="rzad"><button class="btn glowny" id="wyslijLink">Wyślij zaproszenie</button><button class="btn" id="odlacz">Odłącz ten telefon</button></div>`;
+  return h + '</div>';
+}
+function wyslijZaproszenie() {
+  const S = window.Sync, link = S.link();
+  const tekst = `Dołącz do naszego wspólnego planu w apce Plan.\nOtwórz link: ${link}\nAlbo w apce wklej kod w polu „Dołącz”: ${S.kod}`;
+  if (navigator.share) navigator.share({ title: 'Wspólny plan', text: tekst }).catch(() => {});
+  else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => alert('Zaproszenie skopiowane — wyślij je SMS-em albo komunikatorem.'), () => alert(tekst));
+  else alert(tekst);
+}
+function zamknijOkno() {
+  $('#modal').hidden = true;
+  if (odroczone) { odroczone = false; rysuj(); }
 }
 
 function rysuj() {
   $('#view').oninput = null;
-  if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { $('#tabs').hidden = true; widokUstawienia(true); return; }
-  if (!planAktualny()) ulozTydzien();
+  ekranStartowy = ekranCzekania = false;
+  const S = window.Sync;
+  if (S && S.kod && !plan && S.stan !== 'blad') {
+    ekranCzekania = true; $('#tabs').hidden = true;
+    $('#view').innerHTML = `<p class="pusty">Łączę ze wspólnym planem…</p>`;
+    return;
+  }
+  if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
+  if (!planAktualny()) {
+    if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
+      $('#tabs').hidden = false;
+      $('#view').innerHTML = `<div class="uwaga">Wspólny plan zawiera dania, których nie ma jeszcze w bazie na tym telefonie.</div><button class="btn glowny szeroki" id="odswiezBaze">Odśwież bazę dań</button>`;
+      return;
+    }
+    ulozTydzien();
+  }
   $('#tabs').hidden = false;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('akt', b.dataset.tab === zakladka));
   if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else widokUstawienia(false);
@@ -463,12 +540,22 @@ function rysuj() {
 // ---------- zdarzenia ----------
 document.addEventListener('click', e => {
   const t = e.target.closest('button, summary');
-  if (!t) { if (e.target.id === 'modal') $('#modal').hidden = true; return; }
+  if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.dataset.tab) { zakladka = t.dataset.tab; rysuj(); window.scrollTo(0, 0); }
   else if (t.dataset.przepis) { const [g, d] = t.dataset.przepis.split(':'); oknoPrzepis(+g, +d); }
   else if (t.dataset.zmien) { const [d, s] = t.dataset.zmien.split(':'); oknoZmien(+d, s); }
   else if (t.dataset.wybierz) { const [d, s, ...id] = t.dataset.wybierz.split(':'); wybierz(+d, s, id.join(':')); }
-  else if ('zamknij' in t.dataset) $('#modal').hidden = true;
+  else if ('zamknij' in t.dataset) zamknijOkno();
+  else if (t.id === 'udostepnijPlan') { t.disabled = true; window.Sync.utworz().then(ok => { rysuj(); if (ok) wyslijZaproszenie(); }); }
+  else if (t.id === 'wyslijLink') wyslijZaproszenie();
+  else if (t.id === 'odlacz') { if (confirm('Odłączyć ten telefon od wspólnego planu? Plan zostanie tu jako kopia, a u drugiej osoby nic się nie zmieni.')) { window.Sync.odlacz(); rysuj(); } }
+  else if (t.id === 'dolacz') {
+    const v = ($('#kodDom') || {}).value || '';
+    if (plan && profil && !confirm('Dołączyć do wspólnego planu? Plan zapisany na tym telefonie zostanie zastąpiony wspólnym.')) return;
+    t.disabled = true;
+    window.Sync.dolacz(v).then(() => rysuj());
+  }
+  else if (t.id === 'odswiezBaze') wczytajBaze().then(rysuj);
   else if (t.id === 'nowy') { if (confirm('Ułożyć nowy tydzień? Twoje zamiany przepadną.')) { ulozTydzien(); rysuj(); } }
   else if (t.id === 'doZakupow') { zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }
   else if (t.id === 'udostepnij') {
@@ -481,9 +568,41 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.dataset.tr) { const [d, p] = t.dataset.tr.split(':'); plan.dni[+d].tr[p] = t.checked; otwartyDzien = +d; LS.set('plan', plan); rysuj(); }
-  else if (t.dataset.kup) { if (t.checked) odhaczone[t.dataset.kup] = 1; else delete odhaczone[t.dataset.kup]; LS.set('odhaczone', odhaczone); t.closest('.poz').classList.toggle('kupione', t.checked); }
+  if (t.dataset.tr) { const [d, p] = t.dataset.tr.split(':'); plan.dni[+d].tr[p] = t.checked; otwartyDzien = +d; LS.set('plan', plan); Z([[['dni', +d, 'tr', p], t.checked]]); rysuj(); }
+  else if (t.dataset.kup) {
+    if (t.checked) odhaczone[t.dataset.kup] = 1; else delete odhaczone[t.dataset.kup];
+    LS.set('odhaczone', odhaczone); Z([[['odhaczone', t.dataset.kup], t.checked ? 1 : undefined]]);
+    t.closest('.poz').classList.toggle('kupione', t.checked);
+  }
 });
+
+// ---------- interfejs dla sync.js ----------
+window.App = {
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone }),
+  zdalny(data) {
+    const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
+    let nowyPlan = plan;
+    if (data.start && data.dni) {
+      const dni = [0, 1, 2, 3, 4, 5, 6].map(i => data.dni[i]);
+      if (dni.every(Boolean)) nowyPlan = { start: data.start, dni: dni.map(d => Object.assign({ ratio: {}, tr: { ona: false, on: false } }, d)) };
+    }
+    const noweOdh = data.odhaczone || {};
+    const przed = stabilny({ profil, plan, odhaczone });
+    profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
+    if (stabilny({ profil, plan, odhaczone }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
+    LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
+    if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
+    if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza
+    rysuj();
+  },
+  syncZmiana() {
+    const el = $('#sync-status');
+    if (el) el.innerHTML = opisSync();
+    if (ekranCzekania) return rysuj();
+    const S = window.Sync;
+    if (ekranStartowy && S && ((S.dostepny && !$('#dolacz')) || S.kod)) rysuj();
+  }
+};
 
 // ---------- start ----------
 (async function start() {

@@ -98,12 +98,25 @@ async function wczytaj(plik, domyslne) {
     throw e;
   }
 }
+// Zawsze używamy pomidorków koktajlowych (są smaczniejsze), więc zwykły pomidor w przepisach zamieniam na nie: 1 szt. = 10 pomidorków.
+// Wartości kcal i białka wiersza zostają bez zmian, a powtórzone wiersze w jednym daniu łączę w jeden. Pomidorów z puszki i passaty nie ruszam.
+function normalizujPomidory(d) {
+  for (const i of d.skladniki) if (i.produkt === 'pomidor' && i.jednostka === 'szt.') { i.produkt = 'pomidorki koktajlowe'; i.nazwa = 'pomidorki koktajlowe'; i.ilosc = i.ilosc * 10; }
+  const widziane = new Map();
+  d.skladniki = d.skladniki.filter(i => {
+    if (i.produkt !== 'pomidorki koktajlowe') return true;
+    const k = (i.grupa || '') + '|' + i.jednostka, p = widziane.get(k);
+    if (!p) { widziane.set(k, i); return true; }
+    p.ilosc += i.ilosc; p.kcal = (p.kcal || 0) + (i.kcal || 0); p.bialko = (p.bialko || 0) + (i.bialko || 0);
+    return false;
+  });
+}
 async function wczytajBaze() {
   const [dania, dodane, shake, opak] = await Promise.all([
     wczytaj('dania.json'), wczytaj('dania-dodane.json', []), wczytaj('shake.json'), wczytaj('opakowania.json', {})
   ]);
   DB.dania.clear();
-  for (const d of dania.concat(dodane)) DB.dania.set(d.id, d);
+  for (const d of dania.concat(dodane)) { normalizujPomidory(d); DB.dania.set(d.id, d); }
   const wsz = [...DB.dania.values()];
   const typ = (...t) => wsz.filter(d => t.includes(d.typ));
   DB.pula = {

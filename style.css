@@ -157,3 +157,5 @@ ol.kroki li { margin: 6px 0; }
 .zuzyj input { width: 18px; height: 18px; accent-color: var(--zielony); }
 textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); margin-bottom: 8px; font: inherit; }
 #tabs button { font-size: 13px; }
+.cel .sug { margin-top: 6px; }
+.karta .btn.maly[data-sug] { margin-left: 8px; }

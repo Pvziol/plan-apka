@@ -1,0 +1,313 @@
+{
+ "A": {
+  "bilans": {
+   "Poniedziałek": {
+    "ona_kcal": "1739–1836",
+    "ona_bialko": "140–157 g",
+    "on_kcal": "2144–2240",
+    "on_bialko": "187–204 g"
+   },
+   "Wtorek": {
+    "ona_kcal": "1714–1811",
+    "ona_bialko": "140–157 g",
+    "on_kcal": "2137–2233",
+    "on_bialko": "196–213 g"
+   },
+   "Środa": {
+    "ona_kcal": "1717–1773",
+    "ona_bialko": "144–148 g",
+    "on_kcal": "2086–2142",
+    "on_bialko": "200–203 g"
+   },
+   "Czwartek": {
+    "ona_kcal": "1756–1830",
+    "ona_bialko": "134–150 g",
+    "on_kcal": "2189–2263",
+    "on_bialko": "184–200 g"
+   },
+   "Piątek": {
+    "ona_kcal": "1736–1810",
+    "ona_bialko": "137–153 g",
+    "on_kcal": "2141–2215",
+    "on_bialko": "183–199 g"
+   },
+   "Sobota": {
+    "ona_kcal": "1613–1687",
+    "ona_bialko": "142–168 g",
+    "on_kcal": "2058–2132",
+    "on_bialko": "201–227 g"
+   },
+   "Niedziela": {
+    "ona_kcal": "1742–1812",
+    "ona_bialko": "125–142 g",
+    "on_kcal": "2112–2183",
+    "on_bialko": "178–195 g"
+   },
+   "Średnia tygodnia": {
+    "ona_kcal": "1755",
+    "ona_bialko": "145 g",
+    "on_kcal": "2162",
+    "on_bialko": "198 g"
+   }
+  },
+  "dni": {
+   "pon": {
+    "dzis": [
+     "11:00 oboje: Owsianka proteinowa z dżemem i jagodami — po połowie",
+     "13:00 ONA: K2 Kakaowo-orzechowy — mały koktajl, wypija całość",
+     "13:00 ON: D6 Snickers — skyr czekoladowy z bananem, masłem orzechowym i granolą",
+     "17:00 oboje: ZUPA — gotujesz 4 porcje — po połowie",
+     "~18:00 K4 Jagodowy klasyk — ONA nalewa 351 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: jego drugie śniadanie D4 — 15 min (makaron można z wieczora)"
+    ],
+    "wieczorem": [
+     "jego drugie śniadanie D4 — 15 min (makaron można z wieczora)"
+    ]
+   },
+   "wto": {
+    "dzis": [
+     "11:00 oboje: Jajecznica z szynką i serem + chleb — po połowie",
+     "13:00 ONA: K3 Malinowo-bananowy z masłem orzechowym — mały koktajl, wypija całość",
+     "13:00 ON: D4 Sałatka makaronowa z tuńczykiem",
+     "17:00 oboje: zupa z poniedziałku — po połowie",
+     "~18:00 K5 Truskawkowy z granolą — ONA nalewa 355 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: śniadanie na jutro: Kanapki z pastą jajeczną, szynką i awokado — kroki oznaczone WIECZOREM; jego drugie śniadanie D7 — 20 min wieczorem dzień wcześniej (kurczaka 140 g wyjmij z zamrażarki do lodówki rano tego dnia); wyjmij z zamrażarki do lodówki: pierś z kurczaka 360 g (środowe menu)"
+    ],
+    "wieczorem": [
+     "śniadanie na jutro: Kanapki z pastą jajeczną, szynką i awokado — kroki oznaczone WIECZOREM",
+     "jego drugie śniadanie D7 — 20 min wieczorem dzień wcześniej (kurczaka 140 g wyjmij z zamrażarki do lodówki rano tego dnia)",
+     "wyjmij z zamrażarki do lodówki: pierś z kurczaka 360 g (środowe menu)"
+    ]
+   },
+   "sro": {
+    "dzis": [
+     "11:00 oboje: Kanapki z pastą jajeczną, szynką i awokado — po połowie",
+     "13:00 ONA: K2 Kakaowo-orzechowy — mały koktajl, wypija całość",
+     "13:00 ON: D7 Sałatka z kurczakiem, kaszą i kukurydzą",
+     "17:00 oboje: kurczak z ryżem (wybór sosu) — po połowie",
+     "~18:00 K6 Jabłkowo-cynamonowy — ONA nalewa 338 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: śniadanie na jutro: Owsianka z masłem orzechowym i bananem — kroki oznaczone WIECZOREM; jego drugie śniadanie D5 — 5 min (jajka z wieczora); wyjmij z zamrażarki do lodówki: mięso do wybranego dania na 2 dni (ilość w przepisie i w mini-liście zakupów)"
+    ],
+    "wieczorem": [
+     "śniadanie na jutro: Owsianka z masłem orzechowym i bananem — kroki oznaczone WIECZOREM",
+     "jego drugie śniadanie D5 — 5 min (jajka z wieczora)",
+     "wyjmij z zamrażarki do lodówki: mięso do wybranego dania na 2 dni (ilość w przepisie i w mini-liście zakupów)"
+    ]
+   },
+   "czw": {
+    "dzis": [
+     "11:00 oboje: Owsianka z masłem orzechowym i bananem — po połowie",
+     "13:00 ONA: K3 Malinowo-bananowy z masłem orzechowym — mały koktajl, wypija całość",
+     "13:00 ON: D5 Bułka pełnoziarnista z pastą jajeczną i szynką",
+     "17:00 oboje: DANIE NA 2 DNI — gotujesz — po połowie",
+     "~18:00 K7 Malinowo-waniliowy — ONA nalewa 360 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: śniadanie na jutro: Tosty francuskie proteinowe z owocami — kroki oznaczone WIECZOREM"
+    ],
+    "wieczorem": [
+     "śniadanie na jutro: Tosty francuskie proteinowe z owocami — kroki oznaczone WIECZOREM"
+    ]
+   },
+   "pia": {
+    "dzis": [
+     "11:00 oboje: Tosty francuskie proteinowe z owocami — po połowie",
+     "13:00 ONA: K2 Kakaowo-orzechowy — mały koktajl, wypija całość",
+     "13:00 ON: D6 Snickers — skyr czekoladowy z bananem, masłem orzechowym i granolą",
+     "17:00 oboje: danie z czwartku — po połowie",
+     "~18:00 K4 Jagodowy klasyk — ONA nalewa 351 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: wyjmij z zamrażarki do lodówki: pierś z kurczaka 280 g (sobotnie menu)"
+    ],
+    "wieczorem": [
+     "wyjmij z zamrażarki do lodówki: pierś z kurczaka 280 g (sobotnie menu)"
+    ]
+   },
+   "sob": {
+    "dzis": [
+     "11:00 oboje: Zapiekanki z szynką i serem z airfryera + sos czosnkowy — po połowie",
+     "13:00 oboje: K3 Malinowo-bananowy z masłem orzechowym — ONA nalewa 341 g, ON resztę (bez dosypki)",
+     "17:00 oboje: kebab / pizza / gyros — po połowie",
+     "~18:00 K5 Truskawkowy z granolą — ONA nalewa 355 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: wyjmij z zamrażarki do lodówki: białko na niedzielę wg wyboru: wołowina 320 g + 2 bułki / łosoś 260 g / paluszki (te prosto z zamrażarki, nie rozmrażasz)"
+    ],
+    "wieczorem": [
+     "wyjmij z zamrażarki do lodówki: białko na niedzielę wg wyboru: wołowina 320 g + 2 bułki / łosoś 260 g / paluszki (te prosto z zamrażarki, nie rozmrażasz)"
+    ]
+   },
+   "nie": {
+    "dzis": [
+     "11:00 oboje: Szakszuka z chlebem (testowe) — po połowie",
+     "13:00 oboje: K2 Kakaowo-orzechowy — ONA nalewa 295 g, ON resztę (bez dosypki)",
+     "17:00 oboje: burgery / łosoś / paluszki + frytki — po połowie",
+     "~18:00 K6 Jabłkowo-cynamonowy — ONA nalewa 338 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: jutro start drugiego tygodnia — zobacz niżej"
+    ],
+    "wieczorem": [
+     "jutro zaczyna się tydzień B (plik 3) — poniżej to, co trzeba zrobić dziś:",
+     "śniadanie na jutro: Kanapki z pastą z tuńczyka i awokado — kroki oznaczone WIECZOREM",
+     "wyjmij z zamrażarki do lodówki: mięso do wybranej zupy (ilość w przepisie i w mini-liście zakupów)"
+    ]
+   }
+  }
+ },
+ "B": {
+  "bilans": {
+   "Poniedziałek": {
+    "ona_kcal": "1716–1812",
+    "ona_bialko": "146–163 g",
+    "on_kcal": "2140–2236",
+    "on_bialko": "195–212 g"
+   },
+   "Wtorek": {
+    "ona_kcal": "1712–1808",
+    "ona_bialko": "139–156 g",
+    "on_kcal": "2115–2212",
+    "on_bialko": "186–203 g"
+   },
+   "Środa": {
+    "ona_kcal": "1713–1769",
+    "ona_bialko": "149–152 g",
+    "on_kcal": "2155–2211",
+    "on_bialko": "196–199 g"
+   },
+   "Czwartek": {
+    "ona_kcal": "1806–1880",
+    "ona_bialko": "132–148 g",
+    "on_kcal": "2195–2270",
+    "on_bialko": "177–193 g"
+   },
+   "Piątek": {
+    "ona_kcal": "1752–1826",
+    "ona_bialko": "134–150 g",
+    "on_kcal": "2185–2259",
+    "on_bialko": "184–200 g"
+   },
+   "Sobota": {
+    "ona_kcal": "1727–1801",
+    "ona_bialko": "144–169 g",
+    "on_kcal": "2113–2187",
+    "on_bialko": "198–224 g"
+   },
+   "Niedziela": {
+    "ona_kcal": "1726–1796",
+    "ona_bialko": "123–140 g",
+    "on_kcal": "2171–2242",
+    "on_bialko": "182–199 g"
+   },
+   "Średnia tygodnia": {
+    "ona_kcal": "1775",
+    "ona_bialko": "146 g",
+    "on_kcal": "2192",
+    "on_bialko": "196 g"
+   }
+  },
+  "dni": {
+   "pon": {
+    "dzis": [
+     "11:00 oboje: Kanapki z pastą z tuńczyka i awokado — po połowie",
+     "13:00 ONA: K3 Malinowo-bananowy z masłem orzechowym — mały koktajl, wypija całość",
+     "13:00 ON: D6 Snickers — skyr czekoladowy z bananem, masłem orzechowym i granolą",
+     "17:00 oboje: ZUPA — gotujesz 4 porcje — po połowie",
+     "~18:00 K7 Malinowo-waniliowy — ONA nalewa 360 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: śniadanie na jutro: Owsianka z dżemem i jabłkiem — kroki oznaczone WIECZOREM; jego drugie śniadanie D3 — 15 min (makaron można z wieczora)"
+    ],
+    "wieczorem": [
+     "śniadanie na jutro: Owsianka z dżemem i jabłkiem — kroki oznaczone WIECZOREM",
+     "jego drugie śniadanie D3 — 15 min (makaron można z wieczora)"
+    ]
+   },
+   "wto": {
+    "dzis": [
+     "11:00 oboje: Owsianka z dżemem i jabłkiem — po połowie",
+     "13:00 ONA: K2 Kakaowo-orzechowy — mały koktajl, wypija całość",
+     "13:00 ON: D3 Sałatka makaronowa z szynką i serem",
+     "17:00 oboje: zupa z poniedziałku — po połowie",
+     "~18:00 K4 Jagodowy klasyk — ONA nalewa 351 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: śniadanie na jutro: Kanapki z rzodkiewką, pastą jajeczną i szynką — kroki oznaczone WIECZOREM; wyjmij z zamrażarki do lodówki: pierś z kurczaka 360 g (środowe menu)"
+    ],
+    "wieczorem": [
+     "śniadanie na jutro: Kanapki z rzodkiewką, pastą jajeczną i szynką — kroki oznaczone WIECZOREM",
+     "wyjmij z zamrażarki do lodówki: pierś z kurczaka 360 g (środowe menu)"
+    ]
+   },
+   "sro": {
+    "dzis": [
+     "11:00 oboje: Kanapki z rzodkiewką, pastą jajeczną i szynką — po połowie",
+     "13:00 ONA: K3 Malinowo-bananowy z masłem orzechowym — mały koktajl, wypija całość",
+     "13:00 ON: D2 Pieczywo chrupkie z serem i szynką + orzechy",
+     "17:00 oboje: kurczak z ryżem (wybór sosu) — po połowie",
+     "~18:00 K5 Truskawkowy z granolą — ONA nalewa 355 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: wyjmij z zamrażarki do lodówki: mięso do wybranego dania na 2 dni (ilość w przepisie i w mini-liście zakupów)"
+    ],
+    "wieczorem": [
+     "wyjmij z zamrażarki do lodówki: mięso do wybranego dania na 2 dni (ilość w przepisie i w mini-liście zakupów)"
+    ]
+   },
+   "czw": {
+    "dzis": [
+     "11:00 oboje: Tosty proteinowe z jajkiem i serem — po połowie",
+     "13:00 ONA: K2 Kakaowo-orzechowy — mały koktajl, wypija całość",
+     "13:00 ON: D6 Snickers — skyr czekoladowy z bananem, masłem orzechowym i granolą",
+     "17:00 oboje: DANIE NA 2 DNI — gotujesz — po połowie",
+     "~18:00 K6 Jabłkowo-cynamonowy — ONA nalewa 338 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: śniadanie na jutro: Owsianka nocna z miodem i owocami — kroki oznaczone WIECZOREM; jego drugie śniadanie D5 — 5 min (jajka z wieczora)"
+    ],
+    "wieczorem": [
+     "śniadanie na jutro: Owsianka nocna z miodem i owocami — kroki oznaczone WIECZOREM",
+     "jego drugie śniadanie D5 — 5 min (jajka z wieczora)"
+    ]
+   },
+   "pia": {
+    "dzis": [
+     "11:00 oboje: Owsianka nocna z miodem i owocami — po połowie",
+     "13:00 ONA: K3 Malinowo-bananowy z masłem orzechowym — mały koktajl, wypija całość",
+     "13:00 ON: D5 Bułka pełnoziarnista z pastą jajeczną i szynką",
+     "17:00 oboje: danie z czwartku — po połowie",
+     "~18:00 K7 Malinowo-waniliowy — ONA nalewa 360 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: wyjmij z zamrażarki do lodówki: pierś z kurczaka 280 g (sobotnie menu)"
+    ],
+    "wieczorem": [
+     "wyjmij z zamrażarki do lodówki: pierś z kurczaka 280 g (sobotnie menu)"
+    ]
+   },
+   "sob": {
+    "dzis": [
+     "11:00 oboje: Frittata ziemniaczana z papryką, szynką i serem (testowe) — po połowie",
+     "13:00 oboje: K2 Kakaowo-orzechowy — ONA nalewa 295 g, ON resztę (bez dosypki)",
+     "17:00 oboje: kebab / pizza / gyros — po połowie",
+     "~18:00 K4 Jagodowy klasyk — ONA nalewa 351 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: wyjmij z zamrażarki do lodówki: białko na niedzielę wg wyboru: wołowina 320 g + 2 bułki / łosoś 260 g / paluszki (te prosto z zamrażarki, nie rozmrażasz)"
+    ],
+    "wieczorem": [
+     "wyjmij z zamrażarki do lodówki: białko na niedzielę wg wyboru: wołowina 320 g + 2 bułki / łosoś 260 g / paluszki (te prosto z zamrażarki, nie rozmrażasz)"
+    ]
+   },
+   "nie": {
+    "dzis": [
+     "11:00 oboje: Jajka po turecku na skyrze czosnkowym (testowe) — po połowie",
+     "13:00 oboje: K3 Malinowo-bananowy z masłem orzechowym — ONA nalewa 341 g, ON resztę (bez dosypki)",
+     "17:00 oboje: burgery / łosoś / paluszki + frytki — po połowie",
+     "~18:00 K5 Truskawkowy z granolą — ONA nalewa 355 g, ON resztę + 30 g odżywki + 100 g skyru",
+     "po treningu shake (tylko w dni treningowe)",
+     "wieczorem: jutro start drugiego tygodnia — zobacz niżej"
+    ],
+    "wieczorem": [
+     "jutro zaczyna się tydzień A (plik 2) — poniżej to, co trzeba zrobić dziś:",
+     "śniadanie na jutro: Owsianka proteinowa z dżemem i jagodami — kroki oznaczone WIECZOREM",
+     "wyjmij z zamrażarki do lodówki: mięso do wybranej zupy (ilość w przepisie i w mini-liście zakupów)"
+    ]
+   }
+  }
+ }
+}

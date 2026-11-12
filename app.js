@@ -123,8 +123,10 @@ async function wczytajBaze() {
     sn: typ('sniadanie'),
     m13ona: typ('koktajl_maly'),
     m13on: typ('drugie_on'),
-    m13: typ('koktajl').filter(d => d.podzial && d.podzial['13:00']),
+    m13: typ('koktajl').filter(d => d.podzial && d.podzial['13:00']).concat(wsz.filter(d => d.weekend)),   // weekend: wspólne 13:00 — koktajle i dania „na świeżo”
     k18: typ('koktajl').filter(d => d.podzial && d.podzial['~18:00']),
+    m13kokt: typ('koktajl'),                                                  // weekend 13:00: wybór „koktajl” (wszystkie wspólne koktajle)
+    m13dania: typ('drugie_on'),                                                // weekend 13:00: wybór „drugie danie” (liczone na dwoje)
     ob2: typ('obiad_zupa', 'obiad_2dni'),
     ob1: typ('obiad', 'obiad_sroda', 'obiad_sobota', 'obiad_niedziela')
   };
@@ -147,8 +149,9 @@ function rozwiaz(dish, Kc, ratio, skyrMax = 0, lever = true) {
   const all = dish.skladniki, K = dish.razem.kcal, Ptot = dish.razem.bialko;
   const pf = Ptot / (sum(all, i => i.bialko) || 1);
   const fix = all.filter(stala), ing = all.filter(i => !stala(i));
-  const Kf = sum(fix, i => i.kcal), Pf = sum(fix, i => i.bialko * pf);
-  const KR = K - Kf, PR = Ptot - Pf, s0 = Kc / K;
+  const nF = Math.max(1, Math.round(Kc / K));                  // danie dla 1 osoby liczone na dwie = 2 woreczki mięsa
+  const Kf0 = sum(fix, i => i.kcal), Kf = Kf0 * nF, Pf = sum(fix, i => i.bialko * pf) * nF;
+  const KR = K - Kf0, PR = Ptot - sum(fix, i => i.bialko * pf), s0 = Kc / K;
   const sw = fix.length && KR > 0 ? clamp((Kc - Kf) / KR, 0.3, 2.5) : s0;      // skala składników spoza woreczków
   const Kreal = fix.length ? Kf + KR * sw : Kc;
   let a = sw, b = sw, lev = new Set();
@@ -168,11 +171,11 @@ function rozwiaz(dish, Kc, ratio, skyrMax = 0, lever = true) {
     }
   }
   const roznica = ratio ? P - ratio * Kreal : 0;
-  return { a, b, lev, s: s0, sw, P, dodatek: null, roznica, wyrownane: ratio ? Math.abs(roznica) < 1 : null, Kreal };
+  return { a, b, lev, s: s0, sw, nF, P, dodatek: null, roznica, wyrownane: ratio ? Math.abs(roznica) < 1 : null, Kreal };
 }
 const rz = (dish, K, ratio, slot) => rozwiaz(dish, K, ratio, 0, slot !== 'ob');     // w obiadach nie ruszam proporcji (mięso zostaje, jak w woreczku)
 const SKYR = { kcal: 0.63, b: 0.11 };   // na 1 g, jak w PDF-ach
-const skala = (g, i) => stala(i) ? 1 : (g.lev.has(i) ? g.a : g.b);
+const skala = (g, i) => stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b);
 
 // ---------- silnik: cały tydzień ----------
 function oblicz(pl, c) {
@@ -230,7 +233,8 @@ function kandydat() {
   const P = Object.fromEntries(Object.entries(DB.pula).map(([k, v]) => { const ok = v.filter(d => !ukryte(d.id)); return [k, ok.length >= 2 ? ok : v]; }));
   const sn = tasuj(P.sn); while (sn.length < 7) sn.push(los(P.sn));
   const bezPowt = (pula, n) => { const out = []; while (out.length < n) { const x = los(pula); if (pula.length < 2 || x !== out[out.length - 1]) out.push(x); } return out; };
-  const dd = bezPowt(P.m13on, 5), kk = bezPowt(P.k18, 7), mm = tasuj(P.m13ona), wk = tasuj(P.m13);
+  const dd = bezPowt(P.m13on.filter(d => !d.tylko_wybor), 5),   // w tygodniu bez dań „na świeżo” (np. wrapy) — te tylko do ręcznego wyboru
+     kk = bezPowt(P.k18, 7), mm = tasuj(P.m13ona), wk = tasuj(P.m13);
   const zupy = P.ob2.filter(d => d.typ === 'obiad_zupa'), dwa = P.ob2.filter(d => d.typ === 'obiad_2dni');
   const ob1 = dzien => { const t = P.ob1.filter(d => d.typ === 'obiad_' + dzien || d.typ === 'obiad'); return los(t.length ? t : P.ob1); };
   const obiady = [los(zupy.length ? zupy : P.ob2), null, ob1('sroda'), los(dwa.length ? dwa : P.ob2), null, ob1('sobota'), ob1('niedziela')];
@@ -274,6 +278,28 @@ function ulozTydzien() {
   plan = naj; odhaczone = {}; zuzyte = {};
   LS.set('plan', plan); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte);
   Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], {}], [['zuzyte'], {}]]);
+}
+// Jeśli w planie jest danie, którego już nie ma w bazie (np. usunięte), zastępuję je innym z tej samej grupy i synchronizuję zmianę.
+function naprawBrakujace() {
+  if (!plan || !plan.dni || !DB.dania.size) return;
+  const zm = [];
+  plan.dni.forEach((day, d) => {
+    const podmien = (id, pula, slot, sciezka, ustaw) => {
+      if (!id || DB.dania.has(id)) return;
+      const kand = pula.filter(x => !ukryte(x.id)), n = los(kand.length ? kand : pula);
+      ustaw(n.id); zm.push([['dni', d, ...sciezka], n.id]);
+      if (day.ratio && day.ratio[slot] !== undefined) { delete day.ratio[slot]; zm.push([['dni', d, 'ratio', slot], undefined]); }
+    };
+    podmien(day.sn, DB.pula.sn, 'sn', ['sn'], v => { day.sn = v; });
+    podmien(day.k18, DB.pula.k18, 'k18', ['k18'], v => { day.k18 = v; });
+    podmien(day.ob, day.ob2 ? DB.pula.ob2 : DB.pula.ob1, 'ob', ['ob'], v => { day.ob = v; });
+    if (day.m13) {
+      podmien(day.m13.wsp, DB.pula.m13, 'm13', ['m13', 'wsp'], v => { day.m13.wsp = v; });
+      podmien(day.m13.ona, DB.pula.m13ona, 'm13ona', ['m13', 'ona'], v => { day.m13.ona = v; });
+      podmien(day.m13.on, DB.pula.m13on, 'm13on', ['m13', 'on'], v => { day.m13.on = v; });
+    }
+  });
+  if (zm.length) { LS.set('plan', plan); Z(zm); }
 }
 function planAktualny() {
   if (!plan || !plan.dni || plan.dni.length !== 7) return false;
@@ -338,7 +364,7 @@ function zakupy(w) {
     for (const i of g.dish.skladniki) {
       if (i.ilosc && i.produkt) {
         dodaj(i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
-        if (stala(i) && f > 0.999) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa });   // woreczek na to danie
+        if (stala(i) && f > 0.999) for (let n = 0; n < (g.nF || 1); n++) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa });   // woreczek na to danie
       } else inne.add(i.nazwa + (g.dish.warianty && g.dish.warianty.length && i.nazwa.startsWith('GLAZURA') ? '' : '') + ' — ' + g.dish.nazwa);
     }
     (g.dish.przyprawy || []).forEach(t => przyprawy.push(t));
@@ -410,7 +436,7 @@ function widokTydzien() {
       if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
       if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
       if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
-      h += `<div class="posilek"><div class="pora">${PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
+      h += `<div class="posilek"><div class="pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
         <div class="gora">${Obr.html(g.dish)}<button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button>
         ${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">zmień</button>`}</div>
         <div class="liczby">${liczby}</div>${zn}<label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${zuzyte[kluczZ(d, g.slot)] ? 'checked' : ''}> zjedzone</label></div>`;
@@ -514,10 +540,12 @@ const slowaZ = q => znorm(q).split(/[^a-z0-9]+/).filter(Boolean);
 function oknoZmien(d, slot) {
   const day = plan.dni[d];
   const teraz = slot === 'm13' ? day.m13.wsp : slot === 'm13ona' ? day.m13.ona : slot === 'm13on' ? day.m13.on : day[slot];
-  const pula = slot === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : DB.pula[slot];
+  const tryb = slot === 'm13' && ((DB.dania.get(teraz) || {}).typ !== 'koktajl') ? 'dania' : 'kokt';
+  const pula = slot === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : slot === 'm13' ? (tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania) : DB.pula[slot];
   zmienCtx = { d, slot, teraz, pula };
-  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zmień: ${esc(PORA[slot].split(' · ')[1])}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zmień: ${slot === 'm13' ? 'drugie śniadanie' : esc(PORA[slot].split(' · ')[1])}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <p class="mute">${DNI[d]}. Kalorie zostają takie same, a gramatury nowego dania dobiorę tak, żeby białko też się zgadzało.</p>
+    ${slot === 'm13' ? `<p class="mute" style="margin-bottom:6px">Na 13:00 pijecie koktajl czy jecie drugie danie?</p><div class="seg"><button data-tryb="kokt" class="${tryb === 'kokt' ? 'akt' : ''}">Koktajl</button><button data-tryb="dania" class="${tryb === 'dania' ? 'akt' : ''}">Drugie danie</button></div>` : ''}
     <label class="pole"><span>Szukaj po słowach (nazwa lub składnik, np. „kurczak ryż”)</span><input id="szukaj" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. kuskus"></label>
     <div id="lista-wyboru"></div>`;
   listaWyboru('');
@@ -529,7 +557,7 @@ function listaWyboru(q) {
   const rang = x => oceny[x.id] === 1 ? 0 : ukryte(x.id) ? 2 : 1;
   const lista = pula.filter(x => slowa.every(w => szukany(x).includes(w))).sort((x, y) => rang(x) - rang(y) || x.nazwa.localeCompare(y.nazwa, 'pl'));
   $('#lista-wyboru').innerHTML = lista.length ? lista.map(x => `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${esc((x.kod ? x.kod + ' ' : '') + x.nazwa)}</b>
-      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
+      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${x.tylko_wybor && slot !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
       <div class="oceny">${przyciskiOceny(x.id)}</div></div>`).join('') : '<p class="pusty">Nic nie pasuje do tych słów.</p>';
 }
 function ocen(id, v) {
@@ -574,7 +602,7 @@ function wybierz(d, slot, id) {
 // ---------- podpowiedzi: „za mało białka” ----------
 let sugOsoba = null;
 const opisPosilku = g => `${DNI_KR[g.d]} · ${PORA[g.slot].split(' · ')[1]}${g.slot === 'm13ona' ? ' (ONA)' : g.slot === 'm13on' ? ' (ON)' : ''}`;
-const puleDla = g => { const day = plan.dni[g.d]; return g.slot === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : DB.pula[g.slot]; };
+const puleDla = g => { const day = plan.dni[g.d]; return g.slot === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : g.slot === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : DB.pula[g.slot]; };
 function opcjeBialka(p, w) {
   const dostepne = w.garnki.filter(g => g.porcje.some(q => q.p === p) && !dniGarnka(g).some(dd => zuzyte[kluczZ(dd, g.slot)]));
   const prop = [], zamiany = [];
@@ -779,6 +807,7 @@ function rysuj() {
     return;
   }
   if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
+  naprawBrakujace();
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
       $('#tabs').hidden = false;
@@ -1012,6 +1041,11 @@ document.addEventListener('click', e => {
     if (navigator.share) navigator.share({ title: 'Zakupy', text: tekst }).catch(() => {});
     else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => alert('Lista skopiowana — wklej ją do notatek albo SMS-a.'), () => alert(tekst));
     else alert(tekst);
+  }
+  else if (t.dataset.tryb && zmienCtx) {
+    zmienCtx.pula = t.dataset.tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania;
+    document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('akt', b === t));
+    listaWyboru(($('#szukaj') || {}).value || '');
   }
   else if (t.id === 'przeladuj') location.reload();
   else if (t.id === 'aktualizuj') aktualizujApke();

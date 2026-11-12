@@ -207,3 +207,8 @@ textarea { padding: 12px 14px; margin-bottom: 10px; font: inherit; resize: verti
 .nowa-wersja { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; max-width: 616px; margin: 0 auto; z-index: 20; background: var(--zielony); color: #fff; border-radius: 16px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
 .nowa-wersja .btn { background: #fff; color: var(--zielony); border-color: #fff; }
 @media (prefers-color-scheme: dark) { .nowa-wersja { color: #0b1510; } }
+
+/* przełącznik (np. koktajl / drugie danie) */
+.seg { display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin: 6px 0 4px; box-shadow: var(--cien-maly); }
+.seg button { flex: 1; min-height: 42px; border: 0; border-radius: 12px; background: none; font-weight: 700; color: var(--mute); box-shadow: none; }
+.seg button.akt { background: var(--zielony-tlo); color: var(--zielony); }

@@ -98,6 +98,8 @@
    "kcal": 558,
    "bialko": 38
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Kuskus (120 g) wsyp do miski ze szczyptą soli, zalej 100 ml gorącego mleka i 100 ml wrzątku. Przykryj talerzem na 5 min, potem rozdrobnij widelcem.",
@@ -211,6 +213,8 @@
    "kcal": 567,
    "bialko": 38
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: do każdego słoika wsyp 50 g kuskusu, wlej 125 ml mleka i dodaj 125 g skyru. Wymieszaj, zakręć i wstaw do lodówki — kuskus napęcznieje na zimno.",
@@ -316,6 +320,8 @@
    "kcal": 564,
    "bialko": 47
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki.",
@@ -433,6 +439,8 @@
    "kcal": 552,
    "bialko": 38
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Szynkę (80 g) pokrój w paski, fetę (60 g) pokrusz, pomidorki przekrój na pół.",
@@ -548,6 +556,8 @@
    "kcal": 546,
    "bialko": 35
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Paprykę i szynkę (80 g) pokrój w kostkę, pomidora w plasterki. Ser (40 g) zetrzyj.",
@@ -663,6 +673,8 @@
    "kcal": 552,
    "bialko": 36
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: 2 jaja ugotuj na twardo (9 min od wrzenia), schłodź w zimnej wodzie.",
@@ -780,6 +792,8 @@
    "kcal": 537,
    "bialko": 40
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: 2 jaja ugotuj na twardo (9 min od wrzenia), schłodź i obierz.",
@@ -897,6 +911,8 @@
    "kcal": 598,
    "bialko": 40
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: odsyp 100 g mrożonych jagód do miseczki i wstaw do lodówki.",
@@ -1003,6 +1019,8 @@
    "kcal": 480,
    "bialko": 40
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: kuskus (50 g) zalej 80 ml wrzątku ze szczyptą soli, przykryj na 5 min i rozdrobnij widelcem.",
@@ -1121,6 +1139,8 @@
    "kcal": 459,
    "bialko": 45
   },
+  "tylko_wybor": true,
+  "weekend": true,
   "warianty": [],
   "kroki": [
    "WIECZOREM: kurczaka (120 g) pokrój w paski, dopraw solą, pieprzem i papryką. Usmaż na suchej patelni 6–7 min. Ostudź.",
@@ -1129,7 +1149,7 @@
    "Zwiń ciasno, zawiń w folię. Do pracy bierzesz w całości."
   ],
   "odgrzewanie": null,
-  "uwaga": null,
+  "uwaga": "Najlepszy na świeżo (weekend). Zrobiony dzień wcześniej mięknie, dlatego apka nie układa go sama w tygodniu — możesz go wybrać ręcznie.",
   "wieczorem": [
    "WIECZOREM: kurczaka (120 g) pokrój w paski, dopraw solą, pieprzem i papryką. Usmaż na suchej patelni 6–7 min. Ostudź."
   ],
@@ -1214,6 +1234,8 @@
    "kcal": 502,
    "bialko": 47
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Do pojemnika daj 300 g skyru i 10 g odżywki, wymieszaj 30 s.",
@@ -1317,6 +1339,8 @@
    "kcal": 469,
    "bialko": 44
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Ciecierzycę (120 g) i tuńczyka odsącz na sitku.",
@@ -1407,6 +1431,8 @@
    "kcal": 489,
    "bialko": 43
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Serek wiejski (200 g) weź w oryginalnym kubku albo przełóż do pojemnika, dodaj pieprz.",
@@ -1521,6 +1547,8 @@
    "kcal": 469,
    "bialko": 45
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "WIECZOREM: ryż (50 g) ugotuj w osolonej wodzie wg opakowania, odcedź i ostudź.",
@@ -1628,6 +1656,8 @@
    "kcal": 598,
    "bialko": 54
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Kurczaka (360 g) pokrój w kostkę 2–3 cm. Wymieszaj z ½ łyżki oliwy, czosnkiem, papryką wędzoną, solą i pieprzem.",
@@ -1744,6 +1774,8 @@
    "kcal": 572,
    "bialko": 46
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Ziemniaki (600 g) obierz i ugotuj w osolonej wodzie 20 min. Odcedź, dodaj 2 łyżeczki masła i koperek.",
@@ -1859,6 +1891,8 @@
    "kcal": 598,
    "bialko": 50
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "KASZA: 120 g wsyp do 300 ml wrzącej osolonej wody, gotuj pod przykryciem 15 min, odstaw na 5 min.",
@@ -1964,6 +1998,8 @@
    "kcal": 603,
    "bialko": 52
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Makaron (140 g) ugotuj al dente w osolonej wodzie. Przed odcedzeniem odlej pół szklanki wody z gotowania.",
@@ -2080,6 +2116,8 @@
    "kcal": 610,
    "bialko": 48
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "RYŻ: 100 g ugotuj w osolonej wodzie wg opakowania.",
@@ -2196,6 +2234,8 @@
    "kcal": 656,
    "bialko": 52
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Kurczaka (320 g) pokrój w paski. Wymieszaj z ½ łyżki oliwy, kminem, papryką wędzoną, czosnkiem i solą, odstaw na 10 min.",
@@ -2301,6 +2341,8 @@
    "kcal": 625,
    "bialko": 37
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "RYŻ: 100 g przepłucz i ugotuj w osolonej wodzie wg opakowania.",
@@ -2428,6 +2470,8 @@
    "kcal": 610,
    "bialko": 48
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "PUREE: ziemniaki (500 g) obierz i gotuj w osolonej wodzie 20 min. Odcedź, utłucz z 50 ml ciepłego mleka i 2 łyżeczkami masła.",
@@ -2543,6 +2587,8 @@
    "kcal": 618,
    "bialko": 54
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Kurczaka (720 g) pokrój w kostkę 2–3 cm, dopraw solą i 1 łyżką curry.",
@@ -2660,6 +2706,8 @@
    "kcal": 548,
    "bialko": 57
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Indyka (720 g) pokrój w kostkę 3 cm, dopraw solą, pieprzem i 1 łyżeczką papryki słodkiej.",
@@ -2788,6 +2836,8 @@
    "kcal": 610,
    "bialko": 52
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Mięso (720 g) wymieszaj z jajkiem, 20 g parmezanu, 1 ząbkiem czosnku, ¾ łyżeczki soli i pieprzem. Mokrymi dłońmi uformuj ok. 20 pulpetów.",
@@ -2905,6 +2955,8 @@
    "kcal": 518,
    "bialko": 54
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "KURCZAK: 600 g dopraw solą, pieprzem i papryką. Airfryer 200°C, 18–20 min. Pokrój w kostkę.",
@@ -3032,6 +3084,8 @@
    "kcal": 569,
    "bialko": 51
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "W garnku rozgrzej 1 łyżkę oliwy. Smaż mięso (720 g) na mocnym ogniu 8 min, rozbijając łopatką. Dopraw solą, kminem i papryką.",
@@ -3134,6 +3188,8 @@
    "kcal": 339,
    "bialko": 32
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
@@ -3246,6 +3302,8 @@
    "kcal": 307,
    "bialko": 32
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
@@ -3271,109 +3329,6 @@
   "wystapienia": [],
   "masa_g": 805,
   "pora": "~18:00"
- },
- {
-  "id": "k10-truskawkowo-owsiany-maly",
-  "typ": "koktajl_maly",
-  "porcje": 1,
-  "kod": "K10",
-  "nazwa": "Truskawkowo-owsiany (mały)",
-  "dodane": true,
-  "czas": null,
-  "sprzet": null,
-  "skladniki": [
-   {
-    "nazwa": "skyr naturalny",
-    "produkt": "skyr naturalny",
-    "ilosc": 150,
-    "jednostka": "g",
-    "kcal": 94,
-    "bialko": 16,
-    "grupa": null,
-    "uwaga": null,
-    "kategoria": "świeże"
-   },
-   {
-    "nazwa": "mleko 2%",
-    "produkt": "mleko 2%",
-    "ilosc": 125,
-    "jednostka": "ml",
-    "kcal": 62,
-    "bialko": 4,
-    "grupa": null,
-    "uwaga": null,
-    "kategoria": "świeże"
-   },
-   {
-    "nazwa": "odżywka białkowa",
-    "produkt": "odżywka białkowa",
-    "ilosc": 12.5,
-    "jednostka": "g",
-    "kcal": 50,
-    "bialko": 9,
-    "grupa": null,
-    "uwaga": null,
-    "kategoria": "zapas"
-   },
-   {
-    "nazwa": "truskawki mrożone",
-    "produkt": "truskawki mrożone",
-    "ilosc": 100,
-    "jednostka": "g",
-    "kcal": 40,
-    "bialko": 1,
-    "grupa": null,
-    "uwaga": null,
-    "kategoria": "zamrażarka"
-   },
-   {
-    "nazwa": "płatki owsiane",
-    "produkt": "płatki owsiane",
-    "ilosc": 15,
-    "jednostka": "g",
-    "kcal": 56,
-    "bialko": 2,
-    "grupa": null,
-    "uwaga": null,
-    "kategoria": "zapas"
-   },
-   {
-    "nazwa": "masło orzechowe",
-    "produkt": "masło orzechowe",
-    "ilosc": 5,
-    "jednostka": "g",
-    "kcal": 30,
-    "bialko": 1,
-    "grupa": null,
-    "uwaga": null,
-    "kategoria": "zapas"
-   }
-  ],
-  "przyprawy": [],
-  "razem": {
-   "kcal": 332,
-   "bialko": 34
-  },
-  "na_porcje": {
-   "kcal": 332,
-   "bialko": 34
-  },
-  "warianty": [],
-  "kroki": [
-   "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
-   "Blenduj 30–45 s na wysokich obrotach, aż będzie gładko.",
-   "Za gęsty? Dolej 30–50 ml wody (0 kcal)."
-  ],
-  "odgrzewanie": null,
-  "uwaga": null,
-  "wieczorem": [],
-  "podzial": {},
-  "zrodlo": [
-   "dodane do bazy"
-  ],
-  "wystapienia": [],
-  "masa_g": 410,
-  "pora": "13:00"
  },
  {
   "id": "k11-wisniowy-z-granola-maly",
@@ -3461,6 +3416,8 @@
    "kcal": 349,
    "bialko": 34
   },
+  "tylko_wybor": false,
+  "weekend": false,
   "warianty": [],
   "kroki": [
    "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
@@ -3477,5 +3434,2814 @@
   "wystapienia": [],
   "masa_g": 410,
   "pora": "13:00"
+ },
+ {
+  "id": "jaglanka-z-jablkiem-cynamonem-i-orzechami",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Jaglanka z jabłkiem, cynamonem i orzechami",
+  "dodane": true,
+  "czas": "20 min",
+  "sprzet": "garnek, sitko, miska",
+  "skladniki": [
+   {
+    "nazwa": "kasza jaglana",
+    "produkt": "kasza jaglana",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 360,
+    "bialko": 11,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 300,
+    "jednostka": "ml",
+    "kcal": 150,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 189,
+    "bialko": 33,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jabłko",
+    "produkt": "jabłko",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 70,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "orzechy włoskie",
+    "produkt": "orzechy włoskie",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli"
+  ],
+  "razem": {
+   "kcal": 1039,
+   "bialko": 72
+  },
+  "na_porcje": {
+   "kcal": 520,
+   "bialko": 36
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Kaszę jaglaną (100 g) przepłucz na sitku gorącą wodą — dzięki temu nie będzie gorzka.",
+   "Wsyp do garnka z 300 ml mleka i 100 ml wody, dodaj szczyptę soli i cynamon. Gotuj pod przykryciem na małym ogniu 15 min, mieszając co kilka minut, aż kasza wchłonie płyn. Odstaw na 5 min.",
+   "Skyr (300 g) wymieszaj z odżywką (20 g) i miodem na gładki krem. Jabłko pokrój w kostkę, orzechy (20 g) posiekaj.",
+   "Do dwóch misek: kasza, krem ze skyru, jabłko i orzechy. Posyp cynamonem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kasza-manna-na-mleku-z-musem-malinowym-i-granola",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kasza manna na mleku z musem malinowym i granolą",
+  "dodane": true,
+  "czas": "15 min",
+  "sprzet": "garnek, miska",
+  "skladniki": [
+   {
+    "nazwa": "kasza manna",
+    "produkt": "kasza manna",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 288,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 500,
+    "jednostka": "ml",
+    "kcal": 250,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 94,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "maliny mrożone",
+    "produkt": "maliny mrożone",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "banan",
+    "produkt": "banan",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 90,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 126,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "masło",
+    "produkt": "masło",
+    "ilosc": 1,
+    "jednostka": "łyżecz.",
+    "kcal": 37,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "szczypta soli"
+  ],
+  "razem": {
+   "kcal": 1145,
+   "bialko": 70
+  },
+  "na_porcje": {
+   "kcal": 572,
+   "bialko": 35
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: odsyp 200 g mrożonych malin do miseczki i wstaw do lodówki, żeby się rozmroziły.",
+   "Mleko (500 ml) zagotuj ze szczyptą soli. Zmniejsz ogień, wsypuj cienkim strumieniem kaszę mannę (80 g), cały czas mieszając. Gotuj 3 min, aż zgęstnieje. Zdejmij z ognia i dodaj masło (1 łyżeczka).",
+   "Skyr (150 g) wymieszaj z odżywką (30 g) i miodem na krem. Odżywki nie dodawaj do gorącego garnka — się zważy.",
+   "MUS: rozmrożone maliny (200 g) rozgnieć widelcem.",
+   "Kaszę rozlej do 2 misek, na wierzch krem, mus malinowy, banana w plasterkach i granolę (30 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: odsyp 200 g mrożonych malin do miseczki i wstaw do lodówki, żeby się rozmroziły."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "ryz-na-mleku-z-jablkiem-i-cynamonem",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Ryż na mleku z jabłkiem i cynamonem",
+  "dodane": true,
+  "czas": "30 min",
+  "sprzet": "garnek, patelnia",
+  "skladniki": [
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 350,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 500,
+    "jednostka": "ml",
+    "kcal": 250,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 94,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jabłko",
+    "produkt": "jabłko",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 140,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "orzechy włoskie",
+    "produkt": "orzechy włoskie",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli"
+  ],
+  "razem": {
+   "kcal": 1144,
+   "bialko": 65
+  },
+  "na_porcje": {
+   "kcal": 572,
+   "bialko": 32
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Ryż (100 g) przepłucz. Wsyp do garnka z 500 ml mleka i 150 ml wody, dodaj cynamon i szczyptę soli.",
+   "Gotuj pod przykryciem na małym ogniu 20–25 min, mieszając co kilka minut, aż ryż będzie miękki, a całość kremowa. W razie potrzeby dolej odrobinę wody.",
+   "Jabłka (2 szt.) pokrój w kostkę i podduś 5 min na patelni z łyżką wody i cynamonem.",
+   "Skyr (150 g) wymieszaj z odżywką (30 g) i miodem. Ryż rozłóż do misek, dodaj jabłka, krem ze skyru i posiekane orzechy (20 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "pieczona-owsianka-czekoladowo-bananowa-baked-oats",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Pieczona owsianka czekoladowo-bananowa (baked oats)",
+  "dodane": true,
+  "czas": "10 min + 25 min pieczenia",
+  "sprzet": "miska, blender lub widelec, 2 małe naczynia żaroodporne, piekarnik lub airfryer",
+  "skladniki": [
+   {
+    "nazwa": "płatki owsiane",
+    "produkt": "płatki owsiane",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 370,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "banan",
+    "produkt": "banan",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 90,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 200,
+    "jednostka": "ml",
+    "kcal": 100,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "kakao gorzkie",
+    "produkt": "kakao gorzkie",
+    "ilosc": 2,
+    "jednostka": "łyżecz.",
+    "kcal": 40,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 126,
+    "bialko": 22,
+    "grupa": "KREM",
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "masło orzechowe",
+    "produkt": "masło orzechowe",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli, proszek do pieczenia ½ łyżeczki"
+  ],
+  "razem": {
+   "kcal": 1122,
+   "bialko": 84
+  },
+  "na_porcje": {
+   "kcal": 561,
+   "bialko": 42
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Piekarnik nagrzej do 180°C (albo airfryer do 170°C). Dwa małe naczynia żaroodporne wyłóż papierem do pieczenia.",
+   "Płatki (100 g), jaja, banana, mleko (200 ml), odżywkę (30 g), kakao (2 łyżeczki), cynamon, proszek do pieczenia i szczyptę soli zblenduj albo rozgnieć widelcem na gęste ciasto.",
+   "Przełóż po połowie do naczyń. Piecz 22–25 min, aż wierzch się zetnie, a środek będzie jeszcze lekko wilgotny.",
+   "KREM: skyr (200 g) wymieszaj z masłem orzechowym (20 g). Połóż na ciepłej owsiance."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "syrniki-z-musem-malinowym-i-granola",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Syrniki z musem malinowym i granolą",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "patelnia nieprzywierająca, miska",
+  "skladniki": [
+   {
+    "nazwa": "twaróg półtłusty",
+    "produkt": "twaróg półtłusty",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 390,
+    "bialko": 54,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mąka pszenna",
+    "produkt": "mąka pszenna",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 175,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "maliny mrożone",
+    "produkt": "maliny mrożone",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 168,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "szczypta soli, cynamon lub wanilia"
+  ],
+  "razem": {
+   "kcal": 1189,
+   "bialko": 81
+  },
+  "na_porcje": {
+   "kcal": 594,
+   "bialko": 40
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki.",
+   "Twaróg (300 g) rozgnieć widelcem z jajkami, mąką (50 g) i szczyptą soli. Ciasto ma być gęste, ale lepkie.",
+   "Mokrymi dłońmi formuj małe placki (ok. 8 szt., grubość 1,5 cm).",
+   "Na patelni rozgrzej 1 łyżkę oleju. Smaż syrniki na średnim ogniu po 3 min z każdej strony, aż będą złote.",
+   "MUS: maliny rozgnieć widelcem z miodem. Syrniki podaj z jogurtem (100 g), musem i granolą (40 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kuskus-na-cieplo-z-duszonym-jablkiem-i-maslem-orzechowym",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kuskus na ciepło z duszonym jabłkiem i masłem orzechowym",
+  "dodane": true,
+  "czas": "15 min",
+  "sprzet": "garnek, patelnia, miska",
+  "skladniki": [
+   {
+    "nazwa": "kuskus",
+    "produkt": "kuskus",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 432,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 250,
+    "jednostka": "ml",
+    "kcal": 125,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jabłko",
+    "produkt": "jabłko",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 140,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "masło orzechowe",
+    "produkt": "masło orzechowe",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 180,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 126,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli"
+  ],
+  "razem": {
+   "kcal": 1183,
+   "bialko": 74
+  },
+  "na_porcje": {
+   "kcal": 592,
+   "bialko": 37
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Jabłka (2 szt.) pokrój w kostkę i podduś 5 min na patelni z łyżką wody i cynamonem.",
+   "Mleko (250 ml) zagotuj ze szczyptą soli, zdejmij z ognia, wsyp kuskus (120 g), przykryj na 5 min i rozdrobnij widelcem.",
+   "Skyr (200 g) wymieszaj z odżywką (30 g) i miodem.",
+   "Do misek: kuskus, jabłka i krem ze skyru. Na wierzch masło orzechowe (po 15 g) i cynamon."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "pudding-chia-ze-skyrem-mango-i-granola",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Pudding chia ze skyrem, mango i granolą",
+  "dodane": true,
+  "czas": "5 min wieczorem + 3 min rano",
+  "sprzet": "2 słoiki ~500 ml",
+  "skladniki": [
+   {
+    "nazwa": "chia",
+    "produkt": "chia",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 245,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 400,
+    "jednostka": "ml",
+    "kcal": 200,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 189,
+    "bialko": 33,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mango mrożone",
+    "produkt": "mango mrożone",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 168,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [],
+  "razem": {
+   "kcal": 1062,
+   "bialko": 75
+  },
+  "na_porcje": {
+   "kcal": 531,
+   "bialko": 38
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: do każdego słoika wsyp 25 g nasion chia, wlej 200 ml mleka i dodaj ½ łyżki miodu. Zakręć i dobrze wstrząśnij.",
+   "WIECZOREM: po 5 min wstrząśnij ponownie (żeby chia się nie zbiła) i wstaw do lodówki na noc.",
+   "WIECZOREM: odsyp 200 g mrożonego mango do miseczki i wstaw do lodówki.",
+   "RANO: skyr (300 g) wymieszaj z odżywką (20 g). Rozłóż po połowie na puddingi, na wierzch mango (po 100 g).",
+   "Granolę (po 20 g) dosyp tuż przed jedzeniem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: do każdego słoika wsyp 25 g nasion chia, wlej 200 ml mleka i dodaj ½ łyżki miodu. Zakręć i dobrze wstrząśnij.",
+   "WIECZOREM: po 5 min wstrząśnij ponownie (żeby chia się nie zbiła) i wstaw do lodówki na noc.",
+   "WIECZOREM: odsyp 200 g mrożonego mango do miseczki i wstaw do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d14-makaron-z-pesto-kurczakiem-i-pomidorkami",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D14",
+  "nazwa": "Makaron z pesto, kurczakiem i pomidorkami",
+  "dodane": true,
+  "czas": "20 min wieczorem",
+  "sprzet": "garnek, patelnia lub airfryer, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "makaron pszenny",
+    "produkt": "makaron pszenny",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 210,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 140,
+    "jednostka": "g",
+    "kcal": 154,
+    "bialko": 32,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "pesto bazyliowe",
+    "produkt": "pesto bazyliowe",
+    "ilosc": 1.5,
+    "jednostka": "łyż.",
+    "kcal": 105,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 8,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "parmezan",
+    "produkt": "parmezan",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 40,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 533,
+   "bialko": 46
+  },
+  "na_porcje": {
+   "kcal": 533,
+   "bialko": 46
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: makaron (60 g) ugotuj al dente w osolonej wodzie, odcedź i przepłucz zimną wodą.",
+   "WIECZOREM: kurczaka (140 g) pokrój w paski, dopraw solą i pieprzem. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź.",
+   "Pomidorki (8 szt.) przekrój na pół. Wymieszaj makaron z pesto (1½ łyżki), kurczakiem i pomidorkami.",
+   "Przełóż do pojemnika, parmezan (10 g) zetrzyj na wierzch."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: makaron (60 g) ugotuj al dente w osolonej wodzie, odcedź i przepłucz zimną wodą.",
+   "WIECZOREM: kurczaka (140 g) pokrój w paski, dopraw solą i pieprzem. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d15-overnight-oats-z-jablkiem-i-cynamonem",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D15",
+  "nazwa": "Overnight oats z jabłkiem i cynamonem",
+  "dodane": true,
+  "czas": "3 min wieczorem",
+  "sprzet": "słoik, mały woreczek",
+  "skladniki": [
+   {
+    "nazwa": "płatki owsiane",
+    "produkt": "płatki owsiane",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 148,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 100,
+    "jednostka": "ml",
+    "kcal": 50,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 126,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 11,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jabłko",
+    "produkt": "jabłko",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 70,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "orzechy włoskie",
+    "produkt": "orzechy włoskie",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 65,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon"
+  ],
+  "razem": {
+   "kcal": 519,
+   "bialko": 43
+  },
+  "na_porcje": {
+   "kcal": 519,
+   "bialko": 43
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: do słoika wsyp płatki (40 g), wlej mleko (100 ml), dodaj skyr (200 g), odżywkę (15 g) i cynamon. Wymieszaj dokładnie, zakręć i wstaw do lodówki.",
+   "RANO: jabłko pokrój w kostkę i orzechy (10 g) posiekaj — weź w osobnym woreczku.",
+   "Na miejscu dosyp jabłko i orzechy do słoika i wymieszaj."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: do słoika wsyp płatki (40 g), wlej mleko (100 ml), dodaj skyr (200 g), odżywkę (15 g) i cynamon. Wymieszaj dokładnie, zakręć i wstaw do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d16-salatka-grecka-z-jajkiem-feta-ciecierzyca-i-tzatziki",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D16",
+  "nazwa": "Sałatka grecka z jajkiem, fetą, ciecierzycą i tzatziki",
+  "dodane": true,
+  "czas": "10 min wieczorem",
+  "sprzet": "garnek, sitko, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "ciecierzyca z puszki (odsączona)",
+    "produkt": "ciecierzyca z puszki (odsączona)",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 156,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "feta",
+    "produkt": "feta",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 8,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 63,
+    "bialko": 11,
+    "grupa": "TZATZIKI",
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "czosnek, oregano, sok z cytryny, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 544,
+   "bialko": 42
+  },
+  "na_porcje": {
+   "kcal": 544,
+   "bialko": 42
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: 2 jaja ugotuj na twardo (9 min od wrzenia), schłodź, obierz i pokrój w ćwiartki.",
+   "WIECZOREM: skyr (100 g) wymieszaj z odrobiną startego czosnku, oregano, sokiem z cytryny, solą i pieprzem — to tzatziki.",
+   "Ciecierzycę (120 g) odsącz na sitku. Ogórka pokrój w kostkę, pomidorki na pół, fetę (50 g) pokrusz.",
+   "Warzywa, ciecierzycę i fetę przełóż do pojemnika, jajka połóż na wierzchu. Tzatziki zabierz w osobnym pojemniczku i polej sałatkę tuż przed jedzeniem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: 2 jaja ugotuj na twardo (9 min od wrzenia), schłodź, obierz i pokrój w ćwiartki.",
+   "WIECZOREM: skyr (100 g) wymieszaj z odrobiną startego czosnku, oregano, sokiem z cytryny, solą i pieprzem — to tzatziki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d17-wrap-z-tunczykiem-serkiem-wiejskim-i-ogorkiem",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D17",
+  "nazwa": "Wrap z tuńczykiem, serkiem wiejskim i ogórkiem",
+  "dodane": true,
+  "czas": "10 min",
+  "sprzet": "sitko, patelnia, folia",
+  "skladniki": [
+   {
+    "nazwa": "tortilla pełnoziarnista",
+    "produkt": "tortilla pełnoziarnista",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 180,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "tuńczyk w sosie własnym (puszka 185 g)",
+    "produkt": "tuńczyk w sosie własnym (puszka 185 g)",
+    "ilosc": 1,
+    "jednostka": "pusz.",
+    "kcal": 145,
+    "bialko": 32,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "serek wiejski",
+    "produkt": "serek wiejski",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 78,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "sałata",
+    "produkt": "sałata",
+    "ilosc": 25,
+    "jednostka": "g",
+    "kcal": 4,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "kukurydza konserwowa",
+    "produkt": "kukurydza konserwowa",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 30,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "sok z cytryny, pieprz"
+  ],
+  "razem": {
+   "kcal": 452,
+   "bialko": 48
+  },
+  "na_porcje": {
+   "kcal": 452,
+   "bialko": 48
+  },
+  "tylko_wybor": true,
+  "weekend": true,
+  "warianty": [],
+  "kroki": [
+   "Tuńczyka odsącz i rozgnieć widelcem z serkiem wiejskim (80 g), kukurydzą (40 g), sokiem z cytryny i pieprzem.",
+   "Ogórka pokrój w cienkie paski. Tortillę podgrzej 20 s na suchej patelni.",
+   "Na tortillę połóż sałatę (25 g), pastę z tuńczyka i ogórka. Zwiń ciasno i zawiń w folię."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Najlepszy na świeżo (weekend). Zrobiony dzień wcześniej mięknie, dlatego apka nie układa go sama w tygodniu — możesz go wybrać ręcznie.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d18-bowl-z-kasza-gryczana-jajkiem-i-szynka",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D18",
+  "nazwa": "Bowl z kaszą gryczaną, jajkiem i szynką",
+  "dodane": true,
+  "czas": "20 min wieczorem",
+  "sprzet": "2 garnki, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "kasza gryczana",
+    "produkt": "kasza gryczana",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 170,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 66,
+    "bialko": 11,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "serek wiejski",
+    "produkt": "serek wiejski",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 78,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 18,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "natka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 518,
+   "bialko": 42
+  },
+  "na_porcje": {
+   "kcal": 518,
+   "bialko": 42
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: kaszę (50 g) wsyp do 125 ml wrzącej osolonej wody, gotuj pod przykryciem 12 min, odstaw na 5 min. Przestudź.",
+   "WIECZOREM: 2 jaja ugotuj na twardo (9 min od wrzenia), schłodź i obierz.",
+   "Paprykę, ogórka i szynkę (60 g) pokrój w kostkę, pomidorki przekrój na pół.",
+   "Wymieszaj kaszę z warzywami, szynką, serkiem wiejskim (80 g), natką, solą i pieprzem. Przełóż do pojemnika, jajka w ćwiartkach połóż na wierzchu."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: kaszę (50 g) wsyp do 125 ml wrzącej osolonej wody, gotuj pod przykryciem 12 min, odstaw na 5 min. Przestudź.",
+   "WIECZOREM: 2 jaja ugotuj na twardo (9 min od wrzenia), schłodź i obierz."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d19-makaron-ryzowy-z-kurczakiem-i-orzeszkami-na-zimno",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D19",
+  "nazwa": "Makaron ryżowy z kurczakiem i orzeszkami (na zimno)",
+  "dodane": true,
+  "czas": "20 min wieczorem",
+  "sprzet": "garnek, patelnia lub airfryer, tarka, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "makaron ryżowy",
+    "produkt": "makaron ryżowy",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 180,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 140,
+    "jednostka": "g",
+    "kcal": 154,
+    "bialko": 32,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "marchew",
+    "produkt": "marchew",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "orzeszki ziemne",
+    "produkt": "orzeszki ziemne",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 88,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "sos sojowy",
+    "produkt": "sos sojowy",
+    "ilosc": 1.5,
+    "jednostka": "łyż.",
+    "kcal": 15,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "masło orzechowe",
+    "produkt": "masło orzechowe",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "sok z limonki lub cytryny, czosnek, chili (opcjonalnie)"
+  ],
+  "razem": {
+   "kcal": 547,
+   "bialko": 45
+  },
+  "na_porcje": {
+   "kcal": 547,
+   "bialko": 45
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: makaron ryżowy (50 g) zalej wrzątkiem na czas z opakowania (zwykle 4–5 min), odcedź i przepłucz zimną wodą.",
+   "WIECZOREM: kurczaka (140 g) pokrój w paski i usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź.",
+   "SOS: masło orzechowe (10 g), sos sojowy (1½ łyżki), sok z limonki i odrobinę czosnku wymieszaj z 1 łyżką ciepłej wody.",
+   "Ogórka i marchew zetrzyj na tarce w słupki. Wymieszaj wszystko z makaronem i sosem, posyp orzeszkami (15 g). Przełóż do pojemnika."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: makaron ryżowy (50 g) zalej wrzątkiem na czas z opakowania (zwykle 4–5 min), odcedź i przepłucz zimną wodą.",
+   "WIECZOREM: kurczaka (140 g) pokrój w paski i usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d20-serniczek-w-sloiku-z-granola-i-malinami",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D20",
+  "nazwa": "Serniczek w słoiku z granolą i malinami",
+  "dodane": true,
+  "czas": "5 min wieczorem",
+  "sprzet": "słoik, mały woreczek",
+  "skladniki": [
+   {
+    "nazwa": "twaróg półtłusty",
+    "produkt": "twaróg półtłusty",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 195,
+    "bialko": 27,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 94,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 168,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "maliny mrożone",
+    "produkt": "maliny mrożone",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyżecz.",
+    "kcal": 22,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [],
+  "razem": {
+   "kcal": 519,
+   "bialko": 48
+  },
+  "na_porcje": {
+   "kcal": 519,
+   "bialko": 48
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: twaróg (150 g) rozgnieć widelcem ze skyrem (150 g) i miodem (1 łyżeczka) na gładki krem.",
+   "WIECZOREM: do słoika wsyp 50 g mrożonych malin i wyłóż krem. Na wierzch daj resztę malin (50 g). Do rana się rozmrożą.",
+   "Granolę (40 g) weź w osobnym woreczku i dosyp tuż przed jedzeniem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: twaróg (150 g) rozgnieć widelcem ze skyrem (150 g) i miodem (1 łyżeczka) na gładki krem.",
+   "WIECZOREM: do słoika wsyp 50 g mrożonych malin i wyłóż krem. Na wierzch daj resztę malin (50 g). Do rana się rozmrożą."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "pad-thai-z-kurczakiem-i-orzeszkami",
+  "typ": "obiad_sobota",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Pad thai z kurczakiem i orzeszkami",
+  "dodane": true,
+  "czas": "35 min",
+  "sprzet": "wok lub duża patelnia, miska",
+  "skladniki": [
+   {
+    "nazwa": "makaron ryżowy",
+    "produkt": "makaron ryżowy",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 360,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 280,
+    "jednostka": "g",
+    "kcal": 308,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "marchew",
+    "produkt": "marchew",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "sos sojowy",
+    "produkt": "sos sojowy",
+    "ilosc": 3,
+    "jednostka": "łyż.",
+    "kcal": 30,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "masło orzechowe",
+    "produkt": "masło orzechowe",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "orzeszki ziemne",
+    "produkt": "orzeszki ziemne",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 88,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, sok z 1 limonki, chili (dla niej mniej), szczypiorek, cukier szczypta"
+  ],
+  "razem": {
+   "kcal": 1252,
+   "bialko": 97
+  },
+  "na_porcje": {
+   "kcal": 626,
+   "bialko": 48
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Makaron ryżowy (100 g) zalej gorącą (nie wrzącą) wodą na 8–10 min, aż będzie miękki, ale sprężysty. Odcedź.",
+   "SOS: masło orzechowe (20 g), sos sojowy (3 łyżki), sok z limonki, szczyptę cukru i chili wymieszaj z 3 łyżkami wody.",
+   "Kurczaka (280 g) pokrój w cienkie paski. Marchew zetrzyj w słupki, paprykę pokrój w paski.",
+   "Na bardzo mocnym ogniu rozgrzej oliwę (1 łyżka). Smaż kurczaka 4–5 min, dodaj czosnek, marchew i paprykę na 2 min. Zepchnij na bok patelni.",
+   "Wbij 2 jaja i mieszaj 1 min, aż się zetną. Dodaj makaron i sos, mieszaj 1–2 min, żeby wszystko się połączyło.",
+   "Podaj posypany orzeszkami (15 g) i szczypiorkiem, z ćwiartką limonki."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kurczak-tikka-masala-z-ryzem",
+  "typ": "obiad_sobota",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kurczak tikka masala z ryżem",
+  "dodane": true,
+  "czas": "45 min (+ marynata)",
+  "sprzet": "patelnia z pokrywką, miska, garnek na ryż",
+  "skladniki": [
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 280,
+    "jednostka": "g",
+    "kcal": 308,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 90,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 105,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "śmietana 12%",
+    "produkt": "śmietana 12%",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 350,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, imbir 1 łyżeczka, garam masala 2 łyżeczki, papryka słodka, kurkuma, sól, natka"
+  ],
+  "razem": {
+   "kcal": 1143,
+   "bialko": 86
+  },
+  "na_porcje": {
+   "kcal": 572,
+   "bialko": 43
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "MARYNATA (może być rano): kurczaka (280 g) pokrój w kostkę 3 cm i wymieszaj z jogurtem (150 g), 1 łyżeczką garam masali, papryką, solą i 1 ząbkiem czosnku. Odstaw na min. 30 min (najlepiej kilka godzin w lodówce).",
+   "RYŻ: 100 g przepłucz i ugotuj w osolonej wodzie wg opakowania.",
+   "Na patelni rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) 4 min, dodaj resztę czosnku, imbir, garam masalę i kurkumę na 1 min.",
+   "Wlej passatę (300 g) i 100 ml wody, gotuj 5 min.",
+   "Kurczaka z marynaty obsmaż osobno na suchej patelni po 2–3 min z każdej strony (albo airfryer 200°C, 10 min), przełóż do sosu i duś 8 min.",
+   "ZDEJMIJ Z OGNIA: śmietanę (100 g) zahartuj 3 łyżkami sosu i wlej na patelnię, mieszając. Podaj na ryżu, posyp natką."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "quesadille-z-kurczakiem-i-salsa-pomidorowa",
+  "typ": "obiad_sobota",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Quesadille z kurczakiem i salsą pomidorową",
+  "dodane": true,
+  "czas": "30 min",
+  "sprzet": "duża patelnia, deska",
+  "skladniki": [
+   {
+    "nazwa": "tortilla pełnoziarnista",
+    "produkt": "tortilla pełnoziarnista",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 360,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 280,
+    "jednostka": "g",
+    "kcal": 308,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 90,
+    "jednostka": "g",
+    "kcal": 315,
+    "bialko": 23,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 10,
+    "jednostka": "szt.",
+    "kcal": 30,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula czerwona",
+    "produkt": "cebula czerwona",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 16,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "kmin, papryka wędzona, czosnek, sok z limonki, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1184,
+   "bialko": 106
+  },
+  "na_porcje": {
+   "kcal": 592,
+   "bialko": 53
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Kurczaka (280 g) pokrój w cienkie paski, dopraw kminem, papryką wędzoną, czosnkiem, solą i pieprzem. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Odstaw.",
+   "Paprykę pokrój w cienkie paski i podsmaż 3 min na tej samej patelni z ½ łyżki oliwy.",
+   "SALSA: pomidorki (10 szt.) i cebulę czerwoną (40 g) posiekaj drobno, wymieszaj z sokiem z limonki i solą.",
+   "Na połowie każdej tortilli ułóż kurczaka, paprykę i starty ser (90 g), złóż na pół.",
+   "Smaż na suchej patelni po 2–3 min z każdej strony, aż ser się roztopi, a tortilla zrumieni. Dociskaj szpatułką.",
+   "Pokrój na trójkąty. Podaj z salsą i jogurtem (100 g) wymieszanym z solą i czosnkiem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "spaghetti-z-domowymi-klopsikami-wolowymi",
+  "typ": "obiad_niedziela",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Spaghetti z domowymi klopsikami wołowymi",
+  "dodane": true,
+  "czas": "45 min",
+  "sprzet": "duża patelnia z pokrywką, garnek",
+  "skladniki": [
+   {
+    "nazwa": "wołowina mielona",
+    "produkt": "wołowina mielona",
+    "ilosc": 320,
+    "jednostka": "g",
+    "kcal": 448,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 78,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "parmezan",
+    "produkt": "parmezan",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "makaron pszenny",
+    "produkt": "makaron pszenny",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 420,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 400,
+    "jednostka": "g",
+    "kcal": 140,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, oregano, bazylia, szczypta cukru, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1266,
+   "bialko": 98
+  },
+  "na_porcje": {
+   "kcal": 633,
+   "bialko": 49
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Mięso (320 g) wymieszaj z jajkiem, połową parmezanu (10 g), 1 przeciśniętym ząbkiem czosnku, ½ łyżeczki soli i pieprzem. Mokrymi dłońmi uformuj ok. 12 klopsików.",
+   "Na patelni rozgrzej oliwę (½ łyżki). Obsmaż klopsiki na złoto, 5 min, obracając, i odłóż.",
+   "Na tej samej patelni smaż cebulę (lub por) 4 min, dodaj resztę czosnku. Wlej passatę (400 g) i 100 ml wody, dodaj oregano, bazylię, szczyptę cukru i sól.",
+   "Włóż klopsiki do sosu, przykryj i duś 15 min na małym ogniu.",
+   "Makaron (120 g) ugotuj al dente. Podaj z klopsikami w sosie, posyp resztą parmezanu (10 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "burrito-wolowe-z-fasola-i-salsa",
+  "typ": "obiad_niedziela",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Burrito wołowe z fasolą i salsą",
+  "dodane": true,
+  "czas": "35 min",
+  "sprzet": "patelnia, miska",
+  "skladniki": [
+   {
+    "nazwa": "tortilla pełnoziarnista",
+    "produkt": "tortilla pełnoziarnista",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 360,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "wołowina mielona",
+    "produkt": "wołowina mielona",
+    "ilosc": 320,
+    "jednostka": "g",
+    "kcal": 448,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "fasola czerwona z puszki (odsączona)",
+    "produkt": "fasola czerwona z puszki (odsączona)",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 110,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 105,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 10,
+    "jednostka": "szt.",
+    "kcal": 30,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "sałata",
+    "produkt": "sałata",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 6,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, kmin, papryka wędzona, chili (dla niej mniej), sok z limonki, sól"
+  ],
+  "razem": {
+   "kcal": 1219,
+   "bialko": 97
+  },
+  "na_porcje": {
+   "kcal": 610,
+   "bialko": 48
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Na patelni rozgrzej oliwę (½ łyżki). Smaż cebulę (lub por) 3 min, dodaj czosnek na 30 s.",
+   "Dodaj mięso (320 g) i smaż na mocnym ogniu 7 min, rozbijając łopatką. Dopraw kminem, papryką wędzoną, chili i solą.",
+   "Dodaj odsączoną fasolę (100 g) i 50 ml wody, duś 5 min, lekko rozgniatając część fasoli.",
+   "SALSA: pomidorki (10 szt.) posiekaj, wymieszaj z sokiem z limonki i solą. SOS: jogurt (100 g) z solą i odrobiną czosnku.",
+   "Tortille podgrzej 20 s na suchej patelni. Na każdą nałóż mięso z fasolą, sałatę (40 g), ser (30 g), salsę i sos. Zegnij boki do środka i zwiń burrito."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "losos-teriyaki-z-ryzem-i-brokulami",
+  "typ": "obiad_niedziela",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Łosoś teriyaki z ryżem i brokułami",
+  "dodane": true,
+  "czas": "30 min (łososia rozmroź dzień wcześniej w lodówce)",
+  "sprzet": "patelnia, garnek na ryż, garnek na brokuł",
+  "skladniki": [
+   {
+    "nazwa": "łosoś filet",
+    "produkt": "łosoś filet",
+    "ilosc": 260,
+    "jednostka": "g",
+    "kcal": 520,
+    "bialko": 52,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 350,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "brokuł",
+    "produkt": "brokuł",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 102,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "sos sojowy",
+    "produkt": "sos sojowy",
+    "ilosc": 2,
+    "jednostka": "łyż.",
+    "kcal": 20,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "sezam",
+    "produkt": "sezam",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 45,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "imbir, czosnek, sok z limonki"
+  ],
+  "razem": {
+   "kcal": 1157,
+   "bialko": 72
+  },
+  "na_porcje": {
+   "kcal": 578,
+   "bialko": 36
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "RYŻ: 100 g przepłucz i ugotuj w osolonej wodzie wg opakowania.",
+   "SOS TERIYAKI: sos sojowy (2 łyżki), miód (1 łyżka), starty imbir, przeciśnięty czosnek i 2 łyżki wody wymieszaj.",
+   "Łososia (260 g) osusz, podziel na 2 kawałki i polej połową sosu na 10 min.",
+   "Brokuł (300 g) podziel na różyczki. Gotuj na parze lub we wrzątku 4 min, odcedź.",
+   "Łososia smaż na patelni z oliwą (½ łyżki) skórą do dołu 4 min, odwróć na 3 min, wlej resztę sosu i gotuj 1 min, aż zgęstnieje (albo airfryer 180°C, 10 min).",
+   "Podaj na ryżu z brokułem, polej sosem z patelni i posyp sezamem (1 łyżka)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Mniej białka niż w większości obiadów — apka wyrówna to w innych posiłkach albo zaznaczy różnicę.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "k13-brzoskwiniowo-waniliowy-maly",
+  "typ": "koktajl_maly",
+  "porcje": 1,
+  "kod": "K13",
+  "nazwa": "Brzoskwiniowo-waniliowy (mały)",
+  "dodane": true,
+  "czas": null,
+  "sprzet": null,
+  "skladniki": [
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 94,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 125,
+    "jednostka": "ml",
+    "kcal": 62,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 12.5,
+    "jednostka": "g",
+    "kcal": 50,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "brzoskwinie mrożone",
+    "produkt": "brzoskwinie mrożone",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 63,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [],
+  "razem": {
+   "kcal": 309,
+   "bialko": 32
+  },
+  "na_porcje": {
+   "kcal": 309,
+   "bialko": 32
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
+   "Blenduj 30–45 s na wysokich obrotach, aż będzie gładko.",
+   "Za gęsty? Dolej 30–50 ml wody (0 kcal)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": [],
+  "masa_g": 400,
+  "pora": "13:00"
+ },
+ {
+  "id": "k15-mango-z-granola-maly",
+  "typ": "koktajl_maly",
+  "porcje": 1,
+  "kod": "K15",
+  "nazwa": "Mango z granolą (mały)",
+  "dodane": true,
+  "czas": null,
+  "sprzet": null,
+  "skladniki": [
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 94,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 125,
+    "jednostka": "ml",
+    "kcal": 62,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 12.5,
+    "jednostka": "g",
+    "kcal": 50,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mango mrożone",
+    "produkt": "mango mrożone",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 63,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [],
+  "razem": {
+   "kcal": 329,
+   "bialko": 32
+  },
+  "na_porcje": {
+   "kcal": 329,
+   "bialko": 32
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
+   "Blenduj 30–45 s na wysokich obrotach, aż będzie gładko.",
+   "Za gęsty? Dolej 30–50 ml wody (0 kcal)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": [],
+  "masa_g": 400,
+  "pora": "13:00"
+ },
+ {
+  "id": "k16-brzoskwiniowy-z-granola",
+  "typ": "koktajl",
+  "porcje": 2,
+  "kod": "K16",
+  "nazwa": "Brzoskwiniowy z granolą",
+  "dodane": true,
+  "czas": null,
+  "sprzet": null,
+  "skladniki": [
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 189,
+    "bialko": 33,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 250,
+    "jednostka": "ml",
+    "kcal": 125,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 25,
+    "jednostka": "g",
+    "kcal": 100,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "brzoskwinie mrożone",
+    "produkt": "brzoskwinie mrożone",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "granola",
+    "produkt": "granola",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 84,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [],
+  "razem": {
+   "kcal": 638,
+   "bialko": 63
+  },
+  "na_porcje": {
+   "kcal": 319,
+   "bialko": 32
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
+   "Blenduj 30–45 s na wysokich obrotach, aż będzie gładko.",
+   "Za gęsty? Dolej 30–50 ml wody (0 kcal)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {
+   "~18:00": {
+    "ona_g": 345,
+    "ona_kcal": 270,
+    "ona_bialko": 27,
+    "on_kcal": 551,
+    "on_bialko": 70,
+    "dosypka": true
+   }
+  },
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": [],
+  "masa_g": 815,
+  "pora": "~18:00"
+ },
+ {
+  "id": "k17-bananowo-czekoladowy",
+  "typ": "koktajl",
+  "porcje": 2,
+  "kod": "K17",
+  "nazwa": "Bananowo-czekoladowy",
+  "dodane": true,
+  "czas": null,
+  "sprzet": null,
+  "skladniki": [
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 189,
+    "bialko": 33,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 250,
+    "jednostka": "ml",
+    "kcal": 125,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 25,
+    "jednostka": "g",
+    "kcal": 100,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "banan",
+    "produkt": "banan",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 90,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "kakao gorzkie",
+    "produkt": "kakao gorzkie",
+    "ilosc": 2,
+    "jednostka": "łyżecz.",
+    "kcal": 40,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "masło orzechowe",
+    "produkt": "masło orzechowe",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 90,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [],
+  "razem": {
+   "kcal": 634,
+   "bialko": 66
+  },
+  "na_porcje": {
+   "kcal": 317,
+   "bialko": 33
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Do kielicha wkładaj w tej kolejności: mleko, skyr, odżywka, dodatki suche (płatki, kakao, masło orzechowe), na końcu owoce mrożone. Tak blender nie stanie.",
+   "Blenduj 30–45 s na wysokich obrotach, aż będzie gładko.",
+   "Za gęsty? Dolej 30–50 ml wody (0 kcal)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {
+   "~18:00": {
+    "ona_g": 307,
+    "ona_kcal": 270,
+    "ona_bialko": 28,
+    "on_kcal": 547,
+    "on_bialko": 72,
+    "dosypka": true
+   }
+  },
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": [],
+  "masa_g": 720,
+  "pora": "~18:00"
  }
 ]

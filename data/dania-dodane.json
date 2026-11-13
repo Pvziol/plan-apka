@@ -326,7 +326,7 @@
   "kroki": [
    "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki.",
    "Skyr (600 g) wymieszaj z odżywką (15 g) i rozłóż do 2 misek.",
-   "Banana pokrój w plasterki. Na skyr połóż banana, maliny i po 10 g masła orzechowego.",
+   "Banana pokrój w plasterki. Na skyr połóż banana, owoce i po 10 g masła orzechowego.",
    "Granolę (po 50 g) dosyp tuż przed jedzeniem, żeby została chrupiąca."
   ],
   "odgrzewanie": null,
@@ -3680,7 +3680,7 @@
    "WIECZOREM: odsyp 200 g mrożonych malin do miseczki i wstaw do lodówki, żeby się rozmroziły.",
    "Mleko (500 ml) zagotuj ze szczyptą soli. Zmniejsz ogień, wsypuj cienkim strumieniem kaszę mannę (80 g), cały czas mieszając. Gotuj 3 min, aż zgęstnieje. Zdejmij z ognia i dodaj masło (1 łyżeczka).",
    "Skyr (150 g) wymieszaj z odżywką (30 g) i miodem na krem. Odżywki nie dodawaj do gorącego garnka — się zważy.",
-   "MUS: rozmrożone maliny (200 g) rozgnieć widelcem.",
+   "MUS: rozmrożone owoce (200 g) rozgnieć widelcem.",
    "Kaszę rozlej do 2 misek, na wierzch krem, mus malinowy, banana w plasterkach i granolę (30 g)."
   ],
   "odgrzewanie": null,
@@ -4057,7 +4057,7 @@
    "Twaróg (300 g) rozgnieć widelcem z jajkami, mąką (50 g) i szczyptą soli. Ciasto ma być gęste, ale lepkie.",
    "Mokrymi dłońmi formuj małe placki (ok. 8 szt., grubość 1,5 cm).",
    "Na patelni rozgrzej 1 łyżkę oleju. Smaż syrniki na średnim ogniu po 3 min z każdej strony, aż będą złote.",
-   "MUS: maliny rozgnieć widelcem z miodem. Syrniki podaj z jogurtem (100 g), musem i granolą (40 g)."
+   "MUS: owoce rozgnieć widelcem z miodem. Syrniki podaj z jogurtem (100 g), musem i granolą (40 g)."
   ],
   "odgrzewanie": null,
   "uwaga": null,
@@ -5046,14 +5046,14 @@
   "warianty": [],
   "kroki": [
    "WIECZOREM: twaróg (150 g) rozgnieć widelcem ze skyrem (150 g) i miodem (1 łyżeczka) na gładki krem.",
-   "WIECZOREM: do słoika wsyp 50 g mrożonych malin i wyłóż krem. Na wierzch daj resztę malin (50 g). Do rana się rozmrożą.",
+   "WIECZOREM: do słoika wsyp 50 g mrożonych malin i wyłóż krem. Na wierzch daj resztę mieszanki (50 g). Do rana się rozmrożą.",
    "Granolę (40 g) weź w osobnym woreczku i dosyp tuż przed jedzeniem."
   ],
   "odgrzewanie": null,
   "uwaga": null,
   "wieczorem": [
    "WIECZOREM: twaróg (150 g) rozgnieć widelcem ze skyrem (150 g) i miodem (1 łyżeczka) na gładki krem.",
-   "WIECZOREM: do słoika wsyp 50 g mrożonych malin i wyłóż krem. Na wierzch daj resztę malin (50 g). Do rana się rozmrożą."
+   "WIECZOREM: do słoika wsyp 50 g mrożonych malin i wyłóż krem. Na wierzch daj resztę mieszanki (50 g). Do rana się rozmrożą."
   ],
   "podzial": {},
   "zrodlo": [
@@ -5829,6 +5829,1030 @@
   "wystapienia": []
  },
  {
+  "id": "kurczak-w-sosie-smietanowo-pieczarkowym-z-makaronem",
+  "typ": "obiad_sobota",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kurczak w sosie śmietanowo-pieczarkowym z makaronem",
+  "dodane": true,
+  "czas": "35 min",
+  "sprzet": "duża patelnia z pokrywką, garnek",
+  "skladniki": [
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 280,
+    "jednostka": "g",
+    "kcal": 308,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "pieczarki",
+    "produkt": "pieczarki",
+    "ilosc": 250,
+    "jednostka": "g",
+    "kcal": 55,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "śmietana 12%",
+    "produkt": "śmietana 12%",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "makaron pszenny",
+    "produkt": "makaron pszenny",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 420,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, tymianek, natka, sól, pieprz, bulion 100 ml"
+  ],
+  "razem": {
+   "kcal": 1073,
+   "bialko": 90
+  },
+  "na_porcje": {
+   "kcal": 536,
+   "bialko": 45
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Makaron (120 g) ugotuj al dente w osolonej wodzie, odcedź.",
+   "Kurczaka (280 g) pokrój w kostkę 2 cm, dopraw solą i pieprzem. Na patelni rozgrzej oliwę (1 łyżka) i smaż 5 min na złoto. Odłóż.",
+   "Na tej samej patelni smaż cebulę (lub por) 3 min, dodaj pieczarki (250 g) w plasterkach i smaż 6 min, aż odparuje woda. Dodaj czosnek i tymianek.",
+   "Wlej 100 ml bulionu, wróć z kurczakiem, dusz 5 min. ZDEJMIJ Z OGNIA: śmietanę (100 g) zahartuj łyżką sosu i wlej do patelni.",
+   "Podaj z makaronem, posyp natką."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kotlety-z-indyka-z-pieczonymi-batatami-i-surowka",
+  "typ": "obiad_sobota",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kotlety z indyka z pieczonymi batatami i surówką",
+  "dodane": true,
+  "czas": "45 min",
+  "sprzet": "blacha lub airfryer, patelnia, miska",
+  "skladniki": [
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 320,
+    "jednostka": "g",
+    "kcal": 384,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 78,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "bataty",
+    "produkt": "bataty",
+    "ilosc": 400,
+    "jednostka": "g",
+    "kcal": 344,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "marchew",
+    "produkt": "marchew",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 70,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, papryka wędzona, sok z cytryny, natka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1056,
+   "bialko": 83
+  },
+  "na_porcje": {
+   "kcal": 528,
+   "bialko": 42
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Bataty (400 g) pokrój w słupki, wymieszaj z ½ łyżki oliwy, papryką wędzoną i solą. Piecz 25 min w 210°C (albo airfryer 200°C, 18 min), przewracając w połowie.",
+   "Mięso (320 g) wymieszaj z jajkiem, 1 ząbkiem czosnku, solą i pieprzem. Uformuj 4 kotlety.",
+   "Smaż na patelni z ½ łyżki oliwy po 5 min z każdej strony, aż będą ścięte w środku.",
+   "SURÓWKA: marchew zetrzyj na tarce, wymieszaj z jogurtem (100 g), sokiem z cytryny, natką i solą.",
+   "Podaj kotlety z batatami i surówką."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "stir-fry-z-poledwiczka-wieprzowa-warzywami-i-ryzem",
+  "typ": "obiad_sobota",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Stir-fry z polędwiczką wieprzową, warzywami i ryżem",
+  "dodane": true,
+  "czas": "35 min",
+  "sprzet": "wok lub duża patelnia, garnek",
+  "skladniki": [
+   {
+    "nazwa": "polędwiczka wieprzowa",
+    "produkt": "polędwiczka wieprzowa",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 360,
+    "bialko": 63,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 350,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "brokuł",
+    "produkt": "brokuł",
+    "ilosc": 250,
+    "jednostka": "g",
+    "kcal": 85,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "marchew",
+    "produkt": "marchew",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "sos sojowy",
+    "produkt": "sos sojowy",
+    "ilosc": 3,
+    "jednostka": "łyż.",
+    "kcal": 30,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "sezam",
+    "produkt": "sezam",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 45,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, imbir, chili (dla niej mniej)"
+  ],
+  "razem": {
+   "kcal": 1120,
+   "bialko": 85
+  },
+  "na_porcje": {
+   "kcal": 560,
+   "bialko": 42
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "RYŻ: 100 g przepłucz i ugotuj w osolonej wodzie wg opakowania.",
+   "Polędwiczkę (300 g) pokrój w cienkie plastry. SOS: sos sojowy (3 łyżki), miód (1 łyżka), starty imbir, czosnek i 3 łyżki wody wymieszaj.",
+   "Brokuł podziel na różyczki, paprykę i marchew pokrój w paski.",
+   "Na bardzo mocnym ogniu rozgrzej oliwę (1 łyżka). Smaż mięso 3 min, odłóż. Wrzuć marchew i brokuł na 3 min, dodaj paprykę na 2 min.",
+   "Wróć z mięsem, wlej sos, mieszaj 1–2 min. Podaj na ryżu, posyp sezamem (1 łyżka)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "pieczony-dorsz-z-cukinia-i-kuskusem",
+  "typ": "obiad_niedziela",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Pieczony dorsz z cukinią i kuskusem",
+  "dodane": true,
+  "czas": "30 min (dorsza rozmroź dzień wcześniej w lodówce)",
+  "sprzet": "blacha lub naczynie do zapiekania, miska",
+  "skladniki": [
+   {
+    "nazwa": "dorsz filet",
+    "produkt": "dorsz filet",
+    "ilosc": 320,
+    "jednostka": "g",
+    "kcal": 256,
+    "bialko": 58,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "kuskus",
+    "produkt": "kuskus",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 360,
+    "bialko": 12,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cukinia",
+    "produkt": "cukinia",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 50,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 10,
+    "jednostka": "szt.",
+    "kcal": 30,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "feta",
+    "produkt": "feta",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 104,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, oregano, sok z cytryny, natka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 920,
+   "bialko": 81
+  },
+  "na_porcje": {
+   "kcal": 460,
+   "bialko": 40
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Piekarnik 200°C. Cukinię pokrój w półplasterki, pomidorki na pół, wymieszaj z oliwą (1 łyżka), czosnkiem, oregano i solą. Rozłóż na blasze.",
+   "Dorsza (320 g) osusz, dopraw solą, pieprzem i sokiem z cytryny. Połóż na warzywach.",
+   "Piecz 15 min, aż ryba będzie biała i łatwo się rozpada.",
+   "KUSKUS: 100 g zalej 100 ml wrzątku, przykryj na 5 min, rozdrobnij widelcem.",
+   "Podaj rybę z warzywami i kuskusem, posyp pokruszoną fetą (40 g) i natką."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "zapiekanka-makaronowa-z-indykiem-i-cukinia",
+  "typ": "obiad_niedziela",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Zapiekanka makaronowa z indykiem i cukinią",
+  "dodane": true,
+  "czas": "45 min",
+  "sprzet": "garnek, patelnia, naczynie do zapiekania",
+  "skladniki": [
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 320,
+    "jednostka": "g",
+    "kcal": 384,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "makaron pszenny",
+    "produkt": "makaron pszenny",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 420,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 105,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 280,
+    "bialko": 21,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cukinia",
+    "produkt": "cukinia",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 50,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, oregano, bazylia, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1399,
+   "bialko": 108
+  },
+  "na_porcje": {
+   "kcal": 700,
+   "bialko": 54
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Makaron (120 g) ugotuj 2 min krócej niż na opakowaniu, odcedź. Piekarnik 190°C.",
+   "Na patelni rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) 3 min, dodaj czosnek i mięso (320 g), smaż 7 min, rozbijając.",
+   "Dodaj cukinię w kostce, smaż 4 min. Wlej passatę (300 g), dopraw oregano, bazylią, solą i pieprzem, gotuj 5 min.",
+   "Wymieszaj z makaronem, przełóż do naczynia i posyp startym serem (80 g).",
+   "Zapiekaj 15–20 min, aż ser się zarumieni."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "chili-con-carne-z-ryzem",
+  "typ": "obiad_niedziela",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Chili con carne z ryżem",
+  "dodane": true,
+  "czas": "40 min",
+  "sprzet": "garnek z grubym dnem, garnek na ryż",
+  "skladniki": [
+   {
+    "nazwa": "wołowina mielona",
+    "produkt": "wołowina mielona",
+    "ilosc": 320,
+    "jednostka": "g",
+    "kcal": 448,
+    "bialko": 64,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "fasola czerwona z puszki (odsączona)",
+    "produkt": "fasola czerwona z puszki (odsączona)",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 220,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 105,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "kukurydza konserwowa",
+    "produkt": "kukurydza konserwowa",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 45,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 350,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, kmin, papryka wędzona, chili (dla niej mniej), oregano, sól"
+  ],
+  "razem": {
+   "kcal": 1363,
+   "bialko": 95
+  },
+  "na_porcje": {
+   "kcal": 682,
+   "bialko": 48
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "RYŻ: 100 g przepłucz i ugotuj w osolonej wodzie wg opakowania.",
+   "W garnku rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) 3 min, dodaj czosnek i mięso (320 g), smaż 7 min, rozbijając łopatką.",
+   "Dodaj kmin, paprykę wędzoną, chili i oregano. Wlej passatę (300 g) i 100 ml wody.",
+   "Dodaj paprykę w kostce, fasolę (200 g) i kukurydzę (60 g). Gotuj pod przykryciem 20 min.",
+   "Podaj z ryżem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d31-omlet-z-szynka-serem-i-warzywami",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D31",
+  "nazwa": "Omlet z szynką, serem i warzywami",
+  "dodane": true,
+  "czas": "12 min",
+  "sprzet": "patelnia nieprzywierająca",
+  "skladniki": [
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 3,
+    "jednostka": "szt.",
+    "kcal": 234,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 55,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 70,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 18,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "szczypiorek, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 452,
+   "bialko": 35
+  },
+  "na_porcje": {
+   "kcal": 452,
+   "bialko": 35
+  },
+  "tylko_wybor": true,
+  "weekend": true,
+  "warianty": [],
+  "kroki": [
+   "Jaja roztrzep z solą i pieprzem. Szynkę i paprykę pokrój w kostkę, pomidorki na pół.",
+   "Na patelni rozgrzej oliwę (½ łyżki), wlej jaja i smaż na małym ogniu 2 min.",
+   "Na połowę omletu daj szynkę, paprykę, pomidorki i ser (20 g). Przykryj na 2 min, złóż na pół i posyp szczypiorkiem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Najlepszy na świeżo (weekend). Apka nie układa go sama w tygodniu — możesz go wybrać ręcznie.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d32-tosty-z-jajkiem-lososiem-wedzonym-i-serkiem",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D32",
+  "nazwa": "Tosty z jajkiem, łososiem wędzonym i serkiem",
+  "dodane": true,
+  "czas": "12 min",
+  "sprzet": "patelnia, toster",
+  "skladniki": [
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 2,
+    "jednostka": "krom.",
+    "kcal": 140,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "łosoś wędzony",
+    "produkt": "łosoś wędzony",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 85,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "serek wiejski",
+    "produkt": "serek wiejski",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 58,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 8,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "koperek, sok z cytryny, pieprz"
+  ],
+  "razem": {
+   "kcal": 447,
+   "bialko": 35
+  },
+  "na_porcje": {
+   "kcal": 447,
+   "bialko": 35
+  },
+  "tylko_wybor": true,
+  "weekend": true,
+  "warianty": [],
+  "kroki": [
+   "Chleb opiecz w tosterze lub na suchej patelni. Jaja usmaż jako sadzone (lub jajecznicę) na niskim ogniu.",
+   "Na tosty rozsmaruj serek wiejski (60 g), połóż plasterki ogórka i łososia (50 g).",
+   "Na wierzch jajko, koperek, kilka kropel cytryny i pieprz."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Najlepszy na świeżo (weekend). Apka nie układa go sama w tygodniu — możesz go wybrać ręcznie.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d33-szakszuka-z-feta-i-chlebem",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D33",
+  "nazwa": "Szakszuka z fetą i chlebem",
+  "dodane": true,
+  "czas": "20 min",
+  "sprzet": "patelnia z pokrywką",
+  "skladniki": [
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 4,
+    "jednostka": "szt.",
+    "kcal": 312,
+    "bialko": 25,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 70,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 18,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 20,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "feta",
+    "produkt": "feta",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 1,
+    "jednostka": "krom.",
+    "kcal": 70,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek, kmin, papryka wędzona, chili, natka, sól"
+  ],
+  "razem": {
+   "kcal": 680,
+   "bialko": 39
+  },
+  "na_porcje": {
+   "kcal": 680,
+   "bialko": 39
+  },
+  "tylko_wybor": true,
+  "weekend": true,
+  "warianty": [],
+  "kroki": [
+   "Na patelni rozgrzej oliwę (½ łyżki). Smaż cebulę (lub por) i paprykę w kostce 4 min, dodaj czosnek, kmin i paprykę wędzoną.",
+   "Wlej passatę (200 g), dopraw solą i chili, gotuj 5 min, aż zgęstnieje.",
+   "Zrób 4 wgłębienia, wbij jaja, przykryj i duś 5–6 min, aż białko się zetnie.",
+   "Posyp pokruszoną fetą (50 g) i natką. Podaj z chlebem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Najlepsza na świeżo (weekend). Apka nie układa jej sama w tygodniu — możesz ją wybrać ręcznie.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
   "id": "k13-brzoskwiniowo-waniliowy-maly",
   "typ": "koktajl_maly",
   "porcje": 1,
@@ -6361,7 +7385,7 @@
    "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki.",
    "Mąkę (80 g), jaja, mleko (200 ml), odżywkę (30 g) i szczyptę soli zmiksuj lub wymieszaj rózgą na gładkie ciasto bez grudek. Odstaw na 5 min.",
    "Patelnię posmaruj cienko oliwą (½ łyżki łącznie). Smaż cienkie naleśniki po ok. 1 min z każdej strony (wyjdzie ok. 6 sztuk).",
-   "NADZIENIE: twaróg (200 g) rozgnieć widelcem z połową miodu. MUS: maliny rozgnieć z resztą miodu.",
+   "NADZIENIE: twaróg (200 g) rozgnieć widelcem z połową miodu. MUS: owoce rozgnieć z resztą miodu.",
    "Na każdy naleśnik połóż twarożek, zawiń i polej musem malinowym."
   ],
   "odgrzewanie": null,
@@ -7391,14 +8415,14 @@
   "warianty": [],
   "kroki": [
    "WIECZOREM: kaszę jaglaną (40 g) przepłucz gorącą wodą, wsyp do garnka ze 100 ml mleka i 60 ml wody, szczyptą soli i cynamonem. Gotuj pod przykryciem 12 min, odstaw i ostudź.",
-   "WIECZOREM: skyr (200 g) wymieszaj z odżywką (15 g) i miodem. Do słoika daj kaszę, na to krem ze skyru i maliny (100 g).",
+   "WIECZOREM: skyr (200 g) wymieszaj z odżywką (15 g) i miodem. Do słoika daj kaszę, na to krem ze skyru i owoce (100 g).",
    "Orzechy (10 g) zabierz w woreczku i dosyp tuż przed jedzeniem."
   ],
   "odgrzewanie": null,
   "uwaga": null,
   "wieczorem": [
    "WIECZOREM: kaszę jaglaną (40 g) przepłucz gorącą wodą, wsyp do garnka ze 100 ml mleka i 60 ml wody, szczyptą soli i cynamonem. Gotuj pod przykryciem 12 min, odstaw i ostudź.",
-   "WIECZOREM: skyr (200 g) wymieszaj z odżywką (15 g) i miodem. Do słoika daj kaszę, na to krem ze skyru i maliny (100 g)."
+   "WIECZOREM: skyr (200 g) wymieszaj z odżywką (15 g) i miodem. Do słoika daj kaszę, na to krem ze skyru i owoce (100 g)."
   ],
   "podzial": {},
   "zrodlo": [

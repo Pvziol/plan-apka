@@ -6243,5 +6243,2470 @@
   "wystapienia": [],
   "masa_g": 720,
   "pora": "~18:00"
+ },
+ {
+  "id": "nalesniki-proteinowe-z-twarozkiem-i-musem-malinowym",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Naleśniki proteinowe z twarożkiem i musem malinowym",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "patelnia nieprzywierająca, miska, blender lub widelec",
+  "skladniki": [
+   {
+    "nazwa": "mąka pszenna",
+    "produkt": "mąka pszenna",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 280,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 200,
+    "jednostka": "ml",
+    "kcal": 100,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 120,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "twaróg półtłusty",
+    "produkt": "twaróg półtłusty",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 260,
+    "bialko": 36,
+    "grupa": "NADZIENIE",
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "maliny mrożone",
+    "produkt": "maliny mrożone",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "szczypta soli, wanilia lub cynamon"
+  ],
+  "razem": {
+   "kcal": 1096,
+   "bialko": 87
+  },
+  "na_porcje": {
+   "kcal": 548,
+   "bialko": 44
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki.",
+   "Mąkę (80 g), jaja, mleko (200 ml), odżywkę (30 g) i szczyptę soli zmiksuj lub wymieszaj rózgą na gładkie ciasto bez grudek. Odstaw na 5 min.",
+   "Patelnię posmaruj cienko oliwą (½ łyżki łącznie). Smaż cienkie naleśniki po ok. 1 min z każdej strony (wyjdzie ok. 6 sztuk).",
+   "NADZIENIE: twaróg (200 g) rozgnieć widelcem z połową miodu. MUS: maliny rozgnieć z resztą miodu.",
+   "Na każdy naleśnik połóż twarożek, zawiń i polej musem malinowym."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "tosty-z-awokado-jajkiem-sadzonym-i-serkiem-wiejskim",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Tosty z awokado, jajkiem sadzonym i serkiem wiejskim",
+  "dodane": true,
+  "czas": "15 min",
+  "sprzet": "patelnia, toster lub patelnia grillowa",
+  "skladniki": [
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 4,
+    "jednostka": "krom.",
+    "kcal": 280,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "awokado",
+    "produkt": "awokado",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 220,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 4,
+    "jednostka": "szt.",
+    "kcal": 312,
+    "bialko": 25,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "serek wiejski",
+    "produkt": "serek wiejski",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 146,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 88,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 10,
+    "jednostka": "szt.",
+    "kcal": 30,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "sok z cytryny, chili płatki (opcjonalnie), sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1076,
+   "bialko": 70
+  },
+  "na_porcje": {
+   "kcal": 538,
+   "bialko": 35
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Chleb (4 krom.) opiecz w tosterze lub na suchej patelni.",
+   "Awokado rozgnieć widelcem z sokiem z cytryny, solą i pieprzem.",
+   "Na patelni (bez tłuszczu na nieprzywierającej, albo z kroplą oleju) usmaż 4 jajka sadzone, 2–3 min, aż białko się zetnie.",
+   "Na tosty: awokado, plasterki szynki (80 g), jajko. Obok serek wiejski (150 g) i pomidorki przekrojone na pół."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "gofry-owsiano-twarogowe-z-jogurtem-i-malinami",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Gofry owsiano-twarogowe z jogurtem i malinami",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "gofrownica, miska, blender lub widelec",
+  "skladniki": [
+   {
+    "nazwa": "płatki owsiane",
+    "produkt": "płatki owsiane",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 370,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "twaróg półtłusty",
+    "produkt": "twaróg półtłusty",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 195,
+    "bialko": 27,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 156,
+    "bialko": 13,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "banan",
+    "produkt": "banan",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 90,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 90,
+    "bialko": 7,
+    "grupa": "DODATKI",
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "maliny mrożone",
+    "produkt": "maliny mrożone",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli, proszek do pieczenia ½ łyżeczki"
+  ],
+  "razem": {
+   "kcal": 1041,
+   "bialko": 77
+  },
+  "na_porcje": {
+   "kcal": 520,
+   "bialko": 38
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki.",
+   "Płatki (100 g), twaróg (150 g), jaja, banana, odżywkę (20 g), cynamon, proszek do pieczenia i szczyptę soli zblenduj na gęste ciasto. Odstaw na 5 min.",
+   "Gofrownicę nagrzej i lekko natłuść. Piecz porcje ciasta po 3–4 min, aż będą złote (wyjdą ok. 4 gofry).",
+   "Podaj z jogurtem (150 g) i malinami."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: odsyp 150 g mrożonych malin do miseczki i wstaw do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "frittata-z-cukinia-feta-i-szynka-chleb",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Frittata z cukinią, fetą i szynką + chleb",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "patelnia z pokrywką, miska",
+  "skladniki": [
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 390,
+    "bialko": 32,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cukinia",
+    "produkt": "cukinia",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 100,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "feta",
+    "produkt": "feta",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 208,
+    "bialko": 11,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 110,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 4,
+    "jednostka": "krom.",
+    "kcal": 280,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 1 ząbek, oregano, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1148,
+   "bialko": 78
+  },
+  "na_porcje": {
+   "kcal": 574,
+   "bialko": 39
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Cukinię (2 szt.) zetrzyj na tarce na grubych oczkach, posól, po 5 min odciśnij wodę. Szynkę (100 g) pokrój w kostkę, fetę (80 g) pokrusz.",
+   "Na patelni rozgrzej ½ łyżki oliwy. Smaż cukinię i szynkę z czosnkiem 3 min.",
+   "5 jaj roztrzep z oregano, solą i pieprzem, wylej na patelnię, posyp fetą. Smaż pod przykryciem na małym ogniu 8–10 min, aż się zetnie.",
+   "Podziel na 2 części. Podaj z chlebem (po 2 kromki)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kasza-gryczana-na-slodko-z-twarogiem-i-jablkiem",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kasza gryczana na słodko z twarogiem i jabłkiem",
+  "dodane": true,
+  "czas": "20 min",
+  "sprzet": "garnek, patelnia, miska",
+  "skladniki": [
+   {
+    "nazwa": "kasza gryczana",
+    "produkt": "kasza gryczana",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 340,
+    "bialko": 12,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 150,
+    "jednostka": "ml",
+    "kcal": 75,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "twaróg półtłusty",
+    "produkt": "twaróg półtłusty",
+    "ilosc": 250,
+    "jednostka": "g",
+    "kcal": 325,
+    "bialko": 45,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 11,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jabłko",
+    "produkt": "jabłko",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 140,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "orzechy włoskie",
+    "produkt": "orzechy włoskie",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli"
+  ],
+  "razem": {
+   "kcal": 1130,
+   "bialko": 76
+  },
+  "na_porcje": {
+   "kcal": 565,
+   "bialko": 38
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Kaszę (100 g) przepłucz, wsyp do 200 ml wrzącej osolonej wody, gotuj pod przykryciem 12 min, odstaw na 5 min.",
+   "Jabłka pokrój w kostkę i podduś 5 min na patelni z łyżką wody i cynamonem.",
+   "Twaróg (250 g) rozgnieć widelcem z mlekiem (150 ml), odżywką (15 g) i miodem na kremową masę.",
+   "Do misek: kasza, krem z twarogu, jabłka i posiekane orzechy (20 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "placki-z-cukinii-z-serem-szynka-i-sosem-jogurtowym",
+  "typ": "sniadanie",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Placki z cukinii z serem, szynką i sosem jogurtowym",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "tarka, miska, patelnia nieprzywierająca",
+  "skladniki": [
+   {
+    "nazwa": "cukinia",
+    "produkt": "cukinia",
+    "ilosc": 3,
+    "jednostka": "szt.",
+    "kcal": 150,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 3,
+    "jednostka": "szt.",
+    "kcal": 234,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "mąka pszenna",
+    "produkt": "mąka pszenna",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 280,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 210,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 110,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 150,
+    "jednostka": "g",
+    "kcal": 90,
+    "bialko": 7,
+    "grupa": "SOS",
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "czosnek, koperek, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1194,
+   "bialko": 79
+  },
+  "na_porcje": {
+   "kcal": 597,
+   "bialko": 40
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Cukinie (3 szt.) zetrzyj na tarce, posól i po 5 min mocno odciśnij wodę. Ser (60 g) zetrzyj, szynkę (100 g) pokrój w drobną kostkę.",
+   "Wymieszaj cukinię z jajkami, mąką (80 g), serem, szynką, pieprzem i czosnkiem.",
+   "Na patelni rozgrzej oliwę (1 łyżka). Smaż małe placki (po 2 łyżki ciasta) 3 min z każdej strony na średnim ogniu.",
+   "SOS: jogurt (150 g) z koperkiem, solą i odrobiną czosnku. Podaj z plackami."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d21-kanapki-z-hummusem-z-ciecierzycy-i-szynka",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D21",
+  "nazwa": "Kanapki z hummusem z ciecierzycy i szynką",
+  "dodane": true,
+  "czas": "10 min wieczorem",
+  "sprzet": "widelec lub blender, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "ciecierzyca z puszki (odsączona)",
+    "produkt": "ciecierzyca z puszki (odsączona)",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 50,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 88,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 2,
+    "jednostka": "krom.",
+    "kcal": 140,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "czosnek, sok z cytryny, papryka słodka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 438,
+   "bialko": 37
+  },
+  "na_porcje": {
+   "kcal": 438,
+   "bialko": 37
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: ciecierzycę (100 g) odsącz i rozgnieć widelcem lub zblenduj ze skyrem (80 g), odrobiną czosnku, sokiem z cytryny, papryką, solą i pieprzem na gładką pastę.",
+   "Chleb (2 krom.) zabierz osobno, żeby nie zmiękł. Ogórka pokrój w plastry, pomidorki przekrój na pół.",
+   "Na miejscu posmaruj chleb hummusem, dołóż szynkę (80 g) i warzywa."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: ciecierzycę (100 g) odsącz i rozgnieć widelcem lub zblenduj ze skyrem (80 g), odrobiną czosnku, sokiem z cytryny, papryką, solą i pieprzem na gładką pastę."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d22-salatka-z-bulgurem-kurczakiem-i-feta",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D22",
+  "nazwa": "Sałatka z bulgurem, kurczakiem i fetą",
+  "dodane": true,
+  "czas": "20 min wieczorem",
+  "sprzet": "garnek, patelnia lub airfryer, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "kasza bulgur",
+    "produkt": "kasza bulgur",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 170,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 140,
+    "jednostka": "g",
+    "kcal": 154,
+    "bialko": 32,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "feta",
+    "produkt": "feta",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 78,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "sok z cytryny, papryka słodka, natka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 527,
+   "bialko": 46
+  },
+  "na_porcje": {
+   "kcal": 527,
+   "bialko": 46
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: bulgur (50 g) wsyp do 100 ml wrzącej osolonej wody, gotuj pod przykryciem 10–12 min, odstaw na 5 min i rozdrobnij widelcem. Przestudź.",
+   "WIECZOREM: kurczaka (140 g) pokrój w kostkę, dopraw solą, pieprzem i papryką słodką. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź.",
+   "Paprykę i ogórka pokrój w kostkę, pomidorki na pół, fetę (30 g) pokrusz.",
+   "Wymieszaj wszystko z ½ łyżki oliwy, sokiem z cytryny i natką. Przełóż do pojemnika."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: bulgur (50 g) wsyp do 100 ml wrzącej osolonej wody, gotuj pod przykryciem 10–12 min, odstaw na 5 min i rozdrobnij widelcem. Przestudź.",
+   "WIECZOREM: kurczaka (140 g) pokrój w kostkę, dopraw solą, pieprzem i papryką słodką. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d23-jajka-faszerowane-skyrem-z-pieczywem-chrupkim-i-warzywami",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D23",
+  "nazwa": "Jajka faszerowane skyrem z pieczywem chrupkim i warzywami",
+  "dodane": true,
+  "czas": "15 min wieczorem",
+  "sprzet": "garnek, miska, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 3,
+    "jednostka": "szt.",
+    "kcal": 234,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 80,
+    "jednostka": "g",
+    "kcal": 50,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "musztarda",
+    "produkt": "musztarda",
+    "ilosc": 1,
+    "jednostka": "łyżecz.",
+    "kcal": 5,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pieczywo chrupkie",
+    "produkt": "pieczywo chrupkie",
+    "ilosc": 4,
+    "jednostka": "szt.",
+    "kcal": 140,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 44,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 8,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "szczypiorek, papryka słodka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 512,
+   "bialko": 42
+  },
+  "na_porcje": {
+   "kcal": 512,
+   "bialko": 42
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: 3 jaja ugotuj na twardo (9 min od wrzenia), schłodź, obierz i przekrój wzdłuż na pół.",
+   "WIECZOREM: żółtka wyjmij do miski, rozgnieć ze skyrem (80 g), musztardą, szczypiorkiem, solą i pieprzem. Napełnij białka tą masą i posyp papryką.",
+   "Ogórka pokrój w słupki, pomidorki zostaw w całości. Pieczywo chrupkie (4 szt.) i szynkę (40 g) zabierz osobno.",
+   "Na miejscu jedz jajka z warzywami i szynką na pieczywie."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: 3 jaja ugotuj na twardo (9 min od wrzenia), schłodź, obierz i przekrój wzdłuż na pół.",
+   "WIECZOREM: żółtka wyjmij do miski, rozgnieć ze skyrem (80 g), musztardą, szczypiorkiem, solą i pieprzem. Napełnij białka tą masą i posyp papryką."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d24-jaglanka-w-sloiku-z-malinami",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D24",
+  "nazwa": "Jaglanka w słoiku z malinami",
+  "dodane": true,
+  "czas": "5 min wieczorem + 10 min gotowania",
+  "sprzet": "garnek, słoik",
+  "skladniki": [
+   {
+    "nazwa": "kasza jaglana",
+    "produkt": "kasza jaglana",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 144,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "mleko 2%",
+    "produkt": "mleko 2%",
+    "ilosc": 100,
+    "jednostka": "ml",
+    "kcal": 50,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "skyr naturalny",
+    "produkt": "skyr naturalny",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 126,
+    "bialko": 22,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "odżywka białkowa",
+    "produkt": "odżywka białkowa",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 60,
+    "bialko": 11,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "maliny mrożone",
+    "produkt": "maliny mrożone",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "orzechy włoskie",
+    "produkt": "orzechy włoskie",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 65,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "miód",
+    "produkt": "miód",
+    "ilosc": 1,
+    "jednostka": "łyżecz.",
+    "kcal": 22,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "cynamon, szczypta soli"
+  ],
+  "razem": {
+   "kcal": 507,
+   "bialko": 43
+  },
+  "na_porcje": {
+   "kcal": 507,
+   "bialko": 43
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: kaszę jaglaną (40 g) przepłucz gorącą wodą, wsyp do garnka ze 100 ml mleka i 60 ml wody, szczyptą soli i cynamonem. Gotuj pod przykryciem 12 min, odstaw i ostudź.",
+   "WIECZOREM: skyr (200 g) wymieszaj z odżywką (15 g) i miodem. Do słoika daj kaszę, na to krem ze skyru i maliny (100 g).",
+   "Orzechy (10 g) zabierz w woreczku i dosyp tuż przed jedzeniem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: kaszę jaglaną (40 g) przepłucz gorącą wodą, wsyp do garnka ze 100 ml mleka i 60 ml wody, szczyptą soli i cynamonem. Gotuj pod przykryciem 12 min, odstaw i ostudź.",
+   "WIECZOREM: skyr (200 g) wymieszaj z odżywką (15 g) i miodem. Do słoika daj kaszę, na to krem ze skyru i maliny (100 g)."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d25-salatka-z-kurczakiem-po-meksykansku",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D25",
+  "nazwa": "Sałatka z kurczakiem po meksykańsku",
+  "dodane": true,
+  "czas": "20 min wieczorem",
+  "sprzet": "patelnia lub airfryer, garnek, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 140,
+    "jednostka": "g",
+    "kcal": 154,
+    "bialko": 32,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "fasola czerwona z puszki (odsączona)",
+    "produkt": "fasola czerwona z puszki (odsączona)",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 110,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "kukurydza konserwowa",
+    "produkt": "kukurydza konserwowa",
+    "ilosc": 50,
+    "jednostka": "g",
+    "kcal": 38,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 140,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 18,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "sałata",
+    "produkt": "sałata",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 5,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 36,
+    "bialko": 3,
+    "grupa": "SOS",
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "kmin, papryka wędzona, sok z limonki, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 501,
+   "bialko": 48
+  },
+  "na_porcje": {
+   "kcal": 501,
+   "bialko": 48
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: ryż (40 g) ugotuj w osolonej wodzie wg opakowania, odcedź i ostudź.",
+   "WIECZOREM: kurczaka (140 g) pokrój w kostkę, dopraw kminem, papryką wędzoną, solą i pieprzem. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź.",
+   "Fasolę (100 g) i kukurydzę (50 g) odsącz. Paprykę pokrój w kostkę, sałatę porwij.",
+   "SOS: jogurt (60 g) z sokiem z limonki, solą i pieprzem. Wymieszaj wszystko, sos zabierz osobno."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [
+   "WIECZOREM: ryż (40 g) ugotuj w osolonej wodzie wg opakowania, odcedź i ostudź.",
+   "WIECZOREM: kurczaka (140 g) pokrój w kostkę, dopraw kminem, papryką wędzoną, solą i pieprzem. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Ostudź."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "d26-twarozek-ze-szczypiorkiem-i-rzodkiewka-chleb-i-szynka",
+  "typ": "drugie_on",
+  "porcje": 1,
+  "kod": "D26",
+  "nazwa": "Twarożek ze szczypiorkiem i rzodkiewką, chleb i szynka",
+  "dodane": true,
+  "czas": "5 min",
+  "sprzet": "miska, pojemnik",
+  "skladniki": [
+   {
+    "nazwa": "twaróg półtłusty",
+    "produkt": "twaróg półtłusty",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 260,
+    "bialko": 36,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 2,
+    "jednostka": "krom.",
+    "kcal": 140,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szynka z indyka",
+    "produkt": "szynka z indyka",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 44,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "rzodkiewka (pęczek)",
+    "produkt": "rzodkiewka (pęczek)",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 12,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ogórek świeży",
+    "produkt": "ogórek świeży",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pomidorki koktajlowe",
+    "produkt": "pomidorki koktajlowe",
+    "ilosc": 5,
+    "jednostka": "szt.",
+    "kcal": 15,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "szczypiorek, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 486,
+   "bialko": 51
+  },
+  "na_porcje": {
+   "kcal": 486,
+   "bialko": 51
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Twaróg (200 g) rozgnieć widelcem ze szczypiorkiem, solą i pieprzem. Rzodkiewki i ogórka pokrój w cienkie plasterki i wymieszaj z twarogiem.",
+   "Przełóż do pojemnika. Chleb (2 krom.), szynkę (40 g) i pomidorki zabierz osobno.",
+   "Na miejscu jedz twarożek na chlebie z szynką i pomidorkami."
+  ],
+  "odgrzewanie": null,
+  "uwaga": null,
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kurczak-w-sosie-smietanowo-pieczarkowym-z-ryzem",
+  "typ": "obiad",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Kurczak w sosie śmietanowo-pieczarkowym z ryżem",
+  "dodane": true,
+  "czas": "30 min",
+  "sprzet": "patelnia z pokrywką, garnek",
+  "skladniki": [
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 360,
+    "jednostka": "g",
+    "kcal": 396,
+    "bialko": 83,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 350,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pieczarki",
+    "produkt": "pieczarki",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 66,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "śmietana 12%",
+    "produkt": "śmietana 12%",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 2,
+    "grupa": "SOS",
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, tymianek, natka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1102,
+   "bialko": 102
+  },
+  "na_porcje": {
+   "kcal": 551,
+   "bialko": 51
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "RYŻ: 100 g przepłucz i ugotuj w osolonej wodzie wg opakowania.",
+   "Kurczaka (360 g) pokrój w kostkę 2–3 cm, dopraw solą, pieprzem i tymiankiem.",
+   "Na mocnym ogniu rozgrzej oliwę (1 łyżka). Smaż kurczaka 5–6 min, odłóż na talerz.",
+   "Na tej samej patelni smaż cebulę (lub por) 3 min, dodaj pieczarki (300 g) w plasterkach i smaż 6–7 min, aż odparują. Dodaj czosnek na 30 s.",
+   "Wlej 100 ml wody, wróć z kurczakiem i duś 5 min. ZDEJMIJ Z OGNIA: śmietanę (100 g) zahartuj 3 łyżkami sosu i wlej na patelnię. Posyp natką, podaj z ryżem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "makaron-z-sosem-z-indyka-cukinia-i-parmezanem",
+  "typ": "obiad",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Makaron z sosem z indyka, cukinią i parmezanem",
+  "dodane": true,
+  "czas": "30 min",
+  "sprzet": "duża patelnia, garnek",
+  "skladniki": [
+   {
+    "nazwa": "makaron pszenny",
+    "produkt": "makaron pszenny",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 420,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 360,
+    "jednostka": "g",
+    "kcal": 432,
+    "bialko": 72,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 350,
+    "jednostka": "g",
+    "kcal": 122,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cukinia",
+    "produkt": "cukinia",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 50,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "parmezan",
+    "produkt": "parmezan",
+    "ilosc": 20,
+    "jednostka": "g",
+    "kcal": 80,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 0.5,
+    "jednostka": "łyż.",
+    "kcal": 60,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, oregano, bazylia, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1204,
+   "bialko": 103
+  },
+  "na_porcje": {
+   "kcal": 602,
+   "bialko": 52
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Makaron (120 g) ugotuj al dente w osolonej wodzie.",
+   "Na patelni rozgrzej oliwę (½ łyżki). Smaż mięso (360 g) na mocnym ogniu 6 min, rozbijając łopatką. Dopraw solą i pieprzem.",
+   "Dodaj cebulę (lub por) i cukinię w kostce, smaż 3 min, dodaj czosnek na 30 s.",
+   "Wlej passatę (350 g) i 100 ml wody, dodaj oregano i bazylię. Duś bez przykrycia 12 min.",
+   "Wymieszaj makaron z sosem, posyp parmezanem (20 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "dorsz-duszony-w-pomidorach-z-kuskusem-i-feta",
+  "typ": "obiad",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Dorsz duszony w pomidorach z kuskusem i fetą",
+  "dodane": true,
+  "czas": "30 min (dorsza rozmroź dzień wcześniej w lodówce)",
+  "sprzet": "patelnia z pokrywką, miska",
+  "skladniki": [
+   {
+    "nazwa": "dorsz filet",
+    "produkt": "dorsz filet",
+    "ilosc": 400,
+    "jednostka": "g",
+    "kcal": 320,
+    "bialko": 72,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "kuskus",
+    "produkt": "kuskus",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 432,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pomidory krojone (puszka)",
+    "produkt": "pomidory krojone (puszka)",
+    "ilosc": 400,
+    "jednostka": "g",
+    "kcal": 88,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "szpinak świeży",
+    "produkt": "szpinak świeży",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 23,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "feta",
+    "produkt": "feta",
+    "ilosc": 30,
+    "jednostka": "g",
+    "kcal": 78,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, oregano, papryka słodka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1101,
+   "bialko": 98
+  },
+  "na_porcje": {
+   "kcal": 550,
+   "bialko": 49
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Dorsza (400 g) osusz, podziel na 2 porcje, dopraw solą i pieprzem.",
+   "Na patelni rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) 3 min, dodaj czosnek na 30 s. Wlej pomidory (400 g), dodaj oregano i paprykę, gotuj 5 min.",
+   "Włóż dorsza i szpinak (100 g). Przykryj i duś na małym ogniu 8 min, aż ryba będzie się rozchodzić.",
+   "KUSKUS: 120 g zalej 200 ml wrzątku ze szczyptą soli, przykryj na 5 min, rozdrobnij widelcem.",
+   "Podaj dorsza z sosem na kuskusie, posyp pokruszoną fetą (30 g)."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "kurczak-w-sosie-kremowym-z-pieczarkami-i-makaronem",
+  "typ": "obiad_2dni",
+  "porcje": 4,
+  "kod": null,
+  "nazwa": "Kurczak w sosie kremowym z pieczarkami i makaronem",
+  "dodane": true,
+  "czas": "40 min",
+  "sprzet": "duża patelnia lub garnek, garnek na makaron",
+  "skladniki": [
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 720,
+    "jednostka": "g",
+    "kcal": 792,
+    "bialko": 166,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "makaron pszenny",
+    "produkt": "makaron pszenny",
+    "ilosc": 280,
+    "jednostka": "g",
+    "kcal": 980,
+    "bialko": 34,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "pieczarki",
+    "produkt": "pieczarki",
+    "ilosc": 500,
+    "jednostka": "g",
+    "kcal": 110,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "śmietana 12%",
+    "produkt": "śmietana 12%",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 260,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 80,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 2,
+    "jednostka": "łyż.",
+    "kcal": 240,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, tymianek, natka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 2462,
+   "bialko": 221
+  },
+  "na_porcje": {
+   "kcal": 616,
+   "bialko": 55
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Kurczaka (720 g) pokrój w kostkę 2–3 cm, dopraw solą, pieprzem i tymiankiem.",
+   "Na mocnym ogniu rozgrzej 1 łyżkę oliwy. Smaż kurczaka w 2 partiach po 5 min, odłóż.",
+   "Na drugiej łyżce oliwy smaż cebulę (lub por) 4 min, dodaj pieczarki (500 g) w plasterkach i smaż 7 min, aż odparują. Dodaj czosnek.",
+   "Wróć z kurczakiem, wlej 200 ml wody, duś 8 min. ZDEJMIJ Z OGNIA: śmietanę (200 g) zahartuj 3 łyżkami sosu i wlej do garnka, mieszając.",
+   "MAKARON: dziś ugotuj 140 g al dente, jutro drugie 140 g świeże. Połowę sosu przełóż do pojemnika."
+  ],
+  "odgrzewanie": "Sos w garnku 5–7 min na małym ogniu, nie gotuj mocno. Makaron ugotuj świeży.",
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "leczo-z-indykiem-i-ryzem",
+  "typ": "obiad_2dni",
+  "porcje": 4,
+  "kod": null,
+  "nazwa": "Leczo z indykiem i ryżem",
+  "dodane": true,
+  "czas": "45 min",
+  "sprzet": "duży garnek lub głęboka patelnia, garnek na ryż",
+  "skladniki": [
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 720,
+    "jednostka": "g",
+    "kcal": 864,
+    "bialko": 144,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 3,
+    "jednostka": "szt.",
+    "kcal": 105,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cukinia",
+    "produkt": "cukinia",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 100,
+    "bialko": 7,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 80,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 400,
+    "jednostka": "g",
+    "kcal": 140,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ryż",
+    "produkt": "ryż",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 700,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 210,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 2,
+    "jednostka": "łyż.",
+    "kcal": 240,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, papryka słodka i wędzona, majeranek, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 2439,
+   "bialko": 194
+  },
+  "na_porcje": {
+   "kcal": 610,
+   "bialko": 48
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Na mocnym ogniu rozgrzej 1 łyżkę oliwy. Smaż mięso (720 g) 8 min, rozbijając łopatką. Dopraw solą, pieprzem i papryką wędzoną, odłóż.",
+   "Na drugiej łyżce oliwy smaż cebulę (lub por) 4 min, dodaj czosnek. Dodaj papryki i cukinie w kostce, smaż 5 min.",
+   "Wróć z mięsem, wlej passatę (400 g) i 200 ml wody, dodaj paprykę słodką i majeranek. Duś bez przykrycia 15 min.",
+   "RYŻ: 100 g ugotuj dziś, 100 g jutro świeży.",
+   "Do porcji dodaj starty ser (po 15 g). Połowę leczo przełóż do pojemnika."
+  ],
+  "odgrzewanie": "Leczo w garnku 5–7 min na małym ogniu z łyżką wody. Ryż ugotuj świeży.",
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "zapiekanka-ziemniaczana-z-indykiem-i-serem",
+  "typ": "obiad_2dni",
+  "porcje": 4,
+  "kod": null,
+  "nazwa": "Zapiekanka ziemniaczana z indykiem i serem",
+  "dodane": true,
+  "czas": "1 h (większość to pieczenie)",
+  "sprzet": "garnek, patelnia, naczynie żaroodporne, piekarnik",
+  "skladniki": [
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 720,
+    "jednostka": "g",
+    "kcal": 864,
+    "bialko": 144,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ziemniaki",
+    "produkt": "ziemniaki",
+    "ilosc": 1000,
+    "jednostka": "g",
+    "kcal": 800,
+    "bialko": 20,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 420,
+    "bialko": 31,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "śmietana 12%",
+    "produkt": "śmietana 12%",
+    "ilosc": 200,
+    "jednostka": "g",
+    "kcal": 260,
+    "bialko": 5,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 80,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, majeranek, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 2544,
+   "bialko": 202
+  },
+  "na_porcje": {
+   "kcal": 636,
+   "bialko": 50
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Piekarnik nagrzej do 200°C. Ziemniaki (1000 g) obierz, pokrój w cienkie plasterki i gotuj we wrzątku 6 min, odcedź.",
+   "Na patelni rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) 3 min, dodaj mięso (720 g) i smaż 8 min, rozbijając łopatką. Dopraw solą, pieprzem i majerankiem.",
+   "SOS: śmietanę (200 g) wymieszaj ze 100 ml wody i przeciśniętym czosnkiem.",
+   "W naczyniu ułóż połowę ziemniaków, mięso, resztę ziemniaków. Polej sosem i posyp serem (120 g).",
+   "Piecz 25 min, aż ser się zarumieni. Odstaw na 5 min i pokrój na 4 porcje."
+  ],
+  "odgrzewanie": "Porcję odgrzej w piekarniku lub airfryerze 170°C 10 min (albo w mikrofali 3 min).",
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "zupa-gulaszowa-z-wolowina-fasola-i-ziemniakami",
+  "typ": "obiad_zupa",
+  "porcje": 4,
+  "kod": null,
+  "nazwa": "Zupa gulaszowa z wołowiną, fasolą i ziemniakami",
+  "dodane": true,
+  "czas": "1 h 15 min",
+  "sprzet": "garnek 5 l",
+  "skladniki": [
+   {
+    "nazwa": "wołowina (pręga/łopatka)",
+    "produkt": "wołowina (pręga/łopatka)",
+    "ilosc": 600,
+    "jednostka": "g",
+    "kcal": 840,
+    "bialko": 120,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "ziemniaki",
+    "produkt": "ziemniaki",
+    "ilosc": 800,
+    "jednostka": "g",
+    "kcal": 640,
+    "bialko": 16,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "fasola czerwona z puszki (odsączona)",
+    "produkt": "fasola czerwona z puszki (odsączona)",
+    "ilosc": 240,
+    "jednostka": "g",
+    "kcal": 264,
+    "bialko": 18,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 70,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 80,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 300,
+    "jednostka": "g",
+    "kcal": 105,
+    "bialko": 4,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 4,
+    "jednostka": "krom.",
+    "kcal": 280,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, papryka słodka 2 łyżeczki, majeranek, kmin, liść laurowy, bulion 1,2 l (1 kostka na 1 l wody)"
+  ],
+  "razem": {
+   "kcal": 2399,
+   "bialko": 173
+  },
+  "na_porcje": {
+   "kcal": 600,
+   "bialko": 43
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: mięso (600 g) wyjmij z zamrażarki do lodówki.",
+   "Wołowinę pokrój w kostkę 2 cm, dopraw solą i pieprzem. W garnku rozgrzej oliwę (1 łyżka), obsmaż mięso w 2 partiach po 4 min, odłóż.",
+   "W tym samym garnku smaż cebulę (lub por) 4 min, dodaj czosnek, paprykę słodką i kmin na 1 min.",
+   "Wlej passatę (300 g) i 1,2 l bulionu, wróć z mięsem, dodaj liść laurowy i majeranek. Gotuj pod przykryciem 40 min.",
+   "Dodaj ziemniaki (800 g) w kostce, papryki w kostce i odsączoną fasolę (240 g). Gotuj 20 min, aż mięso i ziemniaki będą miękkie.",
+   "Podaj z kromką chleba (po 1 na porcję)."
+  ],
+  "odgrzewanie": "W garnku 5–7 min, w razie potrzeby dolej wody.",
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [
+   "WIECZOREM: mięso (600 g) wyjmij z zamrażarki do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "krem-z-kalafiora-z-kurczakiem",
+  "typ": "obiad_zupa",
+  "porcje": 4,
+  "kod": null,
+  "nazwa": "Krem z kalafiora z kurczakiem",
+  "dodane": true,
+  "czas": "40 min",
+  "sprzet": "garnek 5 l, blender ręczny, airfryer lub patelnia",
+  "skladniki": [
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 720,
+    "jednostka": "g",
+    "kcal": 792,
+    "bialko": 166,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "kalafior",
+    "produkt": "kalafior",
+    "ilosc": 800,
+    "jednostka": "g",
+    "kcal": 200,
+    "bialko": 15,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ziemniaki",
+    "produkt": "ziemniaki",
+    "ilosc": 400,
+    "jednostka": "g",
+    "kcal": 320,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "śmietana 12%",
+    "produkt": "śmietana 12%",
+    "ilosc": 100,
+    "jednostka": "g",
+    "kcal": 130,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 140,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "chleb żytni",
+    "produkt": "chleb żytni",
+    "ilosc": 4,
+    "jednostka": "krom.",
+    "kcal": 280,
+    "bialko": 9,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, gałka muszkatołowa, sól, pieprz, bulion 1 l (1 kostka na 1 l wody)"
+  ],
+  "razem": {
+   "kcal": 2022,
+   "bialko": 212
+  },
+  "na_porcje": {
+   "kcal": 506,
+   "bialko": 53
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "KURCZAK: 720 g dopraw solą i pieprzem. Airfryer 200°C, 18–20 min (albo patelnia 6–7 min z każdej strony). Pokrój w kostkę.",
+   "W garnku rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) 3 min, dodaj czosnek. Dodaj kalafior (800 g) w różyczkach i ziemniaki (400 g) w kostce.",
+   "Wlej 1 l bulionu, gotuj 20 min, aż warzywa będą bardzo miękkie. Zblenduj na gładki krem, dodaj gałkę, sól i pieprz.",
+   "ZDEJMIJ Z OGNIA: śmietanę (100 g) zahartuj 3 łyżkami zupy i wlej do garnka.",
+   "Do misek dodaj kurczaka i starty ser (40 g). Podaj z chlebem."
+  ],
+  "odgrzewanie": "W garnku 5–7 min na małym ogniu, nie gotuj mocno.",
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "zupa-pomidorowa-z-pulpecikami-z-indyka-i-makaronem",
+  "typ": "obiad_zupa",
+  "porcje": 4,
+  "kod": null,
+  "nazwa": "Zupa pomidorowa z pulpecikami z indyka i makaronem",
+  "dodane": true,
+  "czas": "50 min",
+  "sprzet": "garnek 5 l, miska",
+  "skladniki": [
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 720,
+    "jednostka": "g",
+    "kcal": 864,
+    "bialko": 144,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "jaja",
+    "produkt": "jaja",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 78,
+    "bialko": 6,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "parmezan",
+    "produkt": "parmezan",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 160,
+    "bialko": 14,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 700,
+    "jednostka": "g",
+    "kcal": 245,
+    "bialko": 10,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "makaron nitki",
+    "produkt": "makaron nitki",
+    "ilosc": 160,
+    "jednostka": "g",
+    "kcal": 560,
+    "bialko": 19,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "marchew",
+    "produkt": "marchew",
+    "ilosc": 2,
+    "jednostka": "szt.",
+    "kcal": 70,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 3 ząbki, oregano, bazylia, szczypta cukru, sól, pieprz, bulion 800 ml (1 kostka na 1 l wody)"
+  ],
+  "razem": {
+   "kcal": 2137,
+   "bialko": 196
+  },
+  "na_porcje": {
+   "kcal": 534,
+   "bialko": 49
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "WIECZOREM: mięso (720 g) wyjmij z zamrażarki do lodówki.",
+   "Mięso wymieszaj z jajkiem, połową parmezanu (20 g), 1 ząbkiem czosnku, ½ łyżeczki soli i pieprzem. Mokrymi dłońmi uformuj ok. 30 małych pulpecików.",
+   "W garnku rozgrzej oliwę (1 łyżka). Smaż cebulę (lub por) i startą marchew 4 min, dodaj resztę czosnku. Wlej passatę (700 g) i 800 ml bulionu, dodaj oregano, bazylię, cukier i sól. Zagotuj.",
+   "Wrzuć pulpeciki do zupy i gotuj na małym ogniu 15 min.",
+   "MAKARON: 80 g ugotuj dziś w osobnym garnku, drugie 80 g jutro świeże. Do misek makaron, zupa z pulpecikami i reszta parmezanu."
+  ],
+  "odgrzewanie": "Zupę w garnku 5–7 min, makaron ugotuj świeży (3 min).",
+  "uwaga": "Cebula tylko dla niego — dla niej użyj pora.",
+  "wieczorem": [
+   "WIECZOREM: mięso (720 g) wyjmij z zamrażarki do lodówki."
+  ],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
  }
 ]

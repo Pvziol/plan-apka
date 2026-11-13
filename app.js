@@ -34,7 +34,8 @@ let lodowka = LS.get('lodowka', {});                   // lodowka[produkt][jedno
 let zuzyte = LS.get('zuzyte', {});                     // "start|dzień|slot" -> co zdjęto z lodówki przy tym daniu; wspólne
 let inny = LS.get('inny', null);                         // drugi zapisany tydzień (bieżący albo następny): { start, dni, odhaczone, zuzyte }
 let tury = Object.assign({ tryb: 'dwie' }, LS.get('tury', {}));   // rytm zakupów: 'dwie' tury (pon po obiedzie: wt–pt, piątek: sob–pon) albo 'jedna'
-let turaW = 0;                                            // wybrana tura na liście zakupów (0 = automat wg dnia)
+let turaW = 0;                                            // 1 / 2 = tury, 3 = własna lista (dni i osoby do wyboru)
+let zakWlasne = LS.get('zakWlasne', {});                  // zakWlasne[start tygodnia] = { dni: [8 × bool: pon…nie + pon następnego], osoby: { ona, on } }                                            // wybrana tura na liście zakupów (0 = automat wg dnia)
 let zmienCtx = null, spontG = null, spontWroc = false, spontFiltr = { typ: 'wszystko', q: '' };
 let zakladka = 'tydzien';
 let otwartyDzien = null;
@@ -396,6 +397,7 @@ function kupnoIlosc(prod, u, q) {
 // Lista zakupów dla jednej tury. Składniki dania kupujesz w turze dnia, w którym je gotujesz. Tura 2 liczy to, co zostanie z tury 1
 // (np. resztki opakowań), a od potrzeb odejmuję lodówkę i to, co już zjedzone.
 function zakupy(w, tura = 1) {
+  const idx = tura === 3 ? 1 : tura;                          // własna lista liczy się jak jedna tura
   const nz = { 1: new Map(), 2: new Map() }, inne = { 1: new Set(), 2: new Set() }, przyprawy = { 1: [], 2: [] }, worki = { 1: {}, 2: {} };
   const dodaj = (t, produkt, kat, q, u) => {
     const poz = nz[t];
@@ -424,10 +426,33 @@ function zakupy(w, tura = 1) {
     }
     dniPl.forEach((day, d) => { const t = wybor(d); if (t) OS.forEach(p => { if (day.tr[p]) { dodaj(t, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(t, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
   };
-  zbierz(w.garnki, plan.start, zuzyte, plan.dni, turaDla, false);
-  if (dwie && nastepny) {                                          // poniedziałek następnego tygodnia kupujesz w piątek
-    const wN = oblicz({ start: nastepny.start, dni: nastepny.dni }, cele());
-    zbierz(wN.garnki, nastepny.start, nastepny.zuzyte || {}, nastepny.dni, d => d === 0 ? 2 : 0, true);
+  // Własna lista: biorę porcje wybranych osób w wybranych dniach (np. „bez niego”), nie zmieniając planu.
+  const zbierzWlasne = (garnki, start, zuz, dniPl, dzienOk, osoby, nast) => {
+    for (const g of garnki) {
+      const f = sum(g.porcje.filter(q => dzienOk(q.d) && osoby[q.p] && !zuz[kluczZ(q.d, g.slot, start)]), q => q.kcal) / g.K;
+      const fDos = g.dosypka && osoby.on && dzienOk(g.d) && !zuz[kluczZ(g.d, g.slot, start)] ? 1 : 0;      // dosypka w koktajlu jest tylko dla niego
+      if (f < 0.001 && !fDos) continue;
+      if (f >= 0.001) for (const i of g.dish.skladniki) {
+        if (i.ilosc && i.produkt) {
+          dodaj(1, i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
+          if (stala(i)) (worki[1][i.produkt] = worki[1][i.produkt] || []).push({ g: Math.round(i.ilosc * (g.nF || 1) * f), d: g.d, dish: g.dish.nazwa, nast });
+        } else inne[1].add(i.nazwa + ' — ' + g.dish.nazwa);
+      }
+      if (f >= 0.001) (g.dish.przyprawy || []).forEach(x => przyprawy[1].push(x));
+      if (fDos) { dodaj(1, 'odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala, 'g'); dodaj(1, 'skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala, 'g'); }
+    }
+    dniPl.forEach((day, d) => { if (dzienOk(d)) OS.forEach(p => { if (osoby[p] && day.tr[p]) { dodaj(1, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(1, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
+  };
+  if (tura === 3) {
+    const cfg = zakCfg();
+    zbierzWlasne(w.garnki, plan.start, zuzyte, plan.dni, d => !!cfg.dni[d], cfg.osoby, false);
+    if (nastepny && cfg.dni[7]) { const wN = oblicz({ start: nastepny.start, dni: nastepny.dni }, cele()); zbierzWlasne(wN.garnki, nastepny.start, nastepny.zuzyte || {}, nastepny.dni, d => d === 0, cfg.osoby, true); }
+  } else {
+    zbierz(w.garnki, plan.start, zuzyte, plan.dni, turaDla, false);
+    if (dwie && nastepny) {                                          // poniedziałek następnego tygodnia kupujesz w piątek
+      const wN = oblicz({ start: nastepny.start, dni: nastepny.dni }, cele());
+      zbierz(wN.garnki, nastepny.start, nastepny.zuzyte || {}, nastepny.dni, d => d === 0 ? 2 : 0, true);
+    }
   }
   const wynik = { 'świeże': [], 'zapas': [], 'zamrażarka': [], 'masz': [] };
   for (const prod of new Set([...nz[1].keys(), ...nz[2].keys()])) {
@@ -436,20 +461,20 @@ function zakupy(w, tura = 1) {
     for (const x of [a, b]) if (x && (x.kat === 'zamrażarka' || (x.kat === 'świeże' && kat === 'zapas'))) kat = x.kat;
     const stl = lodowka[prod] || {};
     const kzf = t => { const z = odhaczone[kluczKup(t, prod)]; return z && typeof z === 'object' ? z : {}; };
-    const kz1 = kzf(1), kz2 = kzf(2);
+    const kz1 = kzf(1), kz2 = kzf(2), kz3 = kzf(3);
     const def = { 1: {}, 2: {} }, pot = { 1: {}, 2: {} }, masz = { 1: {}, 2: {} };
     for (const u of new Set([...Object.keys(a ? a.il : {}), ...Object.keys(b ? b.il : {})])) {
       const n1 = a ? (a.il[u] || 0) : 0, n2 = b ? (b.il[u] || 0) : 0;
-      const znany = stl[u] != null, S0 = znany ? Math.max(0, stl[u] - (kz1[u] || 0) - (kz2[u] || 0)) : 0;   // stan bez tego, co dopisały odhaczone zakupy
+      const znany = stl[u] != null, S0 = znany ? Math.max(0, stl[u] - (tura === 3 ? (kz3[u] || 0) : (kz1[u] || 0) + (kz2[u] || 0))) : 0;   // stan bez tego, co dopisały odhaczone zakupy
       const d1 = Math.max(0, n1 - S0), k1 = d1 > 0.5 ? kupnoIlosc(prod, u, d1) : 0;
       const S1 = Math.max(0, S0 + k1 - n1), d2 = Math.max(0, n2 - S1);                                       // co zostanie po turze 1
       def[1][u] = d1; def[2][u] = d2; pot[1][u] = n1; pot[2][u] = n2;
       if (znany) { masz[1][u] = S0; masz[2][u] = S1; }
     }
-    const il = Object.fromEntries(Object.entries(def[tura]).filter(([, q]) => q > 0.5));
-    const potrzeba = Object.entries(pot[tura]).filter(([, q]) => q > 0.5);
+    const il = Object.fromEntries(Object.entries(def[idx]).filter(([, q]) => q > 0.5));
+    const potrzeba = Object.entries(pot[idx]).filter(([, q]) => q > 0.5);
     if (!potrzeba.length) continue;                                  // na tę turę nic z tego produktu
-    const stanTxt = Object.entries(masz[tura]).filter(([, q]) => q > 0.5).map(([u, q]) => fmtStan(q, u)).join(' + ');
+    const stanTxt = Object.entries(masz[idx]).filter(([, q]) => q > 0.5).map(([u, q]) => fmtStan(q, u)).join(' + ');
     if (!Object.keys(il).length) { wynik.masz.push({ produkt: prod, ile: potrzeba.map(([u, q]) => fmtStan(q, u)).join(' + '), stan: stanTxt }); continue; }
     const czesci = Object.entries(il).map(([u, q]) => {
       if (u === 'g' || u === 'ml') return Math.ceil(q / 10) * 10 + ' ' + u;
@@ -465,10 +490,10 @@ function zakupy(w, tura = 1) {
     }
     const kupno = {};
     for (const [u, q] of Object.entries(il)) kupno[u] = kupnoIlosc(prod, u, q);
-    (wynik[kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[tura][prod] || null });
+    (wynik[kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[idx][prod] || null });
   }
   Object.values(wynik).forEach(arr => arr.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
-  return { wynik, inne: [...inne[tura]], przyprawy: przyprawyZbiorczo(przyprawy[tura]), tura, dwie, poprzedni, nastepny: !!nastepny };
+  return { wynik, inne: [...inne[idx]], przyprawy: przyprawyZbiorczo(przyprawy[idx]), tura, dwie, poprzedni, nastepny: !!nastepny };
 }
 
 // ---------- widoki ----------
@@ -729,7 +754,28 @@ function oknoSugestie(p, ile) {
   $('#modal').hidden = false;
 }
 
+function turaDomyslna() {
+  if (tury.tryb === 'jedna') return 1;
+  const t = new Date(); t.setHours(12, 0, 0, 0);
+  const idx = Math.round((t - dataDnia(0)) / 864e5);
+  return idx >= 4 && idx <= 6 ? 2 : 1;
+}
+// Ustawienia własnej listy dla oglądanego tygodnia (domyślnie: dni bieżącej tury, oboje).
+function zakCfg() {
+  const st = plan.start;
+  if (!zakWlasne[st]) {
+    const nast = !!(inny && inny.start === dodajDni(st, 7)), poprz = !!(inny && inny.start === dodajDni(st, -7)), dwie = tury.tryb !== 'jedna', t0 = turaDomyslna();
+    const dni = [0, 1, 2, 3, 4, 5, 6, 7].map(i => i === 7 ? (dwie && nast && t0 === 2) : !dwie ? true : i >= 5 ? t0 === 2 : (i === 0 && poprz ? false : t0 === 1));
+    zakWlasne[st] = { dni, osoby: { ona: true, on: true } };
+  }
+  return zakWlasne[st];
+}
+function zapiszZak() {
+  const ok = {}; [plan.start, inny && inny.start].forEach(k => { if (k && zakWlasne[k]) ok[k] = zakWlasne[k]; });
+  zakWlasne = ok; LS.set('zakWlasne', zakWlasne);
+}
 function turaAkt() {
+  if (turaW === 3) return 3;
   if (tury.tryb === 'jedna') return 1;
   if (turaW) return turaW;
   const t = new Date(); t.setHours(12, 0, 0, 0);
@@ -741,8 +787,16 @@ function widokZakupy() {
   const klucz = t => kluczKup(tura, t);
   const dwie = z.dwie;
   let h = `<h1>Zakupy ${krotkaData(plan.start)}–${krotkaData(dodajDni(plan.start, 6))}</h1>${segTygodni()}`;
-  if (dwie) h += `<div class="seg" style="margin:8px 0"><button data-tura="1" class="${tura === 1 ? 'akt' : ''}">Pon po obiedzie · ${z.poprzedni ? 'wt' : 'pon'}–pt</button><button data-tura="2" class="${tura === 2 ? 'akt' : ''}">Piątek · sob–${z.nastepny ? 'pon' : 'nie'}</button></div>`;
-  h += `<p class="mute">${dwie ? (tura === 1 ? `Zakupy w poniedziałek po obiedzie — na ${z.poprzedni ? 'wtorek–piątek' : 'poniedziałek–piątek'}. ` : `Zakupy w piątek — na sobotę, niedzielę${z.nastepny ? ' i poniedziałek następnego tygodnia' : ''}. Odliczam to, co zostanie po zakupach z poniedziałku. `) : ''}Tylko to, czego jeszcze potrzebujecie: bez dań już zjedzonych i po odliczeniu lodówki. Zmiana dania, gramatury lub „zjedzone” od razu przelicza listę.</p>`;
+  const przyc = (t, et) => `<button data-tura="${t}" class="${tura === t ? 'akt' : ''}">${et}</button>`;
+  h += `<div class="seg" style="margin:8px 0">${dwie ? przyc(1, `Pon po obiedzie · ${z.poprzedni ? 'wt' : 'pon'}–pt`) + przyc(2, `Piątek · sob–${z.nastepny ? 'pon' : 'nie'}`) : przyc(1, 'Cały tydzień')}${przyc(3, 'Własna')}</div>`;
+  if (tura === 3) {
+    const cfg = zakCfg(), nastD = !!(inny && inny.start === dodajDni(plan.start, 7));
+    const dniChip = i => `<button class="chip ${cfg.dni[i] ? 'akt' : ''}" data-zd="${i}">${i === 7 ? 'pon nast.' : DNI_KR[i] + ' ' + krotkaData(dodajDni(plan.start, i))}</button>`;
+    h += `<div class="karta"><h3 style="margin-top:0">Dni na liście</h3><div class="chips">${[0, 1, 2, 3, 4, 5, 6].map(dniChip).join('')}${nastD ? dniChip(7) : ''}</div>
+      <h3>Dla kogo kupujecie</h3><div class="chips"><button class="chip ona ${cfg.osoby.ona ? 'akt' : ''}" data-zo="ona">ONA</button><button class="chip on ${cfg.osoby.on ? 'akt' : ''}" data-zo="on">ON</button></div>
+      <div class="rzad" style="margin-top:10px"><button class="btn maly" data-zp="oboje">Oboje</button><button class="btn maly" data-zp="bezon">Bez niego</button><button class="btn maly" data-zp="bezona">Bez niej</button></div></div>
+      <p class="mute">Własna lista: porcje wybranych osób w wybranych dniach. Nie zmienia planu, tylko to, co kupujesz. Odliczam lodówkę i dania już zjedzone.${cfg.osoby.ona || cfg.osoby.on ? '' : ' Zaznacz przynajmniej jedną osobę.'}</p>`;
+  } else h += `<p class="mute">${dwie ? (tura === 1 ? `Zakupy w poniedziałek po obiedzie — na ${z.poprzedni ? 'wtorek–piątek' : 'poniedziałek–piątek'}. ` : `Zakupy w piątek — na sobotę, niedzielę${z.nastepny ? ' i poniedziałek następnego tygodnia' : ''}. Odliczam to, co zostanie po zakupach z poniedziałku. `) : ''}Tylko to, czego jeszcze potrzebujecie: bez dań już zjedzonych i po odliczeniu lodówki. Zmiana dania, gramatury lub „zjedzone” od razu przelicza listę.</p>`;
   if (dwie && tura === 2 && !z.nastepny) h += `<div class="przyp"><b>Brakuje poniedziałku.</b> Piątkowe zakupy obejmują też poniedziałek następnego tygodnia — ułóż go, a dopiszę go tutaj. <button class="btn maly" id="nowyNast">Ułóż następny tydzień</button></div>`;
   const nazwy = { 'świeże': 'Świeże', 'zapas': 'Zapas — sprawdź, czy masz', 'zamrażarka': 'Do zamrażarki' };
   for (const kat of ['świeże', 'zamrażarka', 'zapas']) {
@@ -785,7 +839,7 @@ function odhaczKup(k, on) {
 }
 function tekstListy() {
   const z = window._z, n = { 'świeże': 'ŚWIEŻE', 'zamrażarka': 'ZAMRAŻARKA', 'zapas': 'ZAPAS' };
-  let t = `Zakupy — tydzień od ${dataDnia(0).toLocaleDateString('pl-PL')}${tury.tryb !== 'jedna' ? (z.tura === 1 ? ' (zakupy w poniedziałek)' : ' (zakupy w piątek)') : ''}\n`;
+  let t = `Zakupy — tydzień od ${dataDnia(0).toLocaleDateString('pl-PL')}${z.tura === 3 ? ' (własna lista)' : tury.tryb !== 'jedna' ? (z.tura === 1 ? ' (zakupy w poniedziałek)' : ' (zakupy w piątek)') : ''}\n`;
   for (const kat of ['świeże', 'zamrażarka', 'zapas']) if (z.wynik[kat].length) t += `\n${n[kat]}\n` + z.wynik[kat].map(p => `- ${p.produkt}: ${p.ile}${p.dop ? ' (' + p.dop + ')' : ''}`).join('\n') + '\n';
   return t;
 }
@@ -827,7 +881,7 @@ function widokUstawienia(pierwszy) {
     $('#wyczysc').onclick = () => {
       if (!confirm('Usunąć zapisane dane, plan i odhaczone zakupy z tego telefonu?' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu — u drugiej osoby plan zostaje.' : ''))) return;
       if (window.Sync && window.Sync.kod) window.Sync.odlacz();
-      ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'lodowka', 'zuzyte', 'inny', 'tury'].forEach(LS.del); profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
+      ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'lodowka', 'zuzyte', 'inny', 'tury', 'zakWlasne'].forEach(LS.del); profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
     };
   }
 }
@@ -1126,6 +1180,9 @@ document.addEventListener('click', e => {
   }
   else if (t.dataset.tydz) { if (t.dataset.tydz !== plan.start) { przelaczTydzien(); rysuj(); window.scrollTo(0, 0); } }
   else if (t.dataset.tura) { turaW = +t.dataset.tura; rysuj(); }
+  else if (t.dataset.zd) { const c = zakCfg(); c.dni[+t.dataset.zd] = !c.dni[+t.dataset.zd]; zapiszZak(); rysuj(); }
+  else if (t.dataset.zo) { const c = zakCfg(); c.osoby[t.dataset.zo] = !c.osoby[t.dataset.zo]; zapiszZak(); rysuj(); }
+  else if (t.dataset.zp) { const c = zakCfg(); c.osoby = { ona: t.dataset.zp !== 'bezona', on: t.dataset.zp !== 'bezon' }; zapiszZak(); rysuj(); }
   else if (t.id === 'nowy') { if (confirm('Ułożyć nowy tydzień? Twoje zamiany przepadną.')) { ulozTydzien(); rysuj(); } }
   else if (t.id === 'doZakupow') { zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }
   else if (t.id === 'udostepnij') {

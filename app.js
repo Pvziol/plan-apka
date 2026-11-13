@@ -33,7 +33,7 @@ let waga = LS.get('waga', { ona: {}, on: {} });        // waga[osoba][RRRR-MM-DD
 let lodowka = LS.get('lodowka', {});                   // lodowka[produkt][jednostka] = ilość; wspólne
 let zuzyte = LS.get('zuzyte', {});                     // "start|dzień|slot" -> co zdjęto z lodówki przy tym daniu; wspólne
 let inny = LS.get('inny', null);                         // drugi zapisany tydzień (bieżący albo następny): { start, dni, odhaczone, zuzyte }
-let tury = Object.assign({ od: 4 }, LS.get('tury', {}));  // od którego dnia (0 = pon) zaczyna się druga tura zakupów; 7 = jedna tura w tygodniu
+let tury = Object.assign({ tryb: 'dwie' }, LS.get('tury', {}));   // rytm zakupów: 'dwie' tury (pon po obiedzie: wt–pt, piątek: sob–pon) albo 'jedna'
 let turaW = 0;                                            // wybrana tura na liście zakupów (0 = automat wg dnia)
 let zmienCtx = null, spontG = null, spontWroc = false, spontFiltr = { typ: 'wszystko', q: '' };
 let zakladka = 'tydzien';
@@ -385,7 +385,6 @@ function przyprawyWiersze(dish) {
   return wynik;
 }
 const kluczKup = (t, prod) => `${plan.start}|t${t}|${prod}`;
-const turaDnia = d => (tury.od < 7 && d >= tury.od) ? 2 : 1;
 // ile faktycznie kupisz (całe opakowania, sztuki w całości, gramy co 10)
 function kupnoIlosc(prod, u, q) {
   const o = DB.opak[prod];
@@ -404,22 +403,32 @@ function zakupy(w, tura = 1) {
     const p = poz.get(produkt); p.il[u] = (p.il[u] || 0) + q;
     if (kat === 'zamrażarka' || (kat === 'świeże' && p.kat === 'zapas')) p.kat = kat;
   };
-  for (const g of w.garnki) {
-    const f = pozostalo(g), t = turaDnia(g.d);          // f = niezjedzona część garnka
-    if (f < 0.001) continue;
-    for (const i of g.dish.skladniki) {
-      if (i.ilosc && i.produkt) {
-        dodaj(t, i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
-        if (stala(i) && f > 0.999) for (let n = 0; n < (g.nF || 1); n++) (worki[t][i.produkt] = worki[t][i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa });   // woreczek na to danie
-      } else inne[t].add(i.nazwa + ' — ' + g.dish.nazwa);
+  // Rytm: poniedziałek po obiedzie kupujecie na wt–pt (tura 1), w piątek na sob–nd i poniedziałek NASTĘPNEGO tygodnia (tura 2).
+  // Poniedziałek tego tygodnia kupiliście w poprzedni piątek — jeśli poprzedniego tygodnia nie ma w apce, dopisuję go do tury 1.
+  const dwie = tury.tryb !== 'jedna';
+  const poprzedni = !!(inny && inny.start === dodajDni(plan.start, -7)), nastepny = inny && inny.start === dodajDni(plan.start, 7) ? inny : null;
+  const turaDla = d => !dwie ? 1 : d >= 5 ? 2 : (d === 0 && poprzedni ? 0 : 1);
+  const zbierz = (garnki, start, zuz, dniPl, wybor, nast) => {
+    for (const g of garnki) {
+      const t = wybor(g.d), f = pozostalo(g, start, zuz);          // f = niezjedzona część garnka
+      if (!t || f < 0.001) continue;
+      for (const i of g.dish.skladniki) {
+        if (i.ilosc && i.produkt) {
+          dodaj(t, i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
+          if (stala(i) && f > 0.999) for (let n = 0; n < (g.nF || 1); n++) (worki[t][i.produkt] = worki[t][i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa, nast });   // woreczek na to danie
+        } else inne[t].add(i.nazwa + ' — ' + g.dish.nazwa);
+      }
+      (g.dish.przyprawy || []).forEach(x => przyprawy[t].push(x));
+      if (g.dosypka) { dodaj(t, 'odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala * f, 'g'); dodaj(t, 'skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala * f, 'g'); }
+      if (g.dodatek) dodaj(t, 'skyr naturalny', 'świeże', g.dodatek.g * f, 'g');
     }
-    (g.dish.przyprawy || []).forEach(x => przyprawy[t].push(x));
-    if (g.dosypka) { dodaj(t, 'odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala * f, 'g'); dodaj(t, 'skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala * f, 'g'); }
-    if (g.dodatek) dodaj(t, 'skyr naturalny', 'świeże', g.dodatek.g * f, 'g');
+    dniPl.forEach((day, d) => { const t = wybor(d); if (t) OS.forEach(p => { if (day.tr[p]) { dodaj(t, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(t, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
+  };
+  zbierz(w.garnki, plan.start, zuzyte, plan.dni, turaDla, false);
+  if (dwie && nastepny) {                                          // poniedziałek następnego tygodnia kupujesz w piątek
+    const wN = oblicz({ start: nastepny.start, dni: nastepny.dni }, cele());
+    zbierz(wN.garnki, nastepny.start, nastepny.zuzyte || {}, nastepny.dni, d => d === 0 ? 2 : 0, true);
   }
-  plan.dni.forEach((day, d) => OS.forEach(p => {
-    if (day.tr[p]) { dodaj(turaDnia(d), 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(turaDnia(d), 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); }
-  }));
   const wynik = { 'świeże': [], 'zapas': [], 'zamrażarka': [], 'masz': [] };
   for (const prod of new Set([...nz[1].keys(), ...nz[2].keys()])) {
     const a = nz[1].get(prod), b = nz[2].get(prod);
@@ -459,7 +468,7 @@ function zakupy(w, tura = 1) {
     (wynik[kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[tura][prod] || null });
   }
   Object.values(wynik).forEach(arr => arr.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
-  return { wynik, inne: [...inne[tura]], przyprawy: przyprawyZbiorczo(przyprawy[tura]), tura };
+  return { wynik, inne: [...inne[tura]], przyprawy: przyprawyZbiorczo(przyprawy[tura]), tura, dwie, poprzedni, nastepny: !!nastepny };
 }
 
 // ---------- widoki ----------
@@ -511,13 +520,13 @@ function widokTydzien() {
   $('#view').innerHTML = h;
   window._w = w;
 }
-const kluczZ = (d, slot) => `${plan.start}|${d}|${slot}`;
+const kluczZ = (d, slot, start = plan.start) => `${start}|${d}|${slot}`;
 // jaka część garnka przypada na posiłek danego dnia (garnek na 2 dni dzieli się wg kcal)
 const udzialDnia = (g, d) => sum(g.porcje.filter(q => q.d === d), q => q.kcal) / g.K;
 // ile składnika schodzi z lodówki: sztuki, kromki i puszki tylko w całości (jak w przepisie: połówka w dół, minimum 1)
 const ileZuzyto = (q, u, f = 1) => { const x = q * f; return (u === 'szt.' || u === 'krom.' || u === 'pusz.') ? Math.max(1, Math.ceil(x - 0.5 - 1e-9)) : Math.round(x * 100) / 100; };
 const dniGarnka = g => [...new Set(g.porcje.map(q => q.d))];
-const pozostalo = g => sum(dniGarnka(g).filter(d => !zuzyte[kluczZ(d, g.slot)]), d => udzialDnia(g, d));
+const pozostalo = (g, start = plan.start, zuz = zuzyte) => sum(dniGarnka(g).filter(d => !zuz[kluczZ(d, g.slot, start)]), d => udzialDnia(g, d));
 // zaznacza / cofa „zjedzone” dla posiłku (garnek g, dzień d) i odpowiednio zdejmuje / zwraca składniki w lodówce
 function zjedz(g, d, on) {
   const k = kluczZ(d, g.slot);
@@ -721,25 +730,26 @@ function oknoSugestie(p, ile) {
 }
 
 function turaAkt() {
-  if (tury.od >= 7) return 1;
+  if (tury.tryb === 'jedna') return 1;
   if (turaW) return turaW;
   const t = new Date(); t.setHours(12, 0, 0, 0);
   const idx = Math.round((t - dataDnia(0)) / 864e5);
-  return idx >= tury.od && idx <= 6 ? 2 : 1;                     // w drugiej połowie bieżącego tygodnia pokazuję turę 2
+  return idx >= 4 && idx <= 6 ? 2 : 1;                          // od piątku pokazuję zakupy piątkowe
 }
 function widokZakupy() {
   const tura = turaAkt(), w = oblicz(plan, cele()), z = zakupy(w, tura);
   const klucz = t => kluczKup(tura, t);
-  const dwie = tury.od < 7;
+  const dwie = z.dwie;
   let h = `<h1>Zakupy ${krotkaData(plan.start)}–${krotkaData(dodajDni(plan.start, 6))}</h1>${segTygodni()}`;
-  if (dwie) h += `<div class="seg" style="margin:8px 0"><button data-tura="1" class="${tura === 1 ? 'akt' : ''}">Tura 1 · ${DNI_KR[0]}–${DNI_KR[tury.od - 1]}</button><button data-tura="2" class="${tura === 2 ? 'akt' : ''}">Tura 2 · ${DNI_KR[tury.od]}–${DNI_KR[6]}</button></div>`;
-  h += `<p class="mute">${dwie ? `Lista na dni ${DNI_KR[tura === 1 ? 0 : tury.od]}–${DNI_KR[tura === 1 ? tury.od - 1 : 6]}. ${tura === 2 ? 'Odliczam to, co zostanie po turze 1 (np. resztki opakowań). ' : ''}` : ''}Tylko to, czego jeszcze potrzebujecie: bez dań już zjedzonych i po odliczeniu lodówki. Zmiana dania, gramatury lub „zjedzone” od razu przelicza listę.</p>`;
+  if (dwie) h += `<div class="seg" style="margin:8px 0"><button data-tura="1" class="${tura === 1 ? 'akt' : ''}">Pon po obiedzie · ${z.poprzedni ? 'wt' : 'pon'}–pt</button><button data-tura="2" class="${tura === 2 ? 'akt' : ''}">Piątek · sob–${z.nastepny ? 'pon' : 'nie'}</button></div>`;
+  h += `<p class="mute">${dwie ? (tura === 1 ? `Zakupy w poniedziałek po obiedzie — na ${z.poprzedni ? 'wtorek–piątek' : 'poniedziałek–piątek'}. ` : `Zakupy w piątek — na sobotę, niedzielę${z.nastepny ? ' i poniedziałek następnego tygodnia' : ''}. Odliczam to, co zostanie po zakupach z poniedziałku. `) : ''}Tylko to, czego jeszcze potrzebujecie: bez dań już zjedzonych i po odliczeniu lodówki. Zmiana dania, gramatury lub „zjedzone” od razu przelicza listę.</p>`;
+  if (dwie && tura === 2 && !z.nastepny) h += `<div class="przyp"><b>Brakuje poniedziałku.</b> Piątkowe zakupy obejmują też poniedziałek następnego tygodnia — ułóż go, a dopiszę go tutaj. <button class="btn maly" id="nowyNast">Ułóż następny tydzień</button></div>`;
   const nazwy = { 'świeże': 'Świeże', 'zapas': 'Zapas — sprawdź, czy masz', 'zamrażarka': 'Do zamrażarki' };
   for (const kat of ['świeże', 'zamrażarka', 'zapas']) {
     if (!z.wynik[kat].length) continue;
     h += `<h2>${nazwy[kat]}</h2><div class="karta">` + z.wynik[kat].map(p => {
       const k = klucz(p.produkt), on = !!odhaczone[k];
-      return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}${p.worki ? `<small>podziel na woreczki: ${esc(p.worki.sort((x, y) => x.d - y.d).map(x => `${x.g} g (${DNI_KR[x.d]}: ${x.dish.length > 28 ? x.dish.slice(0, 26) + '…' : x.dish})`).join(' · '))}</small>` : ''}</span></label>`;
+      return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}${p.worki ? `<small>podziel na woreczki: ${esc(p.worki.sort((x, y) => x.d - y.d).map(x => `${x.g} g (${DNI_KR[x.d]}${x.nast ? ' nast.' : ''}: ${x.dish.length > 28 ? x.dish.slice(0, 26) + '…' : x.dish})`).join(' · '))}</small>` : ''}</span></label>`;
     }).join('') + `</div>`;
   }
   if (Object.values(z.wynik).some(a => a.some && a.some(p => p.worki))) h += `<h2>Do zamrażarki — jak porcjować</h2><div class="karta"><p class="mute">Jeden woreczek = jedno danie, zawsze o tej samej wadze (jak w pierwotnym planie). Danie zawsze dostaje cały woreczek, a resztę składników apka dopasowuje do kalorii, dlatego mięso się nie zmienia.</p>
@@ -775,7 +785,7 @@ function odhaczKup(k, on) {
 }
 function tekstListy() {
   const z = window._z, n = { 'świeże': 'ŚWIEŻE', 'zamrażarka': 'ZAMRAŻARKA', 'zapas': 'ZAPAS' };
-  let t = `Zakupy — tydzień od ${dataDnia(0).toLocaleDateString('pl-PL')}${tury.od < 7 ? ` (tura ${z.tura})` : ''}\n`;
+  let t = `Zakupy — tydzień od ${dataDnia(0).toLocaleDateString('pl-PL')}${tury.tryb !== 'jedna' ? (z.tura === 1 ? ' (zakupy w poniedziałek)' : ' (zakupy w piątek)') : ''}\n`;
   for (const kat of ['świeże', 'zamrażarka', 'zapas']) if (z.wynik[kat].length) t += `\n${n[kat]}\n` + z.wynik[kat].map(p => `- ${p.produkt}: ${p.ile}${p.dop ? ' (' + p.dop + ')' : ''}`).join('\n') + '\n';
   return t;
 }
@@ -893,9 +903,8 @@ function rysuj() {
 }
 
 function kartaTury() {
-  const op = [[7, 'jedna tura w tygodniu'], [5, 'w sobotę'], [4, 'w piątek'], [3, 'w czwartek'], [2, 'w środę']];
-  return `<h2>Zakupy</h2><div class="karta"><p class="mute">Lista zakupów dzieli się na dwie tury: pierwsza od poniedziałku, druga od wybranego dnia. To, co zostanie z pierwszej tury, liczę przy drugiej.</p>
-    <label class="pole"><span>Druga tura zakupów zaczyna się</span><select data-tury="od">${op.map(([v, t]) => `<option value="${v}" ${tury.od === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>`;
+  return `<h2>Zakupy</h2><div class="karta"><p class="mute">Rytm zakupów. „Dwie tury”: w poniedziałek po obiedzie kupujecie na wtorek–piątek, a w piątek na sobotę, niedzielę i poniedziałek następnego tygodnia. To, co zostanie z pierwszej tury, liczę przy drugiej.</p>
+    <label class="pole"><span>Jak robicie zakupy</span><select data-tury="tryb"><option value="dwie" ${tury.tryb !== 'jedna' ? 'selected' : ''}>Dwie tury: poniedziałek i piątek</option><option value="jedna" ${tury.tryb === 'jedna' ? 'selected' : ''}>Jedna tura w tygodniu</option></select></label></div>`;
 }
 function kartaUkryte() {
   const uk = [...DB.dania.values()].filter(d => ukryte(d.id)), ul = [...DB.dania.values()].filter(d => oceny[d.id] === 1);
@@ -1185,7 +1194,7 @@ document.addEventListener('change', e => {
     if (!isNaN(v) && v >= 0) zmienLodowke(t.dataset.sp, t.dataset.su, v - cur);
     rysuj();
   }
-  else if (t.dataset.tury) { tury.od = +t.value; LS.set('tury', tury); turaW = 0; }
+  else if (t.dataset.tury) { tury.tryb = t.value; LS.set('tury', tury); turaW = 0; }
   else if (t.dataset.spontTyp) { spontFiltr.typ = t.value; listaSpont(); }
   else if (t.dataset.kup) {
     odhaczKup(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);

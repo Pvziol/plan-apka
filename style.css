@@ -219,3 +219,14 @@ textarea { padding: 12px 14px; margin-bottom: 10px; font: inherit; resize: verti
 .chip.akt { background: var(--zielony-tlo); border-color: var(--zielony); color: var(--zielony); }
 .chip.ona.akt { background: var(--ona-tlo); border-color: var(--ona); color: var(--ona); }
 .chip.on.akt { background: var(--on-tlo); border-color: var(--on); color: var(--on); }
+
+.dzien-wiersz { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.dzien-wiersz:last-child { border-bottom: 0; }
+.chip:disabled { opacity: .45; text-decoration: line-through; }
+
+.kto-dnia { display: flex; flex-direction: column; gap: 4px; padding: 8px 0 2px; font-size: 14px; }
+.seg.mini { margin: 0; padding: 3px; }
+.seg.mini button { min-height: 36px; font-size: 13.5px; }
+
+details.dzien > summary > span { white-space: nowrap; }
+details.dzien > summary > b { white-space: normal; }

@@ -77,6 +77,11 @@ const znorm = s => String(s || '').toLowerCase().replace(/ł/g, 'l').normalize('
 const isoDzis = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 const dzienTyg = () => (new Date().getDay() + 6) % 7;   // 0 = poniedziałek
 const ukryte = id => oceny[id] === -1;
+const nieob = (day, p) => !!(day && day.nb && day.nb[p]);                 // osoba p jest nieobecna w tym dniu (plan pomija jej posiłki)
+const obecneDni = (pl, p) => pl.dni.map((_, i) => i).filter(i => !nieob(pl.dni[i], p));
+const stanKto = day => nieob(day, 'on') && !nieob(day, 'ona') ? 'bezon' : nieob(day, 'ona') && !nieob(day, 'on') ? 'bezona' : 'oboje';
+const opisGarnka = g => { const os = [...new Set(g.porcje.map(q => q.p))], dn = new Set(g.porcje.map(q => q.d)).size; return (os.length === 1 ? 'dla ' + (os[0] === 'ona' ? 'niej' : 'niego') : (dn > 1 ? '' : 'dla Was dwojga')) + (dn > 1 ? (os.length === 1 ? ' ' : '') + 'na ' + dn + ' dni' : ''); };
+const sredniaOsoby = (w, p, pole) => { const ix = obecneDni(plan, p); return ix.length ? sum(ix, i => w.dni[i][p][pole]) / ix.length : 0; };
 const fmtStan = (q, u) => (u === 'g' || u === 'ml') ? Math.round(q) + ' ' + u : (Math.round(q * 2) / 2).toString().replace('.', ',') + ' ' + u;
 
 // ---------- zapotrzebowanie ----------
@@ -153,7 +158,8 @@ function rozwiaz(dish, Kc, ratio, skyrMax = 0, lever = true) {
   const all = dish.skladniki, K = dish.razem.kcal, Ptot = dish.razem.bialko;
   const pf = Ptot / (sum(all, i => i.bialko) || 1);
   const fix = all.filter(stala), ing = all.filter(i => !stala(i));
-  const nF = Math.max(1, Math.round(Kc / K));                  // danie dla 1 osoby liczone na dwie = 2 woreczki mięsa
+  // ile woreczków mięsa: danie dla 1 osoby liczone na dwie = 2 woreczki; porcja mniejsza niż połowa przepisu (np. nieobecność) = pół woreczka
+  const nF = Kc / K < 0.75 ? Math.max(0.5, Math.round(Kc / K * 2) / 2) : Math.max(1, Math.round(Kc / K));
   const Kf0 = sum(fix, i => i.kcal), Kf = Kf0 * nF, Pf = sum(fix, i => i.bialko * pf) * nF;
   const KR = K - Kf0, PR = Ptot - sum(fix, i => i.bialko * pf), s0 = Kc / K;
   const sw = fix.length && KR > 0 ? clamp((Kc - Kf) / KR, 0.3, 2.5) : s0;      // skala składników spoza woreczków
@@ -186,9 +192,10 @@ function oblicz(pl, c) {
   const dni = pl.dni.map(() => ({ ona: { kcal: 0, b: 0 }, on: { kcal: 0, b: 0 }, sloty: [] }));
   const garnki = [];
   const bud = (p, d, slot) => UDZIAL[p][slot] * (c[p].kcal - (pl.dni[d].tr[p] ? DB.shake[p].kcal : 0));
+  const obecni = d => OS.filter(p => !nieob(pl.dni[d], p));
   function garnek(id, slot, d, porcje, ratio) {
     const dish = DB.dania.get(id);
-    if (!dish) return null;
+    if (!dish || !porcje.length) return null;                 // nikt nie je tego posiłku (np. nieobecność)
     let K = sum(porcje, x => x.kcal);
     const r = rz(dish, K, ratio, slot);
     if (Math.abs(r.Kreal - K) > 0.5) { const f = r.Kreal / K; porcje.forEach(x => { x.kcal *= f; }); K = r.Kreal; }   // stałe woreczki mogą lekko zmienić kcal posiłku
@@ -203,22 +210,27 @@ function oblicz(pl, c) {
   }
   pl.dni.forEach((day, d) => {
     const r = day.ratio || {};
-    garnek(day.sn, 'sn', d, OS.map(p => ({ p, d, kcal: bud(p, d, 'sn') })), r.sn);
-    if (day.m13.wsp) garnek(day.m13.wsp, 'm13', d, OS.map(p => ({ p, d, kcal: bud(p, d, 'm13') })), r.m13);
-    else OS.forEach(p => garnek(day.m13[p], 'm13' + p, d, [{ p, d, kcal: bud(p, d, 'm13') }], r['m13' + p]));
+    garnek(day.sn, 'sn', d, obecni(d).map(p => ({ p, d, kcal: bud(p, d, 'sn') })), r.sn);
+    if (day.m13.wsp) garnek(day.m13.wsp, 'm13', d, obecni(d).map(p => ({ p, d, kcal: bud(p, d, 'm13') })), r.m13);
+    else obecni(d).forEach(p => garnek(day.m13[p], 'm13' + p, d, [{ p, d, kcal: bud(p, d, 'm13') }], r['m13' + p]));
     if (day.ob) {
       const dd = day.ob2 && d + 1 < 7 ? [d, d + 1] : [d];
-      garnek(day.ob, 'ob', d, dd.flatMap(x => OS.map(p => ({ p, d: x, kcal: bud(p, x, 'ob') }))), r.ob);
+      garnek(day.ob, 'ob', d, dd.flatMap(x => obecni(x).map(p => ({ p, d: x, kcal: bud(p, x, 'ob') }))), r.ob);
     }
     const k = DB.dania.get(day.k18);
     if (k) {
       const pz = k.podzial['~18:00'], bn = bud('on', d, 'k18');
       const gs = bn / pz.on_kcal, reszta = (k.razem.kcal - pz.ona_kcal) * gs;
-      const g = garnek(day.k18, 'k18', d, [{ p: 'ona', d, kcal: bud('ona', d, 'k18') }, { p: 'on', d, kcal: reszta }], r.k18);
-      g.dosypka = { skala: gs, kcal: bn - reszta, b: DB.dosypka.b * gs };
-      dni[d].on.kcal += g.dosypka.kcal; dni[d].on.b += g.dosypka.b;
+      const por = [];
+      if (!nieob(day, 'ona')) por.push({ p: 'ona', d, kcal: bud('ona', d, 'k18') });
+      if (!nieob(day, 'on')) por.push({ p: 'on', d, kcal: reszta });
+      const g = garnek(day.k18, 'k18', d, por, r.k18);
+      if (g && !nieob(day, 'on')) {
+        g.dosypka = { skala: gs, kcal: bn - reszta, b: DB.dosypka.b * gs };
+        dni[d].on.kcal += g.dosypka.kcal; dni[d].on.b += g.dosypka.b;
+      }
     }
-    OS.forEach(p => { if (day.tr[p]) { dni[d][p].kcal += DB.shake[p].kcal; dni[d][p].b += DB.shake[p].bialko; } });
+    OS.forEach(p => { if (day.tr[p] && !nieob(day, p)) { dni[d][p].kcal += DB.shake[p].kcal; dni[d][p].b += DB.shake[p].bialko; } });
   });
   const kolej = ['sn', 'm13', 'm13ona', 'm13on', 'ob', 'k18'];
   dni.forEach(x => x.sloty.sort((p, q) => kolej.indexOf(p.g.slot) - kolej.indexOf(q.g.slot)));
@@ -262,7 +274,7 @@ function kandydat() {
 function ocena(pl, c) {
   const w = oblicz(pl, c);
   let kara = 0;
-  w.dni.forEach(x => OS.forEach(p => { kara += 2 * Math.max(0, c[p].bMin - x[p].b) + Math.max(0, x[p].b - c[p].bMax); }));
+  w.dni.forEach((x, i) => OS.forEach(p => { if (nieob(pl.dni[i], p)) return; kara += 2 * Math.max(0, c[p].bMin - x[p].b) + Math.max(0, x[p].b - c[p].bMax); }));
   const nz = id => DB.dania.get(id).nazwa.toLowerCase();
   let tunczyk = 0;
   pl.dni.forEach((day, d) => {
@@ -307,6 +319,7 @@ function ulozTydzien(start, zachowaj) {
   // zachowaj zaznaczone treningi z poprzedniego planu
   if (plan) naj.dni.forEach((d, i) => { d.tr = Object.assign({ ona: false, on: false }, plan.dni[i] && plan.dni[i].tr); });
   naj.start = start || (plan && plan.start && plan.start >= poniedzialek() ? plan.start : poniedzialek());
+  if (plan && plan.start === naj.start) naj.dni.forEach((d, i) => { if (plan.dni[i] && plan.dni[i].nb) d.nb = plan.dni[i].nb; });   // przy losowaniu tego samego tygodnia zostają dni „bez niego/niej”
   // układam drugi tydzień obok: obecny (bieżący lub przyszły) zostaje zapisany i da się do niego wrócić
   if (zachowaj && plan && plan.dni && plan.start >= poniedzialek() && plan.start !== naj.start) inny = paczka();
   plan = naj; odhaczone = {}; zuzyte = {};
@@ -417,20 +430,20 @@ function zakupy(w, tura = 1) {
       for (const i of g.dish.skladniki) {
         if (i.ilosc && i.produkt) {
           dodaj(t, i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
-          if (stala(i) && f > 0.999) for (let n = 0; n < (g.nF || 1); n++) (worki[t][i.produkt] = worki[t][i.produkt] || []).push({ g: Math.round(i.ilosc), d: g.d, dish: g.dish.nazwa, nast });   // woreczek na to danie
+          if (stala(i) && f > 0.999) { const nb = g.nF || 1; for (let n = 0; n < Math.ceil(nb); n++) (worki[t][i.produkt] = worki[t][i.produkt] || []).push({ g: Math.round(i.ilosc * Math.min(1, nb - n)), d: g.d, dish: g.dish.nazwa, nast }); }   // woreczek na to danie
         } else inne[t].add(i.nazwa + ' — ' + g.dish.nazwa);
       }
       (g.dish.przyprawy || []).forEach(x => przyprawy[t].push(x));
       if (g.dosypka) { dodaj(t, 'odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala * f, 'g'); dodaj(t, 'skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala * f, 'g'); }
       if (g.dodatek) dodaj(t, 'skyr naturalny', 'świeże', g.dodatek.g * f, 'g');
     }
-    dniPl.forEach((day, d) => { const t = wybor(d); if (t) OS.forEach(p => { if (day.tr[p]) { dodaj(t, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(t, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
+    dniPl.forEach((day, d) => { const t = wybor(d); if (t) OS.forEach(p => { if (day.tr[p] && !nieob(day, p)) { dodaj(t, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(t, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
   };
   // Własna lista: biorę porcje wybranych osób w wybranych dniach (np. „bez niego”), nie zmieniając planu.
-  const zbierzWlasne = (garnki, start, zuz, dniPl, dzienOk, osoby, nast) => {
+  const zbierzWlasne = (garnki, start, zuz, dniPl, dzienOk, osobyDnia, nast) => {
     for (const g of garnki) {
-      const f = sum(g.porcje.filter(q => dzienOk(q.d) && osoby[q.p] && !zuz[kluczZ(q.d, g.slot, start)]), q => q.kcal) / g.K;
-      const fDos = g.dosypka && osoby.on && dzienOk(g.d) && !zuz[kluczZ(g.d, g.slot, start)] ? 1 : 0;      // dosypka w koktajlu jest tylko dla niego
+      const f = sum(g.porcje.filter(q => dzienOk(q.d) && osobyDnia(q.d)[q.p] && !zuz[kluczZ(q.d, g.slot, start)]), q => q.kcal) / g.K;
+      const fDos = g.dosypka && osobyDnia(g.d).on && dzienOk(g.d) && !zuz[kluczZ(g.d, g.slot, start)] ? 1 : 0;      // dosypka w koktajlu jest tylko dla niego
       if (f < 0.001 && !fDos) continue;
       if (f >= 0.001) for (const i of g.dish.skladniki) {
         if (i.ilosc && i.produkt) {
@@ -441,12 +454,12 @@ function zakupy(w, tura = 1) {
       if (f >= 0.001) (g.dish.przyprawy || []).forEach(x => przyprawy[1].push(x));
       if (fDos) { dodaj(1, 'odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala, 'g'); dodaj(1, 'skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala, 'g'); }
     }
-    dniPl.forEach((day, d) => { if (dzienOk(d)) OS.forEach(p => { if (osoby[p] && day.tr[p]) { dodaj(1, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(1, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
+    dniPl.forEach((day, d) => { if (dzienOk(d)) OS.forEach(p => { if (osobyDnia(d)[p] && day.tr[p] && !nieob(day, p)) { dodaj(1, 'odżywka białkowa', 'zapas', DB.shake[p].odzywka_g, 'g'); dodaj(1, 'mleko 2%', 'świeże', DB.shake[p].mleko_ml, 'ml'); } }); });
   };
   if (tura === 3) {
     const cfg = zakCfg();
-    zbierzWlasne(w.garnki, plan.start, zuzyte, plan.dni, d => !!cfg.dni[d], cfg.osoby, false);
-    if (nastepny && cfg.dni[7]) { const wN = oblicz({ start: nastepny.start, dni: nastepny.dni }, cele()); zbierzWlasne(wN.garnki, nastepny.start, nastepny.zuzyte || {}, nastepny.dni, d => d === 0, cfg.osoby, true); }
+    zbierzWlasne(w.garnki, plan.start, zuzyte, plan.dni, d => !!cfg.dni[d], d => cfg.kto[d], false);
+    if (nastepny && cfg.dni[7]) { const wN = oblicz({ start: nastepny.start, dni: nastepny.dni }, cele()); zbierzWlasne(wN.garnki, nastepny.start, nastepny.zuzyte || {}, nastepny.dni, d => d === 0, () => cfg.kto[7], true); }
   } else {
     zbierz(w.garnki, plan.start, zuzyte, plan.dni, turaDla, false);
     if (dwie && nastepny) {                                          // poniedziałek następnego tygodnia kupujesz w piątek
@@ -505,7 +518,7 @@ function widokTydzien() {
   const c = cele(), w = oblicz(plan, c);
   if (otwartyDzien === null) otwartyDzien = dzisIdx();
   const dzisRz = (() => { const t = new Date(); t.setHours(12, 0, 0, 0); return Math.round((t - dataDnia(0)) / 864e5); })();
-  const sr = p => sum(w.dni, x => x[p].b) / 7, srK = p => sum(w.dni, x => x[p].kcal) / 7;
+  const sr = p => sredniaOsoby(w, p, 'b'), srK = p => sredniaOsoby(w, p, 'kcal');   // średnie liczę tylko z dni, w których osoba jest
   let h = `<h1>Tydzień ${dataDnia(0).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}–${dataDnia(6).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</h1>
   ${segTygodni()}
   ${dzisRz > 6 ? `<div class="przyp"><b>Ten plan jest z poprzedniego tygodnia.</b><br>Ułóż nowy: <button class="btn maly" id="nowyBiez">bieżący tydzień</button> <button class="btn maly" id="nowyNast">następny tydzień</button></div>` : ''}
@@ -515,24 +528,25 @@ function widokTydzien() {
     <small>średnio / dzień · cel ${c[p].kcal}</small><small>białko ${r0(sr(p))} g · cel ${c[p].bMin}–${c[p].bMax} g <span class="znak ${kl}">${t}</span></small>${t === 'za mało' ? `<button class="btn maly sug" data-sugestie="${p}">Jak poprawić?</button>` : ''}</div>`; }).join('')}</div>`;
   w.dni.forEach((x, d) => {
     const day = plan.dni[d];
-    h += `<details class="dzien ${d === dzisRz ? 'dzis' : ''}" data-d="${d}" ${d === otwartyDzien ? 'open' : ''}><summary><b>${DNI[d]} <span class="mute">${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</span>${d === dzisRz ? '<span class="dzis-znacz">dziś</span>' : ''}</b>
-      <span><span class="ona">${r0(x.ona.kcal)} kcal · ${r0(x.ona.b)} g</span><br><span class="on">${r0(x.on.kcal)} kcal · ${r0(x.on.b)} g</span></span></summary><div class="dzien-tresc">
-      <div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>`;
+    h += `<details class="dzien ${d === dzisRz ? 'dzis' : ''}" data-d="${d}" ${d === otwartyDzien ? 'open' : ''}><summary><b>${DNI[d]} <span class="mute">${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</span>${d === dzisRz ? '<span class="dzis-znacz">dziś</span>' : ''}${stanKto(day) !== 'oboje' ? `<span class="znaczek" style="margin:0 0 0 6px">tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}</span>` : ''}</b>
+      <span>${OS.filter(p => !nieob(day, p)).map(p => `<span class="${p}">${r0(x[p].kcal)} kcal · ${r0(x[p].b)} g</span>`).join('<br>')}</span></summary><div class="dzien-tresc">
+      <div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
+      <div class="kto-dnia"><span class="mute">Posiłki w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`;
     x.sloty.forEach(({ g, odgrzewane }) => {
       const moje = g.porcje.filter(q => q.d === d);
       const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join(' &nbsp; ');
       let zn = '';
       if (odgrzewane) zn += `<span class="znaczek">odgrzewasz z ${DNI_KR[g.d]}</span> `;
-      else if (g.porcje.length > 2) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
+      else if (new Set(g.porcje.map(q => q.d)).size > 1) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
       if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
       if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
-      if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
+      if (((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) && new Set(g.porcje.map(q => q.p)).size > 1) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
       h += `<div class="posilek"><div class="pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
         <div class="gora">${Obr.html(g.dish)}<button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button>
         ${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">zmień</button>`}</div>
         <div class="liczby">${liczby}</div>${zn}<label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${zuzyte[kluczZ(d, g.slot)] ? 'checked' : ''}> zjedzone</label></div>`;
     });
-    const sh = OS.filter(p => day.tr[p]);
+    const sh = OS.filter(p => day.tr[p] && !nieob(day, p));
     if (sh.length) h += `<div class="posilek"><div class="pora">po treningu · shake</div><div class="liczby">${sh.map(p => `<span class="${p}">${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml · ${DB.shake[p].kcal} kcal · ${DB.shake[p].bialko} g</span>`).join('<br>')}</div></div>`;
     const wi = wieczorem(w, d);
     if (wi.length) h += `<div class="wieczor"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`;
@@ -608,13 +622,13 @@ function pokazPrzepis(g, spont) {
     if (masa) t = q.p === 'ona' ? `nalej do szklanki na wadze ${r0(masa * q.udzial / 5) * 5} g` : 'reszta kielicha';
     if (g.dosypka && q.p === 'on') t += ` + dosypka: odżywka ${fq(DB.dosypka.odzywka * g.dosypka.skala, 'g')} i skyr ${fq(DB.dosypka.skyr * g.dosypka.skala, 'g')}`;
     const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 };
-    return `<div class="${q.p}"><b>${ETY[q.p]}${g.porcje.length > 2 ? ' · ' + DNI_KR[q.d] : ''}</b>${t}<br>${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g białka</div>`;
+    return `<div class="${q.p}"><b>${ETY[q.p]}${new Set(g.porcje.map(x => x.d)).size > 1 ? ' · ' + DNI_KR[q.d] : ''}</b>${t}<br>${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g białka</div>`;
   }).join('');
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>${esc((dish.kod ? dish.kod + ' ' : '') + dish.nazwa)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <div class="przepis-gora">${Obr.html(dish, 'duzy')}<div class="oceny">${przyciskiOceny(dish.id)}</div></div>
     <p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) : ''}${dish.sprzet ? ' · Sprzęt: ' + esc(dish.sprzet) : ''}</p>
     ${dish.dodane ? '<p class="mute">Danie dodane do bazy — wartości liczone z tabel, nie z Twojego planu.</p>' : ''}
-    <h3>Składniki — ${g.porcje.length > 2 ? 'na 2 dni' : g.porcje.length === 1 ? 'jedna porcja' : 'dla Was dwojga'}</h3>
+    <h3>Składniki — ${opisGarnka(g)}</h3>
     <table class="skl">${wiersze}</table>
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
     ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
@@ -730,7 +744,7 @@ function autoPopraw(p) {
   let prop = 0, zam = 0;
   for (let i = 0; i < 60; i++) {
     const c = cele(), w = oblicz(plan, c);
-    if (sum(w.dni, x => x[p].b) / 7 >= c[p].bMin + 1) break;
+    if (sredniaOsoby(w, p, 'b') >= c[p].bMin + 1) break;
     const o = opcjeBialka(p, w), a = o.prop[0], b = o.zamiany[0];
     if (a && (!b || a.wspolny <= b.wspolny)) { ustawDanie(a.g.d, a.g.slot, a.g.dish.id, a.r); prop++; }   // najpierw drobne zmiany gramatur
     else if (b && zam < 3) { ustawDanie(b.g.d, b.g.slot, b.c.id, b.r); zam++; }                         // potem wymiana dania (najwyżej 3 dania)
@@ -740,7 +754,7 @@ function autoPopraw(p) {
 }
 function oknoSugestie(p, ile) {
   sugOsoba = p;
-  const c = cele(), w = oblicz(plan, c), sr = sum(w.dni, x => x[p].b) / 7, brak = c[p].bMin - sr, o = opcjeBialka(p, w);
+  const c = cele(), w = oblicz(plan, c), sr = sredniaOsoby(w, p, 'b'), brak = c[p].bMin - sr, o = opcjeBialka(p, w);
   let h = `<div class="okno-gora"><h2 class="${p}">Białko — ${ETY[p]}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>`;
   if (ile !== undefined) h += `<div class="uwaga">${ile.prop || ile.zam ? `Dopasowałem proporcje w ${ile.prop} ${ile.prop === 1 ? 'daniu' : 'daniach'}${ile.zam ? ` i wymieniłem ${ile.zam} ${ile.zam === 1 ? 'danie' : 'dania'}` : ''}.` : 'Nie ma już czego poprawić.'}</div>`;
   if (brak <= 0) h += `<p>Średnio ${r0(sr)} g dziennie — to już w celu (min. ${c[p].bMin} g).</p>`;
@@ -766,9 +780,11 @@ function zakCfg() {
   if (!zakWlasne[st]) {
     const nast = !!(inny && inny.start === dodajDni(st, 7)), poprz = !!(inny && inny.start === dodajDni(st, -7)), dwie = tury.tryb !== 'jedna', t0 = turaDomyslna();
     const dni = [0, 1, 2, 3, 4, 5, 6, 7].map(i => i === 7 ? (dwie && nast && t0 === 2) : !dwie ? true : i >= 5 ? t0 === 2 : (i === 0 && poprz ? false : t0 === 1));
-    zakWlasne[st] = { dni, osoby: { ona: true, on: true } };
+    zakWlasne[st] = { dni, kto: dni.map(() => ({ ona: true, on: true })) };
   }
-  return zakWlasne[st];
+  const c = zakWlasne[st];
+  if (!c.kto) { c.kto = c.dni.map(() => Object.assign({ ona: true, on: true }, c.osoby)); delete c.osoby; }   // starszy zapis: jedna para osób dla wszystkich dni
+  return c;
 }
 function zapiszZak() {
   const ok = {}; [plan.start, inny && inny.start].forEach(k => { if (k && zakWlasne[k]) ok[k] = zakWlasne[k]; });
@@ -791,11 +807,16 @@ function widokZakupy() {
   h += `<div class="seg" style="margin:8px 0">${dwie ? przyc(1, `Pon po obiedzie · ${z.poprzedni ? 'wt' : 'pon'}–pt`) + przyc(2, `Piątek · sob–${z.nastepny ? 'pon' : 'nie'}`) : przyc(1, 'Cały tydzień')}${przyc(3, 'Własna')}</div>`;
   if (tura === 3) {
     const cfg = zakCfg(), nastD = !!(inny && inny.start === dodajDni(plan.start, 7));
-    const dniChip = i => `<button class="chip ${cfg.dni[i] ? 'akt' : ''}" data-zd="${i}">${i === 7 ? 'pon nast.' : DNI_KR[i] + ' ' + krotkaData(dodajDni(plan.start, i))}</button>`;
-    h += `<div class="karta"><h3 style="margin-top:0">Dni na liście</h3><div class="chips">${[0, 1, 2, 3, 4, 5, 6].map(dniChip).join('')}${nastD ? dniChip(7) : ''}</div>
-      <h3>Dla kogo kupujecie</h3><div class="chips"><button class="chip ona ${cfg.osoby.ona ? 'akt' : ''}" data-zo="ona">ONA</button><button class="chip on ${cfg.osoby.on ? 'akt' : ''}" data-zo="on">ON</button></div>
-      <div class="rzad" style="margin-top:10px"><button class="btn maly" data-zp="oboje">Oboje</button><button class="btn maly" data-zp="bezon">Bez niego</button><button class="btn maly" data-zp="bezona">Bez niej</button></div></div>
-      <p class="mute">Własna lista: porcje wybranych osób w wybranych dniach. Nie zmienia planu, tylko to, co kupujesz. Odliczam lodówkę i dania już zjedzone.${cfg.osoby.ona || cfg.osoby.on ? '' : ' Zaznacz przynajmniej jedną osobę.'}</p>`;
+    const dzienPl = i => i === 7 ? (inny && inny.start === dodajDni(plan.start, 7) ? inny.dni[0] : null) : plan.dni[i];
+    const wiersz = i => {
+      const nb = p => nieob(dzienPl(i), p);
+      const osoba = p => nb(p) ? `<button class="chip ${p}" disabled title="Nieobecn${p === 'ona' ? 'a' : 'y'} w planie">${ETY[p]} ✕</button>` : `<button class="chip ${p} ${cfg.kto[i][p] ? 'akt' : ''}" data-zdo="${i}:${p}">${ETY[p]}</button>`;
+      return `<div class="dzien-wiersz"><button class="chip ${cfg.dni[i] ? 'akt' : ''}" data-zd="${i}">${i === 7 ? 'pon nast.' : DNI_KR[i] + ' ' + krotkaData(dodajDni(plan.start, i))}</button>${cfg.dni[i] ? `<span class="chips">${osoba('ona')}${osoba('on')}</span>` : '<span class="mute">pomijam</span>'}</div>`;
+    };
+    h += `<div class="karta"><h3 style="margin-top:0">Dni i osoby</h3><p class="mute" style="margin:0 0 8px">Kliknij dzień, żeby go dodać lub pominąć. W każdym dniu wybierasz osobno, kto jedzie na liście.</p>
+      ${[0, 1, 2, 3, 4, 5, 6].map(wiersz).join('')}${nastD ? wiersz(7) : ''}
+      <h3>Dla wszystkich wybranych dni</h3><div class="rzad"><button class="btn maly" data-zp="oboje">Oboje</button><button class="btn maly" data-zp="bezon">Bez niego</button><button class="btn maly" data-zp="bezona">Bez niej</button></div></div>
+      <p class="mute">Własna lista: porcje wybranych osób w wybranych dniach. Nie zmienia planu, tylko to, co kupujesz. Odliczam lodówkę i dania już zjedzone. Dni „Bez niego / Bez niej” ustawione w planie też są uwzględnione.</p>`;
   } else h += `<p class="mute">${dwie ? (tura === 1 ? `Zakupy w poniedziałek po obiedzie — na ${z.poprzedni ? 'wtorek–piątek' : 'poniedziałek–piątek'}. ` : `Zakupy w piątek — na sobotę, niedzielę${z.nastepny ? ' i poniedziałek następnego tygodnia' : ''}. Odliczam to, co zostanie po zakupach z poniedziałku. `) : ''}Tylko to, czego jeszcze potrzebujecie: bez dań już zjedzonych i po odliczeniu lodówki. Zmiana dania, gramatury lub „zjedzone” od razu przelicza listę.</p>`;
   if (dwie && tura === 2 && !z.nastepny) h += `<div class="przyp"><b>Brakuje poniedziałku.</b> Piątkowe zakupy obejmują też poniedziałek następnego tygodnia — ułóż go, a dopiszę go tutaj. <button class="btn maly" id="nowyNast">Ułóż następny tydzień</button></div>`;
   const nazwy = { 'świeże': 'Świeże', 'zapas': 'Zapas — sprawdź, czy masz', 'zamrażarka': 'Do zamrażarki' };
@@ -1178,11 +1199,16 @@ document.addEventListener('click', e => {
     if (plan.start !== st) { if (inny && inny.start === st) przelaczTydzien(); else ulozTydzien(st, true); }   // drugi tydzień zostaje zapisany
     otwartyDzien = null; zakladka = 'tydzien'; rysuj(); window.scrollTo(0, 0);
   }
+  else if (t.dataset.kto) {
+    const [d, k] = t.dataset.kto.split(':'), day = plan.dni[+d];
+    day.nb = { ona: k === 'bezona', on: k === 'bezon' };            // „bez niego” = on nieobecny, „bez niej” = ona nieobecna
+    LS.set('plan', plan); Z([[['dni', +d, 'nb'], day.nb]]); otwartyDzien = +d; rysuj();
+  }
   else if (t.dataset.tydz) { if (t.dataset.tydz !== plan.start) { przelaczTydzien(); rysuj(); window.scrollTo(0, 0); } }
   else if (t.dataset.tura) { turaW = +t.dataset.tura; rysuj(); }
   else if (t.dataset.zd) { const c = zakCfg(); c.dni[+t.dataset.zd] = !c.dni[+t.dataset.zd]; zapiszZak(); rysuj(); }
-  else if (t.dataset.zo) { const c = zakCfg(); c.osoby[t.dataset.zo] = !c.osoby[t.dataset.zo]; zapiszZak(); rysuj(); }
-  else if (t.dataset.zp) { const c = zakCfg(); c.osoby = { ona: t.dataset.zp !== 'bezona', on: t.dataset.zp !== 'bezon' }; zapiszZak(); rysuj(); }
+  else if (t.dataset.zdo) { const [i, pp] = t.dataset.zdo.split(':'), c = zakCfg(); c.kto[+i][pp] = !c.kto[+i][pp]; zapiszZak(); rysuj(); }
+  else if (t.dataset.zp) { const c = zakCfg(); c.dni.forEach((on, i) => { if (on) c.kto[i] = { ona: t.dataset.zp !== 'bezona', on: t.dataset.zp !== 'bezon' }; }); zapiszZak(); rysuj(); }
   else if (t.id === 'nowy') { if (confirm('Ułożyć nowy tydzień? Twoje zamiany przepadną.')) { ulozTydzien(); rysuj(); } }
   else if (t.id === 'doZakupow') { zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }
   else if (t.id === 'udostepnij') {
@@ -1240,7 +1266,12 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.dataset.tr) { const [d, p] = t.dataset.tr.split(':'); plan.dni[+d].tr[p] = t.checked; otwartyDzien = +d; LS.set('plan', plan); Z([[['dni', +d, 'tr', p], t.checked]]); rysuj(); }
+  if (t.dataset.nb) {
+    const [d, pp] = t.dataset.nb.split(':'), day = plan.dni[+d];
+    day.nb = Object.assign({ ona: false, on: false }, day.nb); day.nb[pp] = t.checked;
+    LS.set('plan', plan); Z([[['dni', +d, 'nb', pp], t.checked]]); otwartyDzien = +d; rysuj();
+  }
+  else if (t.dataset.tr) { const [d, p] = t.dataset.tr.split(':'); plan.dni[+d].tr[p] = t.checked; otwartyDzien = +d; LS.set('plan', plan); Z([[['dni', +d, 'tr', p], t.checked]]); rysuj(); }
   else if (t.dataset.zuz) {
     const [d, sl] = t.dataset.zuz.split(':'), g = window._w.garnki.find(x => x.slot === sl && x.porcje.some(q => q.d === +d));
     if (!g) return;

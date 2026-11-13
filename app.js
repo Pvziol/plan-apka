@@ -120,12 +120,29 @@ function normalizujPomidory(d) {
     return false;
   });
 }
+// W sklepach trudno o mrożone pojedyncze owoce, zwykle są mieszanki — więc maliny, truskawki, jagody i wiśnie traktuję jako „owoce mrożone (mieszanka)”,
+// a mango i brzoskwinie jako „mieszankę tropikalną”. Kcal i białko wierszy zostają, powtórzone wiersze w daniu łączę.
+const MIX_LESNA = 'owoce mrożone (mieszanka)', MIX_TROP = 'mieszanka tropikalna mrożona (mango, ananas…)';
+function normalizujOwoce(d) {
+  const mix = p => /^(maliny|truskawki|jagody|wiśnie) mrożone$/.test(p) ? MIX_LESNA : /^(mango|brzoskwinie) mrożone$/.test(p) ? MIX_TROP : null;
+  const widziane = new Map();
+  d.skladniki = d.skladniki.filter(i => {
+    const m = mix(i.produkt || '');
+    if (!m) return true;
+    i.produkt = m; i.nazwa = m === MIX_LESNA ? 'owoce mrożone (mieszanka leśna)' : m;
+    const k = (i.grupa || '') + '|' + m + '|' + i.jednostka, p = widziane.get(k);
+    if (!p) { widziane.set(k, i); return true; }
+    p.ilosc += i.ilosc; p.kcal = (p.kcal || 0) + (i.kcal || 0); p.bialko = (p.bialko || 0) + (i.bialko || 0);
+    return false;
+  });
+  d.kroki = (d.kroki || []).map(k => k.replace(/mrożon(ych|e) (malin|jagód|truskawek|wiśni|brzoskwiń)/g, 'mrożonej mieszanki owoców leśnych').replace(/mrożon(ego|e) mango/g, 'mrożonej mieszanki tropikalnej'));
+}
 async function wczytajBaze() {
   const [dania, dodane, shake, opak] = await Promise.all([
     wczytaj('dania.json'), wczytaj('dania-dodane.json', []), wczytaj('shake.json'), wczytaj('opakowania.json', {})
   ]);
   DB.dania.clear();
-  for (const d of dania.concat(dodane)) { normalizujPomidory(d); DB.dania.set(d.id, d); }
+  for (const d of dania.concat(dodane)) { normalizujPomidory(d); normalizujOwoce(d); DB.dania.set(d.id, d); }
   const wsz = [...DB.dania.values()];
   const typ = (...t) => wsz.filter(d => t.includes(d.typ));
   DB.pula = {
@@ -822,7 +839,7 @@ function widokZakupy() {
   const nazwy = { 'świeże': 'Świeże', 'zapas': 'Zapas — sprawdź, czy masz', 'zamrażarka': 'Do zamrażarki' };
   for (const kat of ['świeże', 'zamrażarka', 'zapas']) {
     if (!z.wynik[kat].length) continue;
-    h += `<h2>${nazwy[kat]}</h2><div class="karta">` + z.wynik[kat].map(p => {
+    h += `<h2>${nazwy[kat]}</h2><div class="karta">` + z.wynik[kat].slice().sort((a, b) => !!odhaczone[klucz(a.produkt)] - !!odhaczone[klucz(b.produkt)]).map(p => {   // odhaczone na sam koniec (sort jest stabilny)
       const k = klucz(p.produkt), on = !!odhaczone[k];
       return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}${p.worki ? `<small>podziel na woreczki: ${esc(p.worki.sort((x, y) => x.d - y.d).map(x => `${x.g} g (${DNI_KR[x.d]}${x.nast ? ' nast.' : ''}: ${x.dish.length > 28 ? x.dish.slice(0, 26) + '…' : x.dish})`).join(' · '))}</small>` : ''}</span></label>`;
     }).join('') + `</div>`;
@@ -1286,7 +1303,10 @@ document.addEventListener('change', e => {
   else if (t.dataset.spontTyp) { spontFiltr.typ = t.value; listaSpont(); }
   else if (t.dataset.kup) {
     odhaczKup(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);
-    t.closest('.poz').classList.toggle('kupione', t.checked);
+    const poz = t.closest('.poz'), kart = poz.parentNode;
+    poz.classList.toggle('kupione', t.checked);
+    if (t.checked) kart.appendChild(poz);                              // odhaczone spada na koniec listy
+    else { const pierwsze = kart.querySelector('.poz.kupione'); kart.insertBefore(poz, pierwsze); }   // odznaczone wraca przed odhaczone
   }
 });
 

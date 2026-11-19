@@ -505,6 +505,7 @@ function pomyslyResztki(prod, zost, wyb) {
 }
 // Lista zakupów na wybrane dni (z obu tygodni). Jeśli danie jest na kilka dni (zupa na 2 dni), kupujesz je w całości — nie trzeba dzielić ani zaglądać w przepisy.
 // Od potrzeb odejmuję lodówkę i dania już zjedzone.
+const TRWALE = new Set(['mleko 2%', 'jaja', 'masło', 'parmezan', 'ser żółty', 'jogurt naturalny', 'śmietana 12%']);   // długo się trzymają — bez ostrzeżeń o resztkach
 function zakupyDni(wyb) {
   const nz = new Map(), inne = new Set(), przyprawy = [], worki = {};
   const dodaj = (produkt, kat, q, u) => {
@@ -559,9 +560,11 @@ function zakupyDni(wyb) {
     }
     const kupno = {};
     for (const [u, q] of Object.entries(il)) kupno[u] = kupnoIlosc(prod, u, q);
-    const pomysly = reszta && a.kat === 'świeże' && prod !== 'mleko 2%' && reszta.ulamek >= 0.25 ? pomyslyResztki(prod, reszta, wyb) : null;
+    const pomysly = reszta && a.kat === 'świeże' && !TRWALE.has(prod) && reszta.ulamek >= 0.4 ? pomyslyResztki(prod, reszta, wyb) : null;
     (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[prod] || null, reszta, pomysly });
   }
+  // zero waste: przycisk „Zużyj resztkę” tylko przy 4 największych resztkach, żeby lista nie była usiana ostrzeżeniami
+  Object.values(wynik).flat().filter(x => x.pomysly).sort((x, y) => y.reszta.ulamek - x.reszta.ulamek).slice(4).forEach(x => { x.pomysly = null; });
   Object.values(wynik).forEach(arr => arr.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
   return { wynik, inne: [...inne], przyprawy: przyprawyZbiorczo(przyprawy), wyb };
 }
@@ -845,6 +848,38 @@ function oknoSugestie(p, ile) {
   $('#modal').hidden = false;
 }
 
+// Opcje „zużyj resztkę”: dania, które używają produktu, i miejsca w planie (od dziś, niezjedzone), gdzie mogą zastąpić inne danie.
+function opcjeZuzycia(prod, reszta) {
+  const dzis = isoDzis(), out = new Map();
+  const pulaSlotu = (day, slot) => slot === 'sn' ? DB.pula.sn : slot === 'm13ona' ? DB.pula.m13ona : slot === 'm13on' ? DB.pula.m13on : slot === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : slot === 'k18' ? DB.pula.k18 : (day.ob2 ? DB.pula.ob2 : DB.pula.ob1);
+  for (const t of tygodnieZapisane()) t.dni.forEach((day, d) => {
+    const iso = dodajDni(t.start, d); if (iso < dzis) return;
+    const sloty = [['sn', day.sn], day.m13.wsp ? ['m13', day.m13.wsp] : null, !day.m13.wsp ? ['m13ona', day.m13.ona] : null, !day.m13.wsp ? ['m13on', day.m13.on] : null, day.ob ? ['ob', day.ob] : null, ['k18', day.k18]].filter(Boolean);
+    for (const [slot, teraz] of sloty) {
+      if (t.zuz[kluczZ(d, slot, t.start)] || (slot === 'm13ona' && nieob(day, 'ona')) || (slot === 'm13on' && nieob(day, 'on'))) continue;
+      for (const dish of pulaSlotu(day, slot)) {
+        if (dish.id === teraz || ukryte(dish.id)) continue;
+        const i = dish.skladniki.find(x => x.produkt === prod && x.jednostka === reszta.u && x.ilosc > 0);
+        if (!i || i.ilosc > reszta.q * 1.15) continue;
+        const uzycie = Math.min(i.ilosc, reszta.q) / reszta.q;
+        if (uzycie < 0.25) continue;
+        const wynik = uzycie * 10 + (oceny[dish.id] === 1 ? 1 : 0) - (new Date(iso) - new Date(dzis)) / 864e5 * 0.15;
+        const ex = out.get(dish.id);
+        if (!ex || wynik > ex.wynik) out.set(dish.id, { dish, start: t.start, d, slot, iso, ilosc: i.ilosc, u: i.jednostka, wynik, stare: (DB.dania.get(teraz) || {}).nazwa || '' });
+      }
+    }
+  });
+  return [...out.values()].sort((a, b) => b.wynik - a.wynik).slice(0, 6);
+}
+function oknoZuzyj(prod) {
+  const poz = Object.values(window._z.wynik).flat().find(x => x.produkt === prod && x.reszta);
+  if (!poz) return;
+  const op = opcjeZuzycia(prod, poz.reszta);
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zużyj: ${esc(prod)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+    <p class="mute">Po zakupie zostanie ok. <b>${poz.reszta.q} ${poz.reszta.u}</b>. Wybierz danie — wstawię je w planie w miejsce innego, a gramatury dopasują się do tych samych kalorii.</p>
+    ${op.length ? op.map(x => `<div class="wiersz"><button class="wybor" data-zuz-wstaw="${x.start}|${x.d}|${x.slot}|${esc(x.dish.id)}">${Obr.html(x.dish)}<span class="tx"><b>${esc(x.dish.nazwa)}</b><span class="mute">zużyje ok. ${fmtStan(Math.min(x.ilosc, poz.reszta.q), x.u)} · ${dzienTxt(x.iso)} · ${esc(PORA[x.slot].split(' · ')[1])}</span><span class="mute">zastąpi: ${esc(x.stare)}</span></span></button></div>`).join('') : '<p class="pusty" style="padding:24px 0">Nie znalazłem pasującego dania w planie. Zajrzyj do „Lodówki” → „Co ugotować z tego, co mamy?” po zakupach.</p>'}`;
+  $('#modal').hidden = false;
+}
 const dzienTxt = iso => `${DNI_KR[(new Date(iso + 'T12:00:00').getDay() + 6) % 7]} ${krotkaData(iso)}`;
 function kartaMiesa(z) {
   const dzis = isoDzis(), poz = z.wynik['zamrażarka'].filter(p => p.worki && p.worki.length);
@@ -891,7 +926,7 @@ function widokZakupy() {
     if (!z.wynik[kat].length) continue;
     h += `<h2>${nazwy[kat]}</h2><div class="karta">` + z.wynik[kat].slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt))).map(p => {   // odhaczone na sam koniec (sort jest stabilny)
       const k = klucz(p.produkt), on = !!odhK(k);
-      const zw = p.pomysly && (p.pomysly.wPlanie.length || p.pomysly.pomysly.length) ? `<small class="zw">Zostanie ${p.reszta.q} ${p.reszta.u} — nie zmarnuj:${p.pomysly.wPlanie.length ? ` w planie: ${esc(p.pomysly.wPlanie.join('; '))}.` : ''}${p.pomysly.pomysly.length ? ` Pomysły: ${esc(p.pomysly.pomysly.join('; '))}.` : ''}</small>` : '';
+      const zw = p.pomysly ? `<button class="btn maly zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zużyj resztkę (${p.reszta.q} ${p.reszta.u})</button>` + (p.pomysly.wPlanie.length || p.pomysly.pomysly.length ? `<small class="zw">Zostanie ${p.reszta.q} ${p.reszta.u} — nie zmarnuj:${p.pomysly.wPlanie.length ? ` w planie: ${esc(p.pomysly.wPlanie.join('; '))}.` : ''}${p.pomysly.pomysly.length ? ` Pomysły: ${esc(p.pomysly.pomysly.join('; '))}.` : ''}</small>` : '') : '';
       return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}${zw}</span></label>`;
     }).join('') + `</div>`;
   }
@@ -1142,20 +1177,37 @@ function kartaUkryte() {
 }
 
 // ---------- waga ----------
-function wykresWagi(daty, p) {
-  if (daty.length < 2) return daty.length ? '' : '<p class="mute">Brak pomiarów — dodaj pierwszy poniżej.</p>';
-  const pkt = daty.map(([d, v]) => [new Date(d + 'T12:00:00').getTime(), v]);
-  const W = 320, H = 150, L = 38, R = 10, T = 10, B = 22;
-  const x0 = pkt[0][0], x1 = pkt[pkt.length - 1][0], vs = pkt.map(q => q[1]);
-  const mn = Math.min(...vs), mx = Math.max(...vs), pad = Math.max(0.3, (mx - mn) * 0.15), lo = mn - pad, hi = mx + pad;
-  const X = t => L + (x1 === x0 ? 0.5 : (t - x0) / (x1 - x0)) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
-  const f = t => new Date(t).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });
-  const lin = pkt.map(([t, v]) => X(t).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ');
-  return `<svg class="wykres ${p}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wykres wagi">
-    <line x1="${L}" x2="${W - R}" y1="${Y(mx)}" y2="${Y(mx)}" stroke="currentColor" stroke-opacity=".15"/><line x1="${L}" x2="${W - R}" y1="${Y(mn)}" y2="${Y(mn)}" stroke="currentColor" stroke-opacity=".15"/>
-    <text x="${L - 4}" y="${Y(mx) + 3}" text-anchor="end">${mx.toString().replace('.', ',')}</text><text x="${L - 4}" y="${Y(mn) + 3}" text-anchor="end">${mn.toString().replace('.', ',')}</text>
-    <text x="${L}" y="${H - 6}">${f(x0)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${f(x1)}</text>
-    <polyline points="${lin}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>${pkt.map(([t, v]) => `<circle cx="${X(t).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="currentColor"/>`).join('')}</svg>`;
+const kgTxt = v => String(Math.round(v * 10) / 10).replace('.', ',');
+let wagaOsoba = 'ona', wagaZakres = 90;
+function gladkaSciezka(pts, yMin, yMax) {
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const cy = v => Math.max(yMin, Math.min(yMax, v));
+    d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${cy(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${cy(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+function wykresWagi(e, p) {
+  if (!e.length) return `<div class="wykres-pusty"><b>Brak pomiarów</b><small>Dodaj pierwszy poniżej. Wykres pojawi się od dwóch pomiarów.</small></div>`;
+  const ms = d => new Date(d + 'T12:00:00').getTime(), ost = ms(e[e.length - 1][0]);
+  let pt = wagaZakres ? e.filter(([d]) => ms(d) >= ost - wagaZakres * 864e5) : e;
+  if (pt.length < 2) pt = e.slice(-2);
+  if (pt.length < 2) return `<div class="wykres-pusty"><b>${kgTxt(e[0][1])} kg</b><small>Dodaj kolejny pomiar, a pojawi się wykres.</small></div>`;
+  const W = 340, H = 190, L = 42, R = 16, T = 22, B = 28;
+  const t0 = ms(pt[0][0]), t1 = ms(pt[pt.length - 1][0]), vs = pt.map(q => q[1]), mn = Math.min(...vs), mx = Math.max(...vs), pad = Math.max(0.4, (mx - mn) * 0.25), lo = mn - pad, hi = mx + pad;
+  const X = t => L + (t1 === t0 ? 0.5 : (t - t0) / (t1 - t0)) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const pts = pt.map(([d, v]) => [X(ms(d)), Y(v)]), ostP = pts[pts.length - 1], ostV = pt[pt.length - 1][1];
+  const f = t => new Date(t).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+  const lin = gladkaSciezka(pts, T, H - B), pole = `${lin} L${ostP[0].toFixed(1)},${H - B} L${pts[0][0].toFixed(1)},${H - B} Z`;
+  const siatka = [hi - pad * 0.3, (hi + lo) / 2, lo + pad * 0.3].map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="3 4"/><text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" text-anchor="end">${kgTxt(v)}</text>`).join('');
+  const lx = Math.min(Math.max(ostP[0], L + 22), W - R - 22);
+  return `<svg class="wykres ${p}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wykres wagi"><defs><linearGradient id="gw${p}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+    ${siatka}<path d="${pole}" fill="url(#gw${p})"/><path d="${lin}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.slice(0, -1).map(q => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="2.6" fill="var(--card)" stroke="currentColor" stroke-width="1.6"/>`).join('')}
+    <circle cx="${ostP[0].toFixed(1)}" cy="${ostP[1].toFixed(1)}" r="9" fill="currentColor" fill-opacity=".18"/><circle cx="${ostP[0].toFixed(1)}" cy="${ostP[1].toFixed(1)}" r="5" fill="currentColor" stroke="var(--card)" stroke-width="2"/>
+    <g transform="translate(${lx.toFixed(1)},${(ostP[1] - 20).toFixed(1)})"><rect x="-26" y="-12" width="52" height="20" rx="10" fill="currentColor"/><text x="0" y="2.5" text-anchor="middle" class="bab">${kgTxt(ostV)} kg</text></g>
+    <text x="${L}" y="${H - 8}">${f(t0)}</text><text x="${W - R}" y="${H - 8}" text-anchor="end">${f(t1)}</text></svg>`;
 }
 function tempoWagi(p) {
   const e = Object.entries(waga[p] || {}).sort();
@@ -1173,19 +1225,28 @@ function opisTempa(cel, t) {
   return `tempo ${t > 0 ? '+' : ''}${z} kg/tydz. — ${o}`;
 }
 function widokWaga() {
-  let h = `<h1>Waga</h1><p class="mute">Ważcie się o stałej porze (np. raz w tygodniu, rano, na czczo). Pojedynczy pomiar waha się z wodą, ważny jest trend. To szacunek, nie zalecenie medyczne.</p>`;
-  OS.forEach(p => {
-    const e = Object.entries(waga[p] || {}).sort(), ost = e[e.length - 1], t = tempoWagi(p);
-    h += `<div class="karta"><h2 class="${p}" style="margin-top:0">${ETY[p]}</h2>${wykresWagi(e, p)}`;
-    if (ost) h += `<p><b>${ost[1].toString().replace('.', ',')} kg</b> <span class="mute">(${new Date(ost[0] + 'T12:00:00').toLocaleDateString('pl-PL')})</span>${e.length > 1 ? ` · od początku ${((ost[1] - e[0][1]) > 0 ? '+' : '') + (ost[1] - e[0][1]).toFixed(1).replace('.', ',')} kg` : ''}</p>`;
-    if (t !== null) h += `<p class="mute">${esc(opisTempa((profil[p] || {}).cel, t))}</p>`;
-    h += `<div class="dwa"><label class="pole"><span>Data</span><input type="date" id="wd-${p}" value="${isoDzis()}" max="${isoDzis()}"></label>
-      <label class="pole"><span>Waga (kg)</span><input type="text" inputmode="decimal" id="wk-${p}" placeholder="np. 62,4"></label></div>
-      <button class="btn szeroki" data-zapisz-wage="${p}">Zapisz pomiar</button>`;
-    if (ost && profil[p] && Math.abs(profil[p].waga - ost[1]) >= 0.5) h += `<button class="btn szeroki" style="margin-top:8px" data-wage-profil="${p}">Zaktualizuj wagę w profilu (${ost[1].toString().replace('.', ',')} kg) i przelicz zapotrzebowanie</button>`;
-    h += e.slice(-6).reverse().map(([d, v]) => `<div class="wpis"><span>${new Date(d + 'T12:00:00').toLocaleDateString('pl-PL')} — <b>${v.toString().replace('.', ',')} kg</b></span><button class="btn maly" data-usun-wage="${p}|${d}">Usuń</button></div>`).join('');
-    h += `</div>`;
-  });
+  const dobry = (cel, zm) => cel === 'redukcja' ? zm < 0 : cel === 'masa' ? zm > 0 : Math.abs(zm) < 1;
+  const dane = p => { const e = Object.entries(waga[p] || {}).sort(), ost = e[e.length - 1], zm = ost && e.length > 1 ? ost[1] - e[0][1] : null; return { e, ost, zm, t: tempoWagi(p) }; };
+  let h = `<h1>Waga</h1>` + wskazowka('waga', 'Ważcie się raz w tygodniu, rano, na czczo. Jeden pomiar waha się przez wodę, liczy się trend. To szacunek, nie zalecenie medyczne.');
+  h += `<div class="wtile-rzad">` + OS.map(p => { const x = dane(p); return `<button class="wtile ${p} ${wagaOsoba === p ? 'akt' : ''}" data-wosoba="${p}"><b>${ETY[p]}</b><span class="duze">${x.ost ? kgTxt(x.ost[1]) + ' kg' : '—'}</span><small class="${x.zm == null ? '' : dobry((profil[p] || {}).cel, x.zm) ? 'dobry' : 'zly'}">${x.zm == null ? 'dodaj pomiary' : (x.zm > 0 ? '▲ +' : x.zm < 0 ? '▼ ' : '') + kgTxt(x.zm) + ' kg od początku'}</small></button>`; }).join('') + `</div>`;
+  const p = wagaOsoba, x = dane(p), e = x.e, ost = x.ost, ms = d => new Date(d + 'T12:00:00').getTime();
+  h += `<div class="karta wykres-karta ${p}"><div class="rzad-nag"><h3 style="margin:0" class="${p}">${ETY[p]} · trend</h3></div>
+    <div class="seg mini" style="margin:10px 0 6px">${[[28, '4 tyg.'], [90, '3 mies.'], [365, 'Rok'], [0, 'Wszystko']].map(([v, et]) => `<button data-wzakres="${v}" class="${wagaZakres === v ? 'akt' : ''}">${et}</button>`).join('')}</div>
+    ${wykresWagi(e, p)}`;
+  if (e.length > 1) {
+    const wart = e.map(q => q[1]), min = Math.min(...wart), max = Math.max(...wart);
+    h += `<div class="wstat"><div><small>Najniższa</small><b>${kgTxt(min)} kg</b></div><div><small>Najwyższa</small><b>${kgTxt(max)} kg</b></div><div><small>Tempo</small><b>${x.t == null ? '—' : (x.t > 0 ? '+' : '') + x.t.toFixed(2).replace('.', ',') + ' kg/tydz.'}</b></div></div>`;
+  }
+  if (x.t !== null) h += `<p class="mute" style="margin:10px 0 0">${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(opisTempa((profil[p] || {}).cel, x.t).replace(/^tempo [^—]*— /, '')))}.</p>`;
+  h += `</div>`;
+  const start = ost ? ost[1] : ((profil[p] || {}).waga || 70);
+  h += `<div class="karta"><h3 style="margin:0 0 10px">Nowy pomiar</h3>
+    <div class="wpisz"><button class="strz" data-wkstep="${p}:-0.1" aria-label="Mniej">−</button><label class="wpisz-pole"><input type="text" inputmode="decimal" id="wk-${p}" value="${kgTxt(start)}" aria-label="Waga w kg"><span>kg</span></label><button class="strz" data-wkstep="${p}:0.1" aria-label="Więcej">+</button></div>
+    <label class="pole"><span>Data</span><input type="date" id="wd-${p}" value="${isoDzis()}" max="${isoDzis()}"></label>
+    <button class="btn glowny szeroki" data-zapisz-wage="${p}">Zapisz pomiar</button>`;
+  if (ost && profil[p] && Math.abs(profil[p].waga - ost[1]) >= 0.5) h += `<button class="btn szeroki" style="margin-top:8px" data-wage-profil="${p}">Zaktualizuj wagę w profilu (${kgTxt(ost[1])} kg) i przelicz zapotrzebowanie</button>`;
+  h += `</div>`;
+  if (e.length) h += `<h2>Historia</h2><div class="karta hist">` + e.slice(-10).reverse().map(([d, v], i, arr) => { const prev = e[e.length - 1 - i - 1], zm = prev ? v - prev[1] : null; return `<div class="hist-w"><span class="hist-d">${new Date(d + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}</span><b>${kgTxt(v)} kg</b><span class="hist-zm ${zm == null ? '' : dobry((profil[p] || {}).cel, zm) ? 'dobry' : 'zly'}">${zm == null ? '' : zm === 0 ? '=' : (zm > 0 ? '▲ ' : '▼ ') + kgTxt(Math.abs(zm))}</span><button class="btn maly" data-usun-wage="${p}|${d}" aria-label="Usuń pomiar">✕</button></div>`; }).join('') + `</div>`;
   $('#view').innerHTML = h;
 }
 function zapiszWage(p) {
@@ -1235,26 +1296,35 @@ function prognoza(w) {
   }
   return Object.entries(pierwszy).map(([k, x]) => { const [p, u] = k.split('|'); return { produkt: p, u, brakuje: -stan[k], d: x.d, dish: x.dish, pilne: x.d <= od0 + 1 }; }).sort((a, b) => a.d - b.d);
 }
+let lodKat = 'wszystko';
+const KROK_LOD = u => (u === 'g' || u === 'ml') ? 50 : 1;
 function widokLodowka() {
-  const w = oblicz(plan, cele()), pr = prognoza(w), kat = { 'świeże': 'Świeże', 'zamrażarka': 'Zamrażarka', 'zapas': 'Zapasy' };
-  let h = `<h1>Lodówka</h1>${wskazowka('lodowka', 'Lodówka liczy się sama: zakupy ją dopisują, a „zjedzone” odejmuje. Możesz też wpisać ręcznie, co macie.')}
-    <button class="btn glowny szeroki" id="spont">Spontaniczne gotowanie — co możemy zrobić?</button>`;
-  if (pr.length) h += `<h2>Zaczyna brakować</h2><div class="karta">${pr.map(x => `<p class="${x.pilne ? 'ostrz-txt' : ''}"><b>${esc(x.produkt)}</b> — zabraknie ${fmtStan(x.brakuje, x.u)}<br><span class="mute">od: ${esc(x.dish)} (${DNI[x.d].toLowerCase()})</span></p>`).join('')}<p class="mute">Kup przed pierwszym z tych dni. Prognoza zakłada, że jecie według planu i zaznaczacie „zjedzone”.</p></div>`;
-  const grupy = { 'świeże': [], 'zamrażarka': [], 'zapas': [] };
-  for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) grupy[(DB.produkty.get(p) || {}).kat in grupy ? DB.produkty.get(p).kat : 'zapas'].push([p, u, q]);
+  const w = oblicz(plan, cele()), pr = prognoza(w);
+  const katNazwa = { 'świeże': 'Świeże', 'zamrażarka': 'Mrożone', 'zapas': 'Zapasy' }, grupy = { 'świeże': [], 'zamrażarka': [], 'zapas': [] };
+  for (const [pp, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) { const k = (DB.produkty.get(pp) || {}).kat; grupy[k in grupy ? k : 'zapas'].push([pp, u, q]); }
+  const razem = Object.values(grupy).reduce((a, l) => a + l.length, 0);
+  let h = `<h1>Lodówka</h1>` + wskazowka('lodowka', 'Lodówka liczy się sama: zakupy ją dopisują, a „zjedzone” odejmuje. Przyciskami − i + poprawisz ilość, a na górze zobaczysz, co zaczyna się kończyć.');
+  h += `<div class="lod-kafle"><div><b>${razem}</b><small>produktów w domu</small></div><div class="${pr.length ? 'ostrz' : ''}"><b>${pr.length}</b><small>${pr.length === 1 ? 'zaczyna brakować' : 'zaczyna brakować'}</small></div></div>
+    <button class="spont-cta" id="spont"><span class="spont-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="spont-tx"><b>Co ugotować z tego, co mamy?</b><small>Spontaniczne gotowanie z Waszej lodówki</small></span><span class="spont-str">›</span></button>`;
+  if (pr.length) h += `<h2>Zaczyna brakować</h2><div class="alerty">${pr.map(x => `<div class="alert ${x.pilne ? 'pilne' : ''}"><b>${esc(x.produkt)}</b><span>brakuje ${fmtStan(x.brakuje, x.u)}</span><small>od: ${esc(x.dish)} (${DNI_KR[x.d]})</small></div>`).join('')}</div><p class="mute">Kup przed pierwszym z tych dni. Prognoza zakłada, że jecie według planu i zaznaczacie „zjedzone”.</p>`;
+  h += `<h2>W lodówce</h2><div class="lod-filtr"><div class="seg mini">${[['wszystko', 'Wszystko'], ['świeże', 'Świeże'], ['zamrażarka', 'Mrożone'], ['zapas', 'Zapasy']].map(([k, et]) => `<button data-lodkat="${k}" class="${lodKat === k ? 'akt' : ''}">${et}</button>`).join('')}</div>
+    <input id="lod-szukaj" type="search" placeholder="Szukaj w lodówce…" autocomplete="off"></div>`;
   let ile = 0;
   for (const k of ['świeże', 'zamrażarka', 'zapas']) {
+    if (lodKat !== 'wszystko' && lodKat !== k) continue;
     const l = grupy[k].sort((a, b) => a[0].localeCompare(b[0], 'pl')); if (!l.length) continue; ile += l.length;
-    h += `<h2>${kat[k]}</h2><div class="karta">${l.map(([p, u, q]) => `<div class="stan"><span class="co"><b>${esc(p)}</b>${q < 0.5 ? ' <span class="ostrz-txt">— skończone</span>' : ''}</span><input type="text" inputmode="decimal" data-sp="${esc(p)}" data-su="${esc(u)}" value="${String(Math.max(0, Math.round(q * 10) / 10)).replace('.', ',')}"><span class="mute">${esc(u)}</span><button class="btn maly" data-stanusun="${esc(p)}|${esc(u)}" aria-label="Usuń z lodówki">✕</button></div>`).join('')}</div>`;
+    h += `<div class="lod-grupa"><h3>${katNazwa[k]} · ${l.length}</h3><div class="karta">${l.map(([pp, u, q]) => { const kon = q < 0.5; return `<div class="stan2" data-nm="${esc(znorm(pp))}"><span class="stan-ik k-${k === 'zamrażarka' ? 'zam' : k === 'zapas' ? 'zap' : 'swi'}">${esc(pp.charAt(0).toUpperCase())}</span>
+      <div class="stan-nm"><b>${esc(pp)}</b>${kon ? '<small class="ostrz-txt">skończone</small>' : ''}</div>
+      <div class="stan-ster">${kon ? `<button class="btn maly" data-stanusun="${esc(pp)}|${esc(u)}">Usuń</button><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|1" aria-label="Więcej">+</button>` : `<button class="stp" data-stpm="${esc(pp)}|${esc(u)}|-1" aria-label="Mniej">−</button><input type="text" inputmode="decimal" data-sp="${esc(pp)}" data-su="${esc(u)}" value="${String(Math.max(0, Math.round(q * 10) / 10)).replace('.', ',')}" aria-label="Ilość"><span class="jedn">${esc(u)}</span><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|1" aria-label="Więcej">+</button>`}</div></div>`; }).join('')}</div></div>`;
   }
-  if (!ile) h += `<p class="pusty">Lodówka jest pusta. Wpisz poniżej, co macie, albo odhaczaj zakupy na liście.</p>`;
-  h += `<h2>Dodaj do lodówki</h2><div class="karta"><div class="dwa"><label class="pole"><span>Produkt</span><input id="nowy-p" list="produkty" autocomplete="off" placeholder="np. kurczak"></label>
+  if (!ile) h += `<div class="karta pusta-karta"><b>${razem ? 'Nic w tej kategorii' : 'Lodówka jest pusta'}</b><p class="mute">${razem ? 'Zmień filtr powyżej.' : 'Odhaczaj zakupy na liście albo dodaj produkty poniżej.'}</p></div>`;
+  h += `<details class="karta dodaj-lod"><summary>＋ Dodaj do lodówki</summary><div class="dwa"><label class="pole"><span>Produkt</span><input id="nowy-p" list="produkty" autocomplete="off" placeholder="np. kurczak"></label>
     <label class="pole"><span>Ilość</span><input id="nowy-q" type="text" inputmode="decimal" placeholder="np. 500"></label></div>
     <label class="pole"><span>Jednostka</span><select id="nowy-u">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<option>${u}</option>`).join('')}</select></label>
     <datalist id="produkty">${[...DB.produkty.keys()].sort((a, b) => a.localeCompare(b, 'pl')).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-    <button class="btn szeroki" id="dodajStan">Dodaj</button></div>
-    <h2>Wpisz kilka rzeczy naraz</h2><div class="karta"><p class="mute">Po jednej w linii, np. „kurczak 500 g”, „jajka 6”, „ryż”. Bez ilości wstawię typową paczkę.</p>
-    <textarea id="szybkie-tekst" rows="4" placeholder="kurczak 500 g&#10;jajka 6&#10;ryż"></textarea><button class="btn szeroki" id="szybkie">Dodaj wszystko</button></div>`;
+    <button class="btn szeroki" id="dodajStan">Dodaj</button>
+    <h3>Albo kilka rzeczy naraz</h3><p class="mute">Po jednej w linii, np. „kurczak 500 g”, „jajka 6”, „ryż”. Bez ilości wstawię typową paczkę.</p>
+    <textarea id="szybkie-tekst" rows="4" placeholder="kurczak 500 g&#10;jajka 6&#10;ryż"></textarea><button class="btn szeroki" id="szybkie">Dodaj wszystko</button></details>`;
   $('#view').innerHTML = h;
 }
 function dodajStanReczny() {
@@ -1343,6 +1413,8 @@ document.addEventListener('click', e => {
   const t = e.target.closest('button, summary');
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
+  if (t.dataset.zuzyj) { e.preventDefault(); oknoZuzyj(t.dataset.zuzyj); return; }
+  if (t.dataset.zuzWstaw) { const [st, d, sl, ...id] = t.dataset.zuzWstaw.split('|'); if (st !== plan.start && inny && inny.start === st) przelaczTydzien(); wybierz(+d, sl, id.join('|')); return; }
   if (t.dataset.wsk) { wskazowki[t.dataset.wsk] = 1; LS.set('wskazowki', wskazowki); rysuj(); return; }
   if (t.dataset.intro !== undefined) { pokazIntro(+t.dataset.intro); return; }
   if (t.dataset.tab) { zakladka = t.dataset.tab; rysuj(); window.scrollTo(0, 0); }
@@ -1418,9 +1490,14 @@ document.addEventListener('click', e => {
     }
   }
   else if (t.dataset.ocena) { const k = t.dataset.ocena.lastIndexOf(':'); ocen(t.dataset.ocena.slice(0, k), +t.dataset.ocena.slice(k + 1)); }
+  else if (t.dataset.wosoba) { wagaOsoba = t.dataset.wosoba; rysuj(); }
+  else if (t.dataset.wzakres) { wagaZakres = +t.dataset.wzakres; rysuj(); }
+  else if (t.dataset.wkstep) { const [pp, dl] = t.dataset.wkstep.split(':'), el = $('#wk-' + pp); const v = parseFloat(String(el.value).replace(',', '.')) || 70; el.value = kgTxt(Math.max(25, v + +dl)); }
   else if (t.dataset.zapiszWage) zapiszWage(t.dataset.zapiszWage);
   else if (t.dataset.usunWage) { const [pp, dd] = t.dataset.usunWage.split('|'); delete waga[pp][dd]; LS.set('waga', waga); Z([[['waga', pp, dd], undefined]]); rysuj(); }
   else if (t.dataset.wageProfil) { const pp = t.dataset.wageProfil, e = Object.entries(waga[pp] || {}).sort(); if (e.length) { profil[pp].waga = e[e.length - 1][1]; LS.set('profil', profil); Z([[['profil', pp], profil[pp]]]); rysuj(); } }
+  else if (t.dataset.lodkat) { lodKat = t.dataset.lodkat; rysuj(); }
+  else if (t.dataset.stpm) { const [pp, uu, dl] = t.dataset.stpm.split('|'), cur = (lodowka[pp] || {})[uu] || 0, st = KROK_LOD(uu); zmienLodowke(pp, uu, +dl > 0 ? st : -Math.min(st, cur)); rysuj(); }
   else if (t.dataset.stanusun) { const [pp, uu] = t.dataset.stanusun.split('|'); if (lodowka[pp]) { delete lodowka[pp][uu]; if (!Object.keys(lodowka[pp]).length) delete lodowka[pp]; } LS.set('lodowka', lodowka); Z([[['lodowka', pp, uu], undefined]]); rysuj(); }
   else if (t.id === 'dodajStan') dodajStanReczny();
   else if (t.id === 'szybkie') szybkieDodanie(($('#szybkie-tekst') || {}).value || '');
@@ -1433,6 +1510,7 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'szukaj' && zmienCtx) listaWyboru(t.value);
+  else if (t.id === 'lod-szukaj') { const q = znorm(t.value.trim()); document.querySelectorAll('.stan2').forEach(r => { r.hidden = !!q && !r.dataset.nm.includes(q); }); document.querySelectorAll('.lod-grupa').forEach(g => { g.hidden = ![...g.querySelectorAll('.stan2')].some(r => !r.hidden); }); }
   else if (t.id === 'szukaj-sp') { spontFiltr.q = t.value; listaSpont(); }
   else if (t.id === 'nowy-p') { const k = DB.produkty.get(t.value); if (k && $('#nowy-u')) $('#nowy-u').value = ['g', 'ml', 'szt.', 'krom.', 'pusz.'].includes(k.u) ? k.u : 'g'; }
 });

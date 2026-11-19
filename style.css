@@ -453,3 +453,79 @@ table.skl td:last-child { white-space: normal; max-width: 46%; min-width: 64px; 
 .stan input { width: 72px; flex: none; }
 .stan .mute { flex: none; min-width: 26px; font-size: 13px; }
 .stan .btn.maly { flex: none; width: 36px; min-width: 36px; padding: 0; }
+
+/* ───────── Waga, Lodówka, „Zużyj resztkę” (v37) ───────── */
+.zuzyj-btn { margin-top: 8px; background: var(--ostrz-tlo) !important; color: var(--ostrz) !important; box-shadow: none !important; }
+.poz small.zw { margin-top: 6px; }
+
+/* waga */
+.wtile-rzad { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.wtile { text-align: left; border: 0; border-radius: 22px; padding: 14px 16px; box-shadow: var(--cien-maly); display: flex; flex-direction: column; gap: 2px; background: var(--card); outline: 2px solid transparent; transition: outline-color .15s, background .15s; }
+.wtile.ona.akt { background: var(--ona-tlo); outline-color: var(--ona); } .wtile.on.akt { background: var(--on-tlo); outline-color: var(--on); }
+.wtile b { font-size: 11.5px; letter-spacing: .1em; font-weight: 800; }
+.wtile.ona b { color: var(--ona); } .wtile.on b { color: var(--on); }
+.wtile .duze { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); }
+.wtile small { font-size: 12.5px; font-weight: 650; color: var(--mute); }
+small.dobry, .hist-zm.dobry { color: var(--zielony); } small.zly, .hist-zm.zly { color: var(--ostrz); }
+.wykres-karta.ona { color: var(--ona); } .wykres-karta.on { color: var(--on); }
+.wykres-karta h3, .wykres-karta .wstat, .wykres-karta p, .wykres-karta .seg { color: var(--ink); }
+.wykres-karta .seg button { color: var(--mute); } .wykres-karta .seg button.akt { color: var(--zielony); }
+.wykres { width: 100%; height: auto; display: block; margin-top: 6px; }
+.wykres text { fill: var(--mute); font-size: 10px; font-weight: 600; }
+.wykres text.bab { fill: #fff; font-size: 11px; font-weight: 800; }
+.wykres-pusty { text-align: center; padding: 30px 10px; background: var(--bg); border-radius: 18px; margin-top: 10px; color: var(--ink); }
+.wykres-pusty b { display: block; font-size: 22px; } .wykres-pusty small { color: var(--mute); }
+.wstat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.wstat > div { background: var(--bg); border-radius: 14px; padding: 10px 10px; min-width: 0; }
+.wstat small { display: block; font-size: 11px; color: var(--mute); font-weight: 700; }
+.wstat b { font-size: 14.5px; overflow-wrap: anywhere; }
+.wpisz { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 4px 0 8px; }
+.wpisz-pole { display: flex; align-items: baseline; justify-content: center; gap: 6px; flex: 1; min-width: 0; }
+.wpisz-pole input { width: 110px; min-height: 64px; text-align: center; font-size: 38px; font-weight: 800; letter-spacing: -.02em; border: 0; border-bottom: 3px solid var(--zielony2); background: transparent; border-radius: 0; padding: 0; color: var(--ink); }
+.wpisz-pole input:focus { outline: none; }
+.wpisz-pole span { font-size: 18px; font-weight: 700; color: var(--mute); }
+.hist { padding: 4px 16px; }
+.hist-w { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.hist-w:last-child { border-bottom: 0; }
+.hist-d { flex: 1; color: var(--mute); font-size: 14px; min-width: 0; }
+.hist-w b { font-size: 16px; }
+.hist-zm { min-width: 54px; text-align: right; font-size: 13px; font-weight: 700; color: var(--mute); }
+.hist-w .btn.maly { width: 34px; min-width: 34px; padding: 0; flex: none; }
+
+/* lodówka */
+.lod-kafle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+.lod-kafle > div { background: var(--card); border-radius: 20px; padding: 12px 16px; box-shadow: var(--cien-maly); display: flex; flex-direction: column; }
+.lod-kafle b { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.lod-kafle small { color: var(--mute); font-size: 12.5px; font-weight: 650; }
+.lod-kafle .ostrz { background: var(--ostrz-tlo); } .lod-kafle .ostrz b { color: var(--ostrz); }
+.spont-cta { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; border: 0; border-radius: 24px; padding: 16px; margin: 10px 0; color: #fff; background: linear-gradient(135deg, #0a9a68, #16c28c 65%, #4fd8a6); box-shadow: 0 12px 28px rgba(10, 130, 90, .28); }
+@media (prefers-color-scheme: dark) { .spont-cta { color: #07150e; } }
+.spont-ik { flex: none; width: 46px; height: 46px; border-radius: 15px; background: rgba(255, 255, 255, .25); display: grid; place-items: center; }
+.spont-ik svg { width: 26px; height: 26px; fill: currentColor; }
+.spont-tx { flex: 1; min-width: 0; } .spont-tx b { display: block; font-size: 17px; line-height: 1.25; } .spont-tx small { opacity: .9; font-size: 13px; }
+.spont-str { font-size: 26px; opacity: .8; }
+.alerty { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.alert { background: var(--card); border-radius: 18px; padding: 12px 14px; box-shadow: var(--cien-maly); display: flex; flex-direction: column; gap: 2px; min-width: 0; border-left: 4px solid var(--ostrz); }
+.alert.pilne { background: var(--ostrz-tlo); }
+.alert b { font-size: 15px; overflow-wrap: anywhere; } .alert span { color: var(--ostrz); font-weight: 700; font-size: 13.5px; } .alert small { color: var(--mute); font-size: 12px; overflow-wrap: anywhere; }
+.lod-filtr { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.lod-filtr input { width: 100%; min-height: 46px; padding: 0 16px; border-radius: 14px; border: 0; background: var(--card); box-shadow: var(--cien-maly); }
+.lod-filtr input:focus { outline: 2px solid var(--zielony2); }
+.lod-grupa h3 { margin: 16px 4px 6px; }
+.lod-grupa .karta { padding: 4px 14px; margin-top: 0; }
+.stan2 { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.stan2:last-child { border-bottom: 0; }
+.stan2[hidden], .lod-grupa[hidden] { display: none; }
+.stan-ik { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 15px; }
+.k-swi { background: var(--zielony-tlo); color: var(--zielony); } .k-zam { background: var(--on-tlo); color: var(--on); } .k-zap { background: var(--ostrz-tlo); color: var(--ostrz); }
+.stan-nm { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; } .stan-nm b { font-size: 15px; font-weight: 650; } .stan-nm small { display: block; }
+.stan-ster { display: flex; align-items: center; gap: 4px; }
+.stan-ster input { width: 56px; min-height: 36px; padding: 0 4px; text-align: center; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-weight: 700; }
+.stan-ster .jedn { font-size: 12px; color: var(--mute); min-width: 22px; }
+.stp { width: 32px; height: 32px; flex: none; border-radius: 50%; border: 0; background: var(--zielony-tlo); color: var(--zielony); font-size: 20px; font-weight: 700; line-height: 1; padding: 0 0 2px; box-shadow: none; }
+.stan-ster .btn.maly { min-height: 32px; padding: 0 10px; }
+details.dodaj-lod { padding: 0 16px; }
+details.dodaj-lod > summary { list-style: none; cursor: pointer; padding: 16px 0; font-weight: 750; color: var(--zielony); }
+details.dodaj-lod > summary::-webkit-details-marker { display: none; }
+details.dodaj-lod > :last-child { margin-bottom: 16px; }
+@media (max-width: 359px) { .stan-ik { display: none; } .stan2 { grid-template-columns: minmax(0, 1fr) auto; } .alerty { grid-template-columns: 1fr; } }

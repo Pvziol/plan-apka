@@ -84,5 +84,255 @@
   "rodzaj": "opak.",
   "wielkosc": 100,
   "jednostka": "g"
+ },
+ "skyr naturalny": {
+  "rodzaj": "kubek",
+  "wielkosc": 150,
+  "jednostka": "g"
+ },
+ "ser żółty": {
+  "rodzaj": "opak.",
+  "wielkosc": 150,
+  "jednostka": "g"
+ },
+ "parmezan": {
+  "rodzaj": "kawałek",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "sałata": {
+  "rodzaj": "opak.",
+  "wielkosc": 125,
+  "jednostka": "g"
+ },
+ "kukurydza konserwowa": {
+  "rodzaj": "puszka",
+  "wielkosc": 140,
+  "jednostka": "g"
+ },
+ "brokuł": {
+  "rodzaj": "sztuka",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "kalafior": {
+  "rodzaj": "sztuka",
+  "wielkosc": 800,
+  "jednostka": "g"
+ },
+ "kiełbasa biała": {
+  "rodzaj": "opak.",
+  "wielkosc": 300,
+  "jednostka": "g"
+ },
+ "dynia piżmowa": {
+  "rodzaj": "sztuka",
+  "wielkosc": 1000,
+  "jednostka": "g"
+ },
+ "seler korzeniowy": {
+  "rodzaj": "sztuka",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "cebula czerwona": {
+  "rodzaj": "sztuka",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "ciecierzyca z puszki (odsączona)": {
+  "rodzaj": "puszka",
+  "wielkosc": 240,
+  "jednostka": "g"
+ },
+ "fasola czerwona z puszki (odsączona)": {
+  "rodzaj": "puszka",
+  "wielkosc": 240,
+  "jednostka": "g"
+ },
+ "masło": {
+  "rodzaj": "kostka",
+  "wielkosc": 200,
+  "jednostka": "g"
+ },
+ "masło orzechowe": {
+  "rodzaj": "słoik",
+  "wielkosc": 350,
+  "jednostka": "g"
+ },
+ "musztarda": {
+  "rodzaj": "słoik",
+  "wielkosc": 190,
+  "jednostka": "g"
+ },
+ "miód": {
+  "rodzaj": "słoik",
+  "wielkosc": 350,
+  "jednostka": "g"
+ },
+ "oliwa / olej": {
+  "rodzaj": "butelka",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "sos sojowy": {
+  "rodzaj": "butelka",
+  "wielkosc": 150,
+  "jednostka": "g"
+ },
+ "ketchup": {
+  "rodzaj": "butelka",
+  "wielkosc": 450,
+  "jednostka": "g"
+ },
+ "koncentrat pomidorowy": {
+  "rodzaj": "słoik",
+  "wielkosc": 200,
+  "jednostka": "g"
+ },
+ "dżem": {
+  "rodzaj": "słoik",
+  "wielkosc": 280,
+  "jednostka": "g"
+ },
+ "kakao gorzkie": {
+  "rodzaj": "opak.",
+  "wielkosc": 80,
+  "jednostka": "g"
+ },
+ "sezam": {
+  "rodzaj": "opak.",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "odżywka białkowa": {
+  "rodzaj": "worek",
+  "wielkosc": 700,
+  "jednostka": "g"
+ },
+ "granola": {
+  "rodzaj": "opak.",
+  "wielkosc": 350,
+  "jednostka": "g"
+ },
+ "płatki owsiane": {
+  "rodzaj": "opak.",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "ryż": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "kasza gryczana": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "kuskus": {
+  "rodzaj": "opak.",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "makaron pszenny": {
+  "rodzaj": "opak.",
+  "wielkosc": 500,
+  "jednostka": "g"
+ },
+ "makaron nitki": {
+  "rodzaj": "opak.",
+  "wielkosc": 250,
+  "jednostka": "g"
+ },
+ "makaron ryżowy": {
+  "rodzaj": "opak.",
+  "wielkosc": 250,
+  "jednostka": "g"
+ },
+ "mąka pszenna": {
+  "rodzaj": "opak.",
+  "wielkosc": 1000,
+  "jednostka": "g"
+ },
+ "passata": {
+  "rodzaj": "butelka",
+  "wielkosc": 690,
+  "jednostka": "g"
+ },
+ "orzechy włoskie": {
+  "rodzaj": "opak.",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "orzeszki ziemne": {
+  "rodzaj": "opak.",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "chia": {
+  "rodzaj": "opak.",
+  "wielkosc": 200,
+  "jednostka": "g"
+ },
+ "soczewica czerwona": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "kasza bulgur": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "kasza jaglana": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "kasza manna": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "pestki dyni": {
+  "rodzaj": "opak.",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "płaty lasagne": {
+  "rodzaj": "opak.",
+  "wielkosc": 250,
+  "jednostka": "g"
+ },
+ "chrzan": {
+  "rodzaj": "słoik",
+  "wielkosc": 150,
+  "jednostka": "g"
+ },
+ "pesto bazyliowe": {
+  "rodzaj": "słoik",
+  "wielkosc": 190,
+  "jednostka": "g"
+ },
+ "olej sezamowy": {
+  "rodzaj": "butelka",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "gochujang": {
+  "rodzaj": "słoik",
+  "wielkosc": 200,
+  "jednostka": "g"
+ },
+ "skrobia ziemniaczana": {
+  "rodzaj": "opak.",
+  "wielkosc": 400,
+  "jednostka": "g"
+ },
+ "tortilla pełnoziarnista": {
+  "rodzaj": "opak.",
+  "wielkosc": 6,
+  "jednostka": "szt."
  }
 }

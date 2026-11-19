@@ -436,3 +436,20 @@ details.tyg-sum > summary::-webkit-details-marker { display: none; }
 details.tyg-sum > summary::after { content: '+'; float: right; color: var(--zielony); font-size: 20px; line-height: 1; }
 details.tyg-sum[open] > summary::after { content: '–'; }
 details.tyg-sum > .btn { margin-bottom: 16px; }
+
+/* poprawka: wiersze dni w zwiniętej karcie nie wychodzą poza ekran */
+details.wybor-dni > .dz-wiersz { width: auto; }
+details.wybor-dni > .tyg-nag, details.wybor-dni > .rzad-nag { margin-top: 12px; }
+img, svg { max-width: 100%; }
+.karta, .pk, .hero, .kafel { min-width: 0; }
+.pk-tx .nazwa, .pos-tx, .wybor b, .poz .co { overflow-wrap: anywhere; }
+table.skl { table-layout: auto; }
+table.skl td { overflow-wrap: anywhere; }
+table.skl td:last-child { white-space: normal; max-width: 46%; min-width: 64px; }
+#modal-box { overflow-x: hidden; }
+/* lodówka: wiersz produktu mieści się nawet na wąskim ekranie */
+.stan { gap: 6px; }
+.stan .co { min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.stan input { width: 72px; flex: none; }
+.stan .mute { flex: none; min-width: 26px; font-size: 13px; }
+.stan .btn.maly { flex: none; width: 36px; min-width: 36px; padding: 0; }

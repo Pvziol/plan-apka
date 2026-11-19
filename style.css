@@ -599,3 +599,16 @@ details.zk-miesa > :last-child, details.zk-zwin > :last-child { margin-bottom: 1
 .zk-masz:last-child { border-bottom: 0; }
 .chip.stat { cursor: default; background: var(--bg); border-color: var(--line); font-weight: 600; font-size: 13px; min-height: 32px; height: auto; padding: 5px 12px; text-align: left; line-height: 1.3; }
 .zk-akcje { margin: 22px 0 6px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ───────── Pomijanie posiłków i przenoszenie kalorii (v40) ───────── */
+.pk-akcje { flex-wrap: wrap; }
+.pk-akcje .btn.maly { min-height: 34px; }
+.pk-akcje .pomin { background: transparent; color: var(--mute); box-shadow: 0 0 0 1px var(--line) inset; }
+.pos-pomin { flex: none; background: none; border: 0; color: var(--mute); font-size: 12.5px; font-weight: 700; padding: 8px 4px; box-shadow: none; text-decoration: underline; text-underline-offset: 3px; }
+.pomin-shake { display: block; width: 100%; margin: 6px 0; padding: 10px; border: 1px dashed var(--line); border-radius: 14px; background: none; color: var(--mute); font-weight: 650; font-size: 13.5px; box-shadow: none; }
+.pomin-lista { background: var(--ostrz-tlo); border-radius: 18px; padding: 12px 14px; margin: 12px 0; }
+.pomin-lista > b { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ostrz); }
+.pomin-w { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0 0; font-size: 14px; }
+.pomin-w i { font-style: normal; font-weight: 800; }
+.pomin-w i.ona { color: var(--ona); } .pomin-w i.on { color: var(--on); }
+.dnia-liczby small.przen { color: var(--zielony); font-weight: 650; margin-top: 3px; }

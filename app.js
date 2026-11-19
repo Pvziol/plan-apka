@@ -249,14 +249,36 @@ const SKYR = { kcal: 0.63, b: 0.11 };   // na 1 g, jak w PDF-ach
 const skala = (g, i) => stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b);
 
 // ---------- silnik: cały tydzień ----------
+// Pominięty posiłek (day.pom[osoba][slot]): znika z dnia tej osoby. Jego kalorie nie przepadają:
+// 40% (max +25%) rozkładam na pozostałe posiłki tego samego dnia, reszta idzie na następny dzień (max +15% jego celu).
+const pomija = (day, p, slot) => !!(day && day.pom && day.pom[p] && day.pom[p][slot]);
+const shakeAkt = (day, p) => !!(day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake'));
 function oblicz(pl, c) {
-  const dni = pl.dni.map(() => ({ ona: { kcal: 0, b: 0 }, on: { kcal: 0, b: 0 }, sloty: [] }));
+  const dni = pl.dni.map(() => ({ ona: { kcal: 0, b: 0 }, on: { kcal: 0, b: 0 }, sloty: [], przenos: { ona: {}, on: {} } }));
   const garnki = [];
-  const bud = (p, d, slot) => UDZIAL[p][slot] * (c[p].kcal - (pl.dni[d].tr[p] ? DB.shake[p].kcal : 0));
+  const udz = slot => slot.startsWith('m13') ? 'm13' : slot;
+  const bud0 = (p, d, slot) => UDZIAL[p][udz(slot)] * (c[p].kcal - (pl.dni[d].tr[p] ? DB.shake[p].kcal : 0));
+  const maOb = x => !!(pl.dni[x].ob || (x > 0 && pl.dni[x - 1].ob2 && pl.dni[x - 1].ob));
+  const slotyOsoby = (d, p) => ['sn', pl.dni[d].m13.wsp ? 'm13' : 'm13' + p, maOb(d) ? 'ob' : null, 'k18'].filter(Boolean);
+  const mnoz = pl.dni.map(() => ({ ona: 1, on: 1 }));
+  OS.forEach(p => {
+    let wchodzi = 0;
+    pl.dni.forEach((day, d) => {
+      if (nieob(day, p)) { wchodzi = 0; return; }
+      const sl = slotyOsoby(d, p), rem = sum(sl.filter(x => !pomija(day, p, x)), x => bud0(p, d, x));
+      const skp = sum(sl.filter(x => pomija(day, p, x)), x => bud0(p, d, x)) + (day.tr[p] && pomija(day, p, 'shake') ? DB.shake[p].kcal : 0);
+      const przyj = rem > 0 ? Math.min(wchodzi, 0.15 * c[p].kcal) : 0, same = rem > 0 ? Math.min(0.4 * skp, 0.25 * rem) : 0;
+      mnoz[d][p] = rem > 0 ? Math.min(1.4, 1 + (przyj + same) / rem) : 1;
+      dni[d].przenos[p] = { przyj, same, skp };
+      wchodzi = (rem > 0 ? 0 : wchodzi) + skp - same;
+    });
+  });
+  const bud = (p, d, slot) => bud0(p, d, slot) * mnoz[d][p];
   const obecni = d => OS.filter(p => !nieob(pl.dni[d], p));
+  const obecniSlot = (d, slot) => OS.filter(p => !nieob(pl.dni[d], p) && !pomija(pl.dni[d], p, slot));
   function garnek(id, slot, d, porcje, ratio) {
     const dish = DB.dania.get(id);
-    if (!dish || !porcje.length) return null;                 // nikt nie je tego posiłku (np. nieobecność)
+    if (!dish || !porcje.length) return null;                 // nikt nie je tego posiłku (nieobecność albo pominięty)
     let K = sum(porcje, x => x.kcal);
     const r = rz(dish, K, ratio, slot);
     if (Math.abs(r.Kreal - K) > 0.5) { const f = r.Kreal / K; porcje.forEach(x => { x.kcal *= f; }); K = r.Kreal; }   // stałe woreczki mogą lekko zmienić kcal posiłku
@@ -271,27 +293,27 @@ function oblicz(pl, c) {
   }
   pl.dni.forEach((day, d) => {
     const r = day.ratio || {};
-    garnek(day.sn, 'sn', d, obecni(d).map(p => ({ p, d, kcal: bud(p, d, 'sn') })), r.sn);
-    if (day.m13.wsp) garnek(day.m13.wsp, 'm13', d, obecni(d).map(p => ({ p, d, kcal: bud(p, d, 'm13') })), r.m13);
-    else obecni(d).forEach(p => garnek(day.m13[p], 'm13' + p, d, [{ p, d, kcal: bud(p, d, 'm13') }], r['m13' + p]));
+    garnek(day.sn, 'sn', d, obecniSlot(d, 'sn').map(p => ({ p, d, kcal: bud(p, d, 'sn') })), r.sn);
+    if (day.m13.wsp) garnek(day.m13.wsp, 'm13', d, obecniSlot(d, 'm13').map(p => ({ p, d, kcal: bud(p, d, 'm13') })), r.m13);
+    else obecni(d).forEach(p => { if (!pomija(day, p, 'm13' + p)) garnek(day.m13[p], 'm13' + p, d, [{ p, d, kcal: bud(p, d, 'm13') }], r['m13' + p]); });
     if (day.ob) {
       const dd = day.ob2 && d + 1 < 7 ? [d, d + 1] : [d];
-      garnek(day.ob, 'ob', d, dd.flatMap(x => obecni(x).map(p => ({ p, d: x, kcal: bud(p, x, 'ob') }))), r.ob);
+      garnek(day.ob, 'ob', d, dd.flatMap(x => obecniSlot(x, 'ob').map(p => ({ p, d: x, kcal: bud(p, x, 'ob') }))), r.ob);
     }
     const k = DB.dania.get(day.k18);
     if (k) {
-      const pz = k.podzial['~18:00'], bn = bud('on', d, 'k18');
+      const pz = k.podzial['~18:00'], bn = bud('on', d, 'k18'), onJe = !nieob(day, 'on') && !pomija(day, 'on', 'k18'), onaJe = !nieob(day, 'ona') && !pomija(day, 'ona', 'k18');
       const gs = bn / pz.on_kcal, reszta = (k.razem.kcal - pz.ona_kcal) * gs;
       const por = [];
-      if (!nieob(day, 'ona')) por.push({ p: 'ona', d, kcal: bud('ona', d, 'k18') });
-      if (!nieob(day, 'on')) por.push({ p: 'on', d, kcal: reszta });
+      if (onaJe) por.push({ p: 'ona', d, kcal: bud('ona', d, 'k18') });
+      if (onJe) por.push({ p: 'on', d, kcal: reszta });
       const g = garnek(day.k18, 'k18', d, por, r.k18);
-      if (g && !nieob(day, 'on')) {
+      if (g && onJe) {
         g.dosypka = { skala: gs, kcal: bn - reszta, b: DB.dosypka.b * gs };
         dni[d].on.kcal += g.dosypka.kcal; dni[d].on.b += g.dosypka.b;
       }
     }
-    OS.forEach(p => { if (day.tr[p] && !nieob(day, p)) { dni[d][p].kcal += DB.shake[p].kcal; dni[d][p].b += DB.shake[p].bialko; } });
+    OS.forEach(p => { if (shakeAkt(day, p)) { dni[d][p].kcal += DB.shake[p].kcal; dni[d][p].b += DB.shake[p].bialko; } });
   });
   const kolej = ['sn', 'm13', 'm13ona', 'm13on', 'ob', 'k18'];
   dni.forEach(x => x.sloty.sort((p, q) => kolej.indexOf(p.g.slot) - kolej.indexOf(q.g.slot)));
@@ -379,7 +401,7 @@ function ulozTydzien(start, zachowaj) {
   // zachowaj zaznaczone treningi z poprzedniego planu
   if (plan) naj.dni.forEach((d, i) => { d.tr = Object.assign({ ona: false, on: false }, plan.dni[i] && plan.dni[i].tr); });
   naj.start = start || (plan && plan.start && plan.start >= poniedzialek() ? plan.start : poniedzialek());
-  if (plan && plan.start === naj.start) naj.dni.forEach((d, i) => { if (plan.dni[i] && plan.dni[i].nb) d.nb = plan.dni[i].nb; });   // przy losowaniu tego samego tygodnia zostają dni „bez niego/niej”
+  if (plan && plan.start === naj.start) naj.dni.forEach((d, i) => { if (plan.dni[i] && plan.dni[i].nb) d.nb = plan.dni[i].nb; if (plan.dni[i] && plan.dni[i].pom) d.pom = plan.dni[i].pom; });   // przy losowaniu tego samego tygodnia zostają dni „bez niego/niej”
   // układam drugi tydzień obok: obecny (bieżący lub przyszły) zostaje zapisany i da się do niego wrócić
   if (zachowaj && plan && plan.dni && plan.start >= poniedzialek() && plan.start !== naj.start) inny = paczka();
   plan = naj; odhaczone = {}; zuzyte = {};
@@ -536,7 +558,7 @@ function zakupyDni(wyb) {
       if (g.dosypka) { dodaj('odżywka białkowa', 'zapas', DB.dosypka.odzywka * g.dosypka.skala * f, 'g'); dodaj('skyr naturalny', 'świeże', DB.dosypka.skyr * g.dosypka.skala * f, 'g'); }
       if (g.dodatek) dodaj('skyr naturalny', 'świeże', g.dodatek.g * f, 'g');
     }
-    t.dni.forEach((day, d) => { if (wyb.has(dodajDni(t.start, d))) OS.forEach(pp => { if (day.tr[pp] && !nieob(day, pp)) { dodaj('odżywka białkowa', 'zapas', DB.shake[pp].odzywka_g, 'g'); dodaj('mleko 2%', 'świeże', DB.shake[pp].mleko_ml, 'ml'); } }); });
+    t.dni.forEach((day, d) => { if (wyb.has(dodajDni(t.start, d))) OS.forEach(pp => { if (shakeAkt(day, pp)) { dodaj('odżywka białkowa', 'zapas', DB.shake[pp].odzywka_g, 'g'); dodaj('mleko 2%', 'świeże', DB.shake[pp].mleko_ml, 'ml'); } }); });
   }
   const wynik = { 'świeże': [], 'zapas': [], 'zamrażarka': [], 'masz': [] };
   for (const [prod, a] of nz) {
@@ -598,7 +620,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
   h += `<div class="dnia-gora"><button class="strz" data-pdzien="${nawig.prev || ''}" ${nawig.prev ? '' : 'disabled'} aria-label="Poprzedni dzień">‹</button>
     <div class="dnia-tyt"><h2>${DNI[d]}${jestDzis ? '<span class="dzis-znacz">dziś</span>' : ''}</h2><small>${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${stanKto(day) !== 'oboje' ? ` · tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}` : ''}</small></div>
     <button class="strz" data-pdzien="${nawig.next || ''}" ${nawig.next ? '' : 'disabled'} aria-label="Następny dzień">›</button></div>
-    <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small></div>`).join('')}</div>
+    <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small>${x.przenos[p].przyj > 1 ? `<small class="przen">w tym +${r0(x.przenos[p].przyj)} kcal z poprzedniego dnia</small>` : ''}${x.przenos[p].skp > 1 ? `<small class="przen">pominięte ${r0(x.przenos[p].skp)} kcal: +${r0(x.przenos[p].same)} dziś, reszta jutro</small>${x[p].b < c[p].bMin - 3 ? `<small class="ostrz-txt">brakuje ${r0(c[p].bMin - x[p].b)} g białka do celu — dopij np. skyr lub odżywkę</small>` : ''}` : ''}</div>`).join('')}</div>
     <div class="dnia-ust"><div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
       <div class="kto-dnia"><span class="mute">Kto je w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div></div>`;
   x.sloty.forEach(({ g, odgrzewane }) => {
@@ -613,9 +635,12 @@ function kartaDnia(t, c, dzisIso, nawig) {
     h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
       <div class="pk-gora">${Obr.html(g.dish)}<div class="pk-tx"><button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button><div class="liczby">${liczby}</div></div></div>
       ${zn ? `<div class="pk-zn">${zn}</div>` : ''}
-      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button>`}</div></div>`;
+      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
   });
-  const sh = OS.filter(p => day.tr[p] && !nieob(day, p));
+  if (day.tr.ona || day.tr.on) h += OS.filter(p => day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake')).map(p => `<button class="pomin-shake" data-pomin-shake="${d}:${p}">Pomiń shake (${ETY[p]})</button>`).join('');
+  const pomL = []; OS.forEach(p => { const pm = !nieob(day, p) && day.pom && day.pom[p]; if (pm) Object.keys(pm).filter(k => pm[k]).forEach(k => pomL.push([p, k])); });
+  if (pomL.length) h += `<div class="pomin-lista"><b>Pominięte posiłki</b>${pomL.map(([p, k]) => `<div class="pomin-w"><span><i class="${p}">${ETY[p]}</i> ${k === 'shake' ? 'shake po treningu' : esc(PORA[k].split(' · ').join(' · '))}</span><button class="btn maly" data-przywroc="${d}:${p}:${k}">Przywróć</button></div>`).join('')}</div>`;
+  const sh = OS.filter(p => shakeAkt(day, p));
   if (sh.length) h += `<div class="pk"><div class="pk-pora">po treningu · shake</div><div class="liczby">${sh.map(p => `<span class="${p}">${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml · ${DB.shake[p].kcal} kcal · ${DB.shake[p].bialko} g</span>`).join('')}</div></div>`;
   const wi = wieczorem(w, d);
   if (wi.length) h += `<div class="wieczor"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`;
@@ -1148,9 +1173,9 @@ function widokDzis() {
     o += `<h2>Dzisiejsze posiłki</h2><div class="karta posilki-dnia">` + sloty.map(({ g, odgrzewane }) => {
       const moje = g.porcje.filter(q => q.d === d), ez = zjedz_(g), gl = g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot];
       return `<div class="pos-wiersz ${ez ? 'zjedzone' : ''} ${nast && nast.g === g ? 'nast' : ''}"><label class="pos-ptak"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''} aria-label="zjedzone"><span></span></label>
-        <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button></div>`;
+        <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
-    const sh = OS.filter(p => day.tr[p] && !nieob(day, p));
+    const sh = OS.filter(p => shakeAkt(day, p));
     if (sh.length) o += `<div class="karta"><b>Po treningu · shake</b><p class="mute">${sh.map(p => `${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml`).join(' · ')}</p></div>`;
     // co dalej
     const wi = wieczorem(w, d), kar = [];
@@ -1506,6 +1531,33 @@ function listaSpont() {
 }
 
 // ---------- zdarzenia ----------
+function zapiszPom(d, p, slot, on) {
+  const day = plan.dni[d]; day.pom = day.pom || {}; day.pom[p] = day.pom[p] || {};
+  if (on) day.pom[p][slot] = true; else delete day.pom[p][slot];
+  LS.set('plan', plan); Z([[['dni', d, 'pom', p, slot], on ? true : undefined]]);
+}
+function infoPrzeniesienia(d, osoby) {
+  const w = oblicz(plan, cele()), t = osoby.map(p => { const x = w.dni[d].przenos[p], nast = d < 6 ? w.dni[d + 1].przenos[p] : null; return `${ETY[p]}: +${r0(x.same)} kcal dziś${nast && nast.przyj > 1 ? `, +${r0(nast.przyj)} kcal jutro` : ''}`; });
+  return 'Pominięto. Kalorie rozłożone — ' + t.join('; ');
+}
+function pominPosilek(d, slot, osoby) {
+  osoby = osoby.filter(p => !nieob(plan.dni[d], p));
+  if (!osoby.length) return;
+  if (plan.dni[d] && zuzyte[kluczZ(d, slot)]) { pokazToast('Ten posiłek jest już oznaczony jako zjedzony'); return; }
+  osoby.forEach(p => zapiszPom(d, p, slot, true));
+  otwartyDzien = d; $('#modal').hidden = true; rysuj();
+  pokazToast(infoPrzeniesienia(d, osoby), 'Cofnij', () => { osoby.forEach(p => zapiszPom(d, p, slot, false)); rysuj(); });
+}
+function oknoPomin(d, slot) {
+  const day = plan.dni[d], jedna = slot === 'm13ona' ? ['ona'] : slot === 'm13on' ? ['on'] : null;
+  const kto = (jedna || OS).filter(p => !nieob(day, p) && !pomija(day, p, slot));
+  if (!kto.length) return;
+  if (kto.length === 1) { pominPosilek(d, slot, kto); return; }
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Pomiń posiłek</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+    <p class="mute">Kalorie pominiętego posiłku nie przepadają: część rozłożę na pozostałe posiłki tego dnia, a resztę dodam do następnego dnia (maks. +15% jego celu). Kto go pomija?</p>
+    <div class="rzad" style="flex-direction:column">${kto.map(p => `<button class="btn" data-pomin-kto="${d}:${slot}:${p}">${ETY[p]}</button>`).join('')}${kto.length > 1 ? `<button class="btn glowny" data-pomin-kto="${d}:${slot}:oboje">Oboje</button>` : ''}</div>`;
+  $('#modal').hidden = false;
+}
 // Klik w dzień drugiego tygodnia: ten tydzień staje się „aktywny” (tak jak dotąd działają zamiany, treningi, „zjedzone”), ale ekran się nie zmienia.
 function przygotujTydzien(e) {
   const sek = e.target.closest('[data-wk]');
@@ -1520,6 +1572,10 @@ document.addEventListener('click', e => {
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
   if (t.dataset.toast !== undefined) { const f = toastFn; $('#toast').hidden = true; toastFn = null; if (f) f(); return; }
+  if (t.dataset.pomin) { const [d, sl] = t.dataset.pomin.split(':'); oknoPomin(+d, sl); return; }
+  if (t.dataset.pominKto) { const [d, sl, k] = t.dataset.pominKto.split(':'); pominPosilek(+d, sl, k === 'oboje' ? OS : [k]); return; }
+  if (t.dataset.pominShake) { const [d, pp] = t.dataset.pominShake.split(':'); zapiszPom(+d, pp, 'shake', true); otwartyDzien = +d; rysuj(); pokazToast(infoPrzeniesienia(+d, [pp]), 'Cofnij', () => { zapiszPom(+d, pp, 'shake', false); rysuj(); }); return; }
+  if (t.dataset.przywroc) { const [d, pp, sl] = t.dataset.przywroc.split(':'); zapiszPom(+d, pp, sl, false); otwartyDzien = +d; rysuj(); pokazToast('Przywrócono posiłek'); return; }
   if (t.dataset.zuzyj) { e.preventDefault(); oknoZuzyj(t.dataset.zuzyj); return; }
   if (t.dataset.zuzWstaw) { const [st, d, sl, ...id] = t.dataset.zuzWstaw.split('|'); if (st !== plan.start && inny && inny.start === st) przelaczTydzien(); wybierz(+d, sl, id.join('|')); return; }
   if (t.dataset.wsk) { wskazowki[t.dataset.wsk] = 1; LS.set('wskazowki', wskazowki); rysuj(); return; }

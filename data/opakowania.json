@@ -64,5 +64,25 @@
   "rodzaj": "kubek",
   "wielkosc": 200,
   "jednostka": "g"
+ },
+ "łosoś wędzony": {
+  "rodzaj": "opak.",
+  "wielkosc": 100,
+  "jednostka": "g"
+ },
+ "feta": {
+  "rodzaj": "kostka",
+  "wielkosc": 200,
+  "jednostka": "g"
+ },
+ "serek wiejski": {
+  "rodzaj": "kubek",
+  "wielkosc": 200,
+  "jednostka": "g"
+ },
+ "szynka z indyka": {
+  "rodzaj": "opak.",
+  "wielkosc": 100,
+  "jednostka": "g"
  }
 }

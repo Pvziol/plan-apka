@@ -230,3 +230,27 @@ textarea { padding: 12px 14px; margin-bottom: 10px; font: inherit; resize: verti
 
 details.dzien > summary > span { white-space: nowrap; }
 details.dzien > summary > b { white-space: normal; }
+
+/* plan: dwa tygodnie w jednym widoku */
+.tydzien { margin-bottom: 8px; }
+.tyg-gora { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 22px; }
+.tyg-gora h2 { margin: 0; }
+.tyg-gora .znaczek { vertical-align: middle; margin-left: 6px; }
+.dodaj-tyg b { font-size: 17px; }
+/* zakupy: wybór dni */
+.rzad-nag { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tyg-nag { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 4px; }
+.dz-wiersz { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 10px; margin: 4px 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); text-align: left; box-shadow: none; font: inherit; }
+.dz-wiersz.akt { background: var(--zielony-tlo); border-color: var(--zielony); }
+.dz-wiersz.minal { opacity: .55; }
+.dz-wiersz .dz-d { flex: none; min-width: 84px; font-size: 15px; }
+.dz-wiersz .dz-o { flex: 1; font-size: 13px; color: var(--mute); line-height: 1.3; }
+.dz-wiersz .ptak { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 800; color: #fff; }
+.dz-wiersz.akt .ptak { background: var(--zielony); border-color: var(--zielony); }
+.dz-wiersz .dzis-znacz { margin-left: 6px; font-style: normal; }
+/* zakupy: zero waste i woreczki */
+.poz small.zw { color: var(--ostrz); }
+ol.worki { margin: 4px 0 10px; padding-left: 20px; }
+ol.worki li { padding: 5px 0; line-height: 1.35; }
+ol.worki li small { display: block; color: var(--mute); font-size: 12.5px; }
+.znaczek.mroz { background: var(--on-tlo); color: var(--on); }

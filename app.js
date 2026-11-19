@@ -891,7 +891,7 @@ function kartaMiesa(z) {
   const dzis = isoDzis(), poz = z.wynik['zamrażarka'].filter(p => p.worki && p.worki.length);
   if (!poz.length) return '';
   const dniDo = dt => Math.round((new Date(dt + 'T12:00:00') - new Date(dzis + 'T12:00:00')) / 864e5);
-  let h = `<h2>Mięso i ryby — jak podzielić po zakupach</h2><div class="karta"><p class="mute">Woreczki są ułożone od tego, który pójdzie do garnka pierwszy. Co zjesz w ciągu 2 dni, zostaje w lodówce (nie mrozisz). Resztę mrozisz tak, żeby <b>najwcześniej potrzebny był na wierzchu</b>, a najpóźniejszy na dnie. Jeden woreczek = jedno danie, zawsze ta sama waga.</p>`;
+  let h = `<details class="karta zk-miesa"><summary>Mięso i ryby — jak podzielić po zakupach <span class="licznik">${poz.length}</span></summary><p class="mute">Woreczki są ułożone od tego, który pójdzie do garnka pierwszy. Co zjesz w ciągu 2 dni, zostaje w lodówce (nie mrozisz). Resztę mrozisz tak, żeby <b>najwcześniej potrzebny był na wierzchu</b>, a najpóźniejszy na dnie. Jeden woreczek = jedno danie, zawsze ta sama waga.</p>`;
   for (const p of poz) {
     const b = p.worki.slice().sort((x, y) => x.dt.localeCompare(y.dt) || y.g - x.g), suma = b.reduce((s, x) => s + x.g, 0);
     h += `<h3>${esc(p.produkt)} · razem ${suma} g</h3><ol class="worki">` + b.map((x, i) => {
@@ -899,7 +899,7 @@ function kartaMiesa(z) {
       return `<li><b>${x.g} g</b> <span class="znaczek ${lod ? '' : 'mroz'}">${lod ? 'LODÓWKA' : 'ZAMRAŻARKA'}</span> ${dzienTxt(x.dt)} · ${esc(x.dish.length > 34 ? x.dish.slice(0, 32) + '…' : x.dish)}${i === 0 ? '<small>pierwszy do użycia</small>' : ''}<small>etykieta: ${esc(p.produkt.replace(/ filet| mielon\w*/g, ''))} ${x.g} g · ${dzienTxt(x.dt)}</small></li>`;
     }).join('') + `</ol>`;
   }
-  return h + `<ul class="mute" style="margin:8px 0 0;padding-left:18px"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem przygotuj”); rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></div>`;
+  return h + `<ul class="mute" style="margin:8px 0 0;padding-left:18px"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem przygotuj”); rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></details>`;
 }
 let zakOtw = false;
 // „sob 21.11 – pon 23.11” zamiast listy dat (zakresy ciągłe, reszta po przecinku)
@@ -908,14 +908,37 @@ function zakresDni(wyb) {
   const grupy = []; d.forEach(x => { const g = grupy[grupy.length - 1]; if (g && dodajDni(g[g.length - 1], 1) === x) g.push(x); else grupy.push([x]); });
   return grupy.map(g => g.length === 1 ? dzienTxt(g[0]) : `${dzienTxt(g[0])} – ${dzienTxt(g[g.length - 1])}`).join(', ');
 }
+// Układ listy jak w sklepie: działy zamiast „świeże / zapas / zamrażarka”.
+const DZIALY = [
+  ['warzywa', 'Warzywa i owoce', 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14zM5 19l7-7'],
+  ['nabial', 'Nabiał i jaja', 'M9 3h6v3l2 3v11H7V9l2-3zM7 13h10'],
+  ['pieczywo', 'Pieczywo', 'M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1h-1v7H5v-7H4z'],
+  ['mieso', 'Mięso i ryby', 'M14 4a5 5 0 0 1 5 5c0 3-2 5-5 5l-3 3-3-3 3-3c0-3 0-7 3-7z'],
+  ['mrozonki', 'Mrożonki', 'M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9'],
+  ['spizarnia', 'Spiżarnia', 'M8 3h8v3H8zM6 6h12v15H6zM6 12h12']
+];
+function dzialSklepu(p) {
+  const n = znorm(p.produkt);
+  if (/mrozon|paluszki/.test(n)) return 'mrozonki';
+  if (/gnocchi|pestki|konserw|puszk|sloik|odsaczon|passata|koncentrat|ananas|tunczyk|kiszony|orzechow|(^| )sos |ketchup|musztard|dzem|miod|ocet|olej|oliwa/.test(n)) return 'spizarnia';
+  if (/kurczak|indyk|wolowin|wieprzow|losos|dorsz|polędwicz|polendwicz|cwiartki|mielon|prega|lopatka|szynka|kielbas|boczek|parowk|filet|ryba|krewetk/.test(n) || (p.kat === 'zamrażarka')) return 'mieso';
+  if (/chleb|bulk|tortilla|pieczywo|bagiet|buleczk/.test(n)) return 'pieczywo';
+  if (/^(ser|serek)\b|skyr|jogurt|twarog|smietana|maslo|mleko|jaja|jajka|parmezan|feta|mozzarella|kefir|margaryn|odzywka bialkowa/.test(n)) return /odzywka/.test(n) ? 'spizarnia' : 'nabial';
+  if (/cebul|marchew|papryk|ogorek|pomidor|^por\b|awokado|banan|jablk|cukini|salat|brokul|kalafior|seler|pietruszk|dyni|rzodkiewk|szpinak|pieczark|bataty|ziemniak|czosnek|cytryn|limonk|szczypior|natka|koperek|rukola|kapust|burak|szczaw|truskawk|maliny|jagod|mango|gruszk|pomarancz|kukurydza/.test(n)) return 'warzywa';
+  return p.kat === 'świeże' ? 'warzywa' : 'spizarnia';
+}
 function widokZakupy() {
   const dost = dniDostepne(), wyb = wybraneDni(), z = zakupyDni(wyb), dzis = isoDzis();
-  const klucz = kluczKup;
-  let h = `<h1>Zakupy</h1>${wskazowka('zakupy', 'Zaznacz dni, na które kupujecie — lista sama się policzy. W sklepie odhaczaj pozycje: kupione trafiają do lodówki, a odhaczone spadają na koniec.')}<details class="karta wybor-dni" data-zakdni ${zakOtw || !wyb.size ? 'open' : ''}><summary><span class="wd-tx"><small>Zakupy na</small><b>${zakresDni(wyb)}</b></span><span class="wd-zmien">Zmień dni</span></summary><div class="rzad-nag"><h3 style="margin:0">Na które dni kupujecie?</h3><span class="chips"><button class="chip" data-zakpreset="auto">Najbliższe zakupy</button><button class="chip" data-zakpreset="zero">Wyczyść</button></span></div>
-    <p class="mute" style="margin:6px 0 4px">Kliknij dni, na które robicie zakupy. Danie na kilka dni (np. zupa na 2 dni) kupujesz w całości, bez dzielenia. Dni „bez niego / bez niej” z planu są uwzględnione.</p>`;
+  const klucz = kluczKup, wszystkie = ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]);
+  const razemPoz = wszystkie.length, kupione = wszystkie.filter(p => odhK(klucz(p.produkt))).length;
+  let h = `<h1>Zakupy</h1>${wskazowka('zakupy', 'Zaznacz dni, na które kupujecie — lista sama się policzy i jest ułożona jak w sklepie. Odhaczone pozycje trafiają do lodówki i spadają na koniec działu.')}`;
+  h += `<details class="zk-hero" data-zakdni ${zakOtw || !wyb.size ? 'open' : ''}><summary><span class="wd-tx"><small>Zakupy na</small><b>${zakresDni(wyb)}</b></span><span class="wd-zmien">Zmień dni</span>
+    <span class="zk-prog"><span class="pasek"><i id="zkPasek" style="width:${razemPoz ? Math.round(kupione / razemPoz * 100) : 0}%"></i></span><small id="zkLicz">${razemPoz ? `Kupione ${kupione} z ${razemPoz}` : 'Brak pozycji'}</small></span></summary><div class="zk-wybor">
+    <div class="rzad-nag"><h3 style="margin:0">Na które dni kupujecie?</h3><span class="chips"><button class="chip" data-zakpreset="auto">Najbliższe zakupy</button><button class="chip" data-zakpreset="zero">Wyczyść</button></span></div>
+    <p class="mute" style="margin:6px 0 4px">Kliknij dni, na które robicie zakupy. Danie na kilka dni (np. zupa na 2 dni) kupujesz w całości. Dni „bez niego / bez niej” z planu są uwzględnione.</p>`;
   for (const t of tygodnieZapisane()) {
-    const dniT = dost.filter(x => x.start === t.start), wszystkie = dniT.every(x => wyb.has(x.iso));
-    h += `<div class="tyg-nag"><b>${krotkaData(t.start)}–${krotkaData(dodajDni(t.start, 6))}</b><button class="chip ${wszystkie ? 'akt' : ''}" data-zakweek="${t.start}">cały tydzień</button></div>`;
+    const dniT = dost.filter(x => x.start === t.start), wsz = dniT.every(x => wyb.has(x.iso));
+    h += `<div class="tyg-nag"><b>${krotkaData(t.start)}–${krotkaData(dodajDni(t.start, 6))}</b><button class="chip ${wsz ? 'akt' : ''}" data-zakweek="${t.start}">cały tydzień</button></div>`;
     h += dniT.map(x => {
       const on = wyb.has(x.iso), ob = x.day.ob && DB.dania.get(x.day.ob), prev = x.d > 0 && t.dni[x.d - 1].ob2 && DB.dania.get(t.dni[x.d - 1].ob);
       const opis = ob ? ob.nazwa : prev ? 'obiad z poprzedniego dnia' : '';
@@ -923,28 +946,38 @@ function widokZakupy() {
       return `<button class="dz-wiersz ${on ? 'akt' : ''} ${x.iso < dzis ? 'minal' : ''}" data-zakdzien="${x.iso}"><span class="dz-d"><b>${DNI_KR[x.d]}</b> ${krotkaData(x.iso)}${x.iso === dzis ? '<em class="dzis-znacz">dziś</em>' : ''}</span><span class="dz-o">${esc(opis)} ${kto}</span><span class="ptak">${on ? '✓' : ''}</span></button>`;
     }).join('');
   }
-  h += `</details>`;
-  if (!wyb.size) h += `<p class="pusty">Zaznacz przynajmniej jeden dzień.</p>`;
-  const razemPoz = ['świeże', 'zamrażarka', 'zapas'].reduce((a, k) => a + z.wynik[k].length, 0), kupione = ['świeże', 'zamrażarka', 'zapas'].reduce((a, k) => a + z.wynik[k].filter(p => odhK(klucz(p.produkt))).length, 0);
-  if (razemPoz) h += `<div class="postep-zak"><div class="pasek"><i style="width:${Math.round(kupione / razemPoz * 100)}%"></i></div><small>Kupione ${kupione} z ${razemPoz} pozycji</small></div>`;
-  const nazwy = { 'świeże': 'Świeże', 'zapas': 'Zapas — sprawdź, czy masz', 'zamrażarka': 'Do zamrażarki' };
-  for (const kat of ['świeże', 'zamrażarka', 'zapas']) {
-    if (!z.wynik[kat].length) continue;
-    h += `<h2>${nazwy[kat]}</h2><div class="karta">` + z.wynik[kat].slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt))).map(p => {   // odhaczone na sam koniec (sort jest stabilny)
-      const k = klucz(p.produkt), on = !!odhK(k);
-      const zw = p.pomysly ? `<button class="btn maly zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zużyj resztkę (${p.reszta.q} ${p.reszta.u})</button>` + (p.pomysly.wPlanie.length || p.pomysly.pomysly.length ? `<small class="zw">Zostanie ${p.reszta.q} ${p.reszta.u} — nie zmarnuj:${p.pomysly.wPlanie.length ? ` w planie: ${esc(p.pomysly.wPlanie.join('; '))}.` : ''}${p.pomysly.pomysly.length ? ` Pomysły: ${esc(p.pomysly.pomysly.join('; '))}.` : ''}</small>` : '') : '';
-      return `<label class="poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="co"><b>${esc(p.produkt)}</b> — ${esc(p.ile)}${p.dop ? `<small>${esc(p.dop)}</small>` : ''}${p.stan ? `<small>w lodówce: ${esc(p.stan)}</small>` : ''}${zw}</span></label>`;
-    }).join('') + `</div>`;
+  h += `</div></details>`;
+  if (!wyb.size) h += `<div class="karta pusta-karta"><b>Zaznacz przynajmniej jeden dzień</b><p class="mute">Kliknij „Zmień dni” powyżej.</p></div>`;
+  const wDzial = {}; wszystkie.forEach(p => { (wDzial[dzialSklepu(p)] = wDzial[dzialSklepu(p)] || []).push(p); });
+  for (const [kod, nazwa, ikona] of DZIALY) {
+    const l = wDzial[kod]; if (!l || !l.length) continue;
+    const kup = l.filter(p => odhK(klucz(p.produkt))).length;
+    h += `<section class="zk-sek"><div class="zk-sek-gora"><span class="zk-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ikona}"/></svg></span><b>${nazwa}</b><em data-licznik>${kup}/${l.length}</em></div><div class="karta zk-karta">`
+      + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
+        const k = klucz(p.produkt), on = !!odhK(k);
+        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : ''].filter(Boolean).join(' · ');
+        const zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zużyj resztkę (${p.reszta.q} ${p.reszta.u}) ›</button>` : '';
+        return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
+      }).join('') + `</div></section>`;
   }
   h += kartaMiesa(z);
-  if (z.wynik.masz.length) h += `<h2>Masz już w lodówce</h2><div class="karta">${z.wynik.masz.map(p => `<p><b>${esc(p.produkt)}</b> <span class="mute">— potrzeba ${esc(p.ile)}, masz ${esc(p.stan)}</span></p>`).join('')}</div>`;
-  if (z.inne.length) h += `<h2>Bez gramatury</h2><div class="karta">${z.inne.map(t => `<p>${esc(t)}</p>`).join('')}</div>`;
-  if (z.przyprawy.length) h += `<h2>Przyprawy i dodatki</h2><div class="karta"><p class="mute">Sprawdź w szafce:</p>${z.przyprawy.map(t => `<p>${esc(t)}</p>`).join('')}</div>`;
-  if (['świeże', 'zamrażarka', 'zapas'].some(k => z.wynik[k].some(p => !odhK(klucz(p.produkt))))) h += `<button class="btn szeroki" id="kupWszystko" style="margin-bottom:8px">Kupione wszystko — dopisz do lodówki</button>`;
-  if (Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).some(k => k.startsWith('zak|'))) h += `<button class="btn szeroki" id="odznaczWszystko" style="margin-bottom:8px">Odznacz wszystko — usuń z lodówki</button>`;
-  h += `<button class="btn glowny szeroki" id="udostepnij">Udostępnij listę</button>`;
+  const zwin = (tyt, n, tresc, kl = '') => `<details class="karta zk-zwin ${kl}"><summary>${tyt} <span class="licznik">${n}</span></summary>${tresc}</details>`;
+  if (z.wynik.masz.length) h += zwin('Masz już w lodówce', z.wynik.masz.length, z.wynik.masz.map(p => `<div class="zk-masz"><b>${esc(p.produkt)}</b><span class="mute">potrzeba ${esc(p.ile)}, masz ${esc(p.stan)}</span></div>`).join(''));
+  if (z.przyprawy.length) h += zwin('Przyprawy i dodatki — sprawdź w szafce', z.przyprawy.length, `<div class="chips zk-przyp">${z.przyprawy.map(t => `<span class="chip stat">${esc(t)}</span>`).join('')}</div>`);
+  if (z.inne.length) h += zwin('Bez gramatury', z.inne.length, z.inne.map(t => `<p class="mute" style="margin:6px 0">${esc(t)}</p>`).join(''));
+  h += `<div class="zk-akcje">`;
+  if (wszystkie.some(p => !odhK(klucz(p.produkt)))) h += `<button class="btn glowny szeroki" id="kupWszystko">Kupione wszystko — dopisz do lodówki</button>`;
+  h += `<div class="rzad"><button class="btn" id="udostepnij">Udostępnij listę</button>${Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).some(k => k.startsWith('zak|')) ? `<button class="btn" id="odznaczWszystko">Odznacz wszystko</button>` : ''}</div></div>`;
   $('#view').innerHTML = h;
   window._z = z;
+}
+// Po odhaczeniu: licznik w dziale, pasek postępu i przeniesienie pozycji na koniec działu.
+function zkLiczniki() {
+  document.querySelectorAll('.zk-sek').forEach(sek => { const r = sek.querySelectorAll('.zk-poz'), k = sek.querySelectorAll('.zk-poz.kupione'); const el = sek.querySelector('[data-licznik]'); if (el) el.textContent = `${k.length}/${r.length}`; });
+  const wszystkie = document.querySelectorAll('.zk-poz'), kupione = document.querySelectorAll('.zk-poz.kupione');
+  const pas = $('#zkPasek'), lic = $('#zkLicz');
+  if (pas) pas.style.width = (wszystkie.length ? Math.round(kupione.length / wszystkie.length * 100) : 0) + '%';
+  if (lic) lic.textContent = `Kupione ${kupione.length} z ${wszystkie.length}`;
 }
 // Odhaczenie zakupu: kupiona ilość trafia do lodówki (i jest zapamiętana w odhaczone, żeby dało się ją cofnąć).
 function odhaczKup(k, on) {
@@ -1620,10 +1653,11 @@ document.addEventListener('change', e => {
   else if (t.dataset.spontTyp) { spontFiltr.typ = t.value; listaSpont(); }
   else if (t.dataset.kup) {
     odhaczKup(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);
-    const poz = t.closest('.poz'), kart = poz.parentNode;
+    const poz = t.closest('.zk-poz'), kart = poz.parentNode;
     poz.classList.toggle('kupione', t.checked);
-    if (t.checked) kart.appendChild(poz);                              // odhaczone spada na koniec listy
-    else { const pierwsze = kart.querySelector('.poz.kupione'); kart.insertBefore(poz, pierwsze); }   // odznaczone wraca przed odhaczone
+    if (t.checked) kart.appendChild(poz);                              // odhaczone spada na koniec działu
+    else { const pierwsze = kart.querySelector('.zk-poz.kupione'); kart.insertBefore(poz, pierwsze); }   // odznaczone wraca przed odhaczone
+    zkLiczniki();
   }
 });
 

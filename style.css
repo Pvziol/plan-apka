@@ -391,3 +391,48 @@ details.wybor-dni > :last-child { margin-bottom: 16px; }
 .postep-zak { margin: 4px 0 0; }
 .postep-zak .pasek { color: var(--zielony); margin-bottom: 4px; }
 .postep-zak small { color: var(--mute); font-size: 12.5px; font-weight: 600; }
+
+/* ───────── Plan: pasek dni + jeden dzień (v35) ───────── */
+.pasek-dni { display: flex; gap: 8px; overflow-x: auto; padding: 6px 16px 10px; margin: 6px -16px 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.pasek-dni::-webkit-scrollbar { display: none; }
+.pd { flex: none; width: 54px; padding: 8px 0 9px; border: 0; border-radius: 18px; background: var(--card); box-shadow: var(--cien-maly); display: flex; flex-direction: column; align-items: center; gap: 2px; scroll-snap-align: center; position: relative; color: var(--ink); }
+.pd small { font-size: 11px; font-weight: 750; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
+.pd b { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.pd.dzis::after { content: ''; position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--zielony); }
+.pd.akt { background: linear-gradient(145deg, var(--zielony), var(--zielony2)); color: #fff; box-shadow: 0 8px 18px color-mix(in srgb, var(--zielony) 35%, transparent); }
+.pd.akt small { color: rgba(255, 255, 255, .85); }
+.pd.akt.dzis::after { background: #fff; }
+@media (prefers-color-scheme: dark) { .pd.akt { color: #08140e; } .pd.akt small { color: rgba(8, 20, 14, .75); } .pd.akt.dzis::after { background: #08140e; } }
+.pd-sep { flex: none; width: 2px; margin: 8px 2px; border-radius: 2px; background: var(--line); }
+
+.dnia-gora { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0 6px; }
+.dnia-tyt { text-align: center; flex: 1; }
+.dnia-tyt h2 { margin: 0; font-size: 26px; letter-spacing: -.025em; }
+.dnia-tyt small { color: var(--mute); font-weight: 600; font-size: 14px; }
+.strz { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--card); box-shadow: var(--cien-maly); font-size: 26px; line-height: 1; color: var(--zielony); font-weight: 700; padding: 0 0 3px; }
+.strz:disabled { opacity: .3; }
+.dnia-liczby { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 10px; }
+.dnia-liczby > div { border-radius: 20px; padding: 12px 14px; display: flex; flex-direction: column; box-shadow: var(--cien-maly); }
+.dnia-liczby .ona { background: var(--ona-tlo); } .dnia-liczby .on { background: var(--on-tlo); }
+.dnia-liczby b { font-size: 11.5px; letter-spacing: .1em; font-weight: 800; }
+.dnia-liczby span { font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); line-height: 1.2; }
+.dnia-liczby small { color: var(--mute); font-size: 12.5px; }
+.dnia-ust { background: var(--card); border-radius: 22px; padding: 6px 16px 12px; margin-bottom: 12px; box-shadow: var(--cien-maly); }
+.pk { background: var(--card); border-radius: 24px; padding: 14px 16px; margin: 12px 0; box-shadow: var(--cien); }
+.pk.zjedzone { opacity: .7; }
+.pk.zjedzone .nazwa { text-decoration: line-through; }
+.pk-pora { font-size: 11.5px; color: var(--zielony); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.pk-gora { display: flex; gap: 14px; align-items: center; }
+.pk-gora .obr { width: 68px; height: 68px; border-radius: 20px; }
+.pk-tx { flex: 1; min-width: 0; }
+.pk-tx .nazwa { background: none; border: 0; padding: 0; text-align: left; font-weight: 700; font-size: 17px; line-height: 1.25; box-shadow: none; letter-spacing: -.01em; }
+.pk-tx .liczby { margin-top: 8px; }
+.pk-zn { margin-top: 6px; }
+.pk-akcje { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pk-akcje .zuzyj { margin: 0; font-size: 14px; font-weight: 600; }
+details.tyg-sum { padding: 0 16px; margin-top: 16px; }
+details.tyg-sum > summary { list-style: none; cursor: pointer; padding: 14px 0; font-weight: 700; }
+details.tyg-sum > summary::-webkit-details-marker { display: none; }
+details.tyg-sum > summary::after { content: '+'; float: right; color: var(--zielony); font-size: 20px; line-height: 1; }
+details.tyg-sum[open] > summary::after { content: '–'; }
+details.tyg-sum > .btn { margin-bottom: 16px; }

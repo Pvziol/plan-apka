@@ -577,58 +577,64 @@ function zTygodniem(t, fn) {
   plan = { start: t.start, dni: t.dni }; zuzyte = t.zuz;
   try { return fn(); } finally { plan = p0; zuzyte = z0; }
 }
-function blokTygodnia(t, c, dzisIso) {
+const DNI_P = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+// Jeden wybrany dzień: nagłówek, liczby, ustawienia dnia i posiłki jako karty z obrazkami. Rysowane na „przestawionym” tygodniu (zTygodniem).
+function kartaDnia(t, c, dzisIso, nawig) {
   const w = oblicz(plan, c); window._wBy[t.start] = w;
-  const dzisRz = Math.round((new Date(dzisIso + 'T12:00:00') - dataDnia(0)) / 864e5), jestDzis = dzisRz >= 0 && dzisRz <= 6;
-  const sr = p => sredniaOsoby(w, p, 'b'), srK = p => sredniaOsoby(w, p, 'kcal');   // średnie liczę tylko z dni, w których osoba jest
+  const d = otwartyDzien, x = w.dni[d], day = plan.dni[d], iso = dodajDni(t.start, d), jestDzis = iso === dzisIso;
+  const dzisRz = Math.round((new Date(dzisIso + 'T12:00:00') - dataDnia(0)) / 864e5), tydzDzis = dzisRz >= 0 && dzisRz <= 6;
+  const sr = p => sredniaOsoby(w, p, 'b'), srK = p => sredniaOsoby(w, p, 'kcal');
   const biez = poniedzialek(), znacz = t.start === biez ? 'bieżący' : t.start === dodajDni(biez, 7) ? 'następny' : t.start < biez ? 'miniony' : '';
-  let h = `<section class="tydzien" data-wk="${t.start}"><div class="tyg-gora"><h2>${krotkaData(t.start)}–${krotkaData(dodajDni(t.start, 6))}${znacz ? ` <span class="znaczek">${znacz}</span>` : ''}</h2><button class="btn maly" data-nowy>Ułóż od nowa</button></div>
-  ${jestDzis ? przypomnieniaDzis(w) : ''}
-  <div class="cele">${OS.map(p => { const [tt, kl] = stan(sr(p), c[p]); return `<div class="cel ${p}"><b>${ETY[p]}</b><span class="duze">${r0(srK(p))} kcal</span>
-    <small>średnio / dzień · cel ${c[p].kcal}</small><small>białko ${r0(sr(p))} g · cel ${c[p].bMin}–${c[p].bMax} g <span class="znak ${kl}">${tt}</span></small>${tt === 'za mało' ? `<button class="btn maly sug" data-sugestie="${p}">Jak poprawić?</button>` : ''}</div>`; }).join('')}</div>`;
-  w.dni.forEach((x, d) => {
-    const day = plan.dni[d];
-    h += `<details class="dzien ${jestDzis && d === dzisRz ? 'dzis' : ''}" data-d="${d}" ${t.start === otwartyTyg && d === otwartyDzien ? 'open' : ''}><summary><b>${DNI[d]} <span class="mute">${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</span>${jestDzis && d === dzisRz ? '<span class="dzis-znacz">dziś</span>' : ''}${stanKto(day) !== 'oboje' ? `<span class="znaczek" style="margin:0 0 0 6px">tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}</span>` : ''}</b>
-      <span>${OS.filter(p => !nieob(day, p)).map(p => `<span class="${p}">${r0(x[p].kcal)} kcal · ${r0(x[p].b)} g</span>`).join('<br>')}</span></summary><div class="dzien-tresc">
-      <div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
-      <div class="kto-dnia"><span class="mute">Posiłki w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`;
-    x.sloty.forEach(({ g, odgrzewane }) => {
-      const moje = g.porcje.filter(q => q.d === d);
-      const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join(' &nbsp; ');
-      let zn = '';
-      if (odgrzewane) zn += `<span class="znaczek">odgrzewasz z ${DNI_KR[g.d]}</span> `;
-      else if (new Set(g.porcje.map(q => q.d)).size > 1) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
-      if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
-      if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
-      if (((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) && new Set(g.porcje.map(q => q.p)).size > 1) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
-      h += `<div class="posilek"><div class="pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
-        <div class="gora">${Obr.html(g.dish)}<button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button>
-        ${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">zmień</button>`}</div>
-        <div class="liczby">${liczby}</div>${zn}<label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${zuzyte[kluczZ(d, g.slot)] ? 'checked' : ''}> zjedzone</label></div>`;
-    });
-    const sh = OS.filter(p => day.tr[p] && !nieob(day, p));
-    if (sh.length) h += `<div class="posilek"><div class="pora">po treningu · shake</div><div class="liczby">${sh.map(p => `<span class="${p}">${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml · ${DB.shake[p].kcal} kcal · ${DB.shake[p].bialko} g</span>`).join('<br>')}</div></div>`;
-    const wi = wieczorem(w, d);
-    if (wi.length) h += `<div class="wieczor"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`;
-    h += `</div></details>`;
+  let h = `<section data-wk="${t.start}"><div data-d="${d}">`;
+  h += `<div class="dnia-gora"><button class="strz" data-pdzien="${nawig.prev || ''}" ${nawig.prev ? '' : 'disabled'} aria-label="Poprzedni dzień">‹</button>
+    <div class="dnia-tyt"><h2>${DNI[d]}${jestDzis ? '<span class="dzis-znacz">dziś</span>' : ''}</h2><small>${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${stanKto(day) !== 'oboje' ? ` · tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}` : ''}</small></div>
+    <button class="strz" data-pdzien="${nawig.next || ''}" ${nawig.next ? '' : 'disabled'} aria-label="Następny dzień">›</button></div>
+    <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small></div>`).join('')}</div>
+    <div class="dnia-ust"><div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
+      <div class="kto-dnia"><span class="mute">Kto je w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div></div>`;
+  x.sloty.forEach(({ g, odgrzewane }) => {
+    const moje = g.porcje.filter(q => q.d === d), ez = !!zuzyte[kluczZ(d, g.slot)];
+    const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join('');
+    let zn = '';
+    if (odgrzewane) zn += `<span class="znaczek">odgrzewasz z ${DNI_KR[g.d]}</span> `;
+    else if (new Set(g.porcje.map(q => q.d)).size > 1) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
+    if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
+    if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
+    if (((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) && new Set(g.porcje.map(q => q.p)).size > 1) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
+    h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
+      <div class="pk-gora">${Obr.html(g.dish)}<div class="pk-tx"><button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button><div class="liczby">${liczby}</div></div></div>
+      ${zn ? `<div class="pk-zn">${zn}</div>` : ''}
+      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button>`}</div></div>`;
   });
-  return h + `</section>`;
+  const sh = OS.filter(p => day.tr[p] && !nieob(day, p));
+  if (sh.length) h += `<div class="pk"><div class="pk-pora">po treningu · shake</div><div class="liczby">${sh.map(p => `<span class="${p}">${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml · ${DB.shake[p].kcal} kcal · ${DB.shake[p].bialko} g</span>`).join('')}</div></div>`;
+  const wi = wieczorem(w, d);
+  if (wi.length) h += `<div class="wieczor"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`;
+  h += `</div>${tydzDzis ? przypomnieniaDzis(w) : ''}
+    <details class="karta tyg-sum"><summary>Cały tydzień ${krotkaData(t.start)}–${krotkaData(dodajDni(t.start, 6))}${znacz ? ` <span class="znaczek">${znacz}</span>` : ''}</summary>
+    <div class="cele">${OS.map(p => { const [tt, kl] = stan(sr(p), c[p]); return `<div class="cel ${p}"><b>${ETY[p]}</b><span class="duze">${r0(srK(p))} kcal</span>
+      <small>średnio / dzień · cel ${c[p].kcal}</small><small>białko ${r0(sr(p))} g · cel ${c[p].bMin}–${c[p].bMax} g <span class="znak ${kl}">${tt}</span></small>${tt === 'za mało' ? `<button class="btn maly sug" data-sugestie="${p}">Jak poprawić?</button>` : ''}</div>`; }).join('')}</div>
+    <button class="btn szeroki" data-nowy>Ułóż ten tydzień od nowa</button></details></section>`;
+  return h;
 }
 function widokTydzien() {
   const c = cele(), dzisIso = isoDzis(), tyg = tygodnieZapisane();
   window._wBy = {};
-  if (otwartyDzien === null) {                                       // domyślnie rozwijam dzisiejszy dzień
-    const tw = tyg.find(t => dzisIso >= t.start && dzisIso <= dodajDni(t.start, 6));
-    otwartyTyg = (tw || tyg[0]).start; otwartyDzien = tw ? Math.round((new Date(dzisIso + 'T12:00:00') - new Date(tw.start + 'T12:00:00')) / 864e5) : 0;
-  }
-  let h = `<h1>Plan</h1>` + wskazowka('plan', 'Rozwiń dzień, żeby zobaczyć posiłki. „Zmień” podmienia danie (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz w dniu „Bez niego” albo „Bez niej”. Oba tygodnie są tu pod sobą.');
-  for (const t of tyg) h += zTygodniem(t, () => blokTygodnia(t, c, dzisIso));
-  const biez = poniedzialek(), nast = dodajDni(biez, 7), ma = s => tyg.some(t => t.start === s);
+  const wszystkie = tyg.flatMap(t => [0, 1, 2, 3, 4, 5, 6].map(d => ({ start: t.start, d, iso: dodajDni(t.start, d) })));
+  let idx = wszystkie.findIndex(x => x.start === otwartyTyg && x.d === otwartyDzien);
+  if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
+  const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
+  let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
+  h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
+  const t = tyg.find(q => q.start === wyb.start);
+  h += zTygodniem(t, () => kartaDnia(t, c, dzisIso, { prev: idx > 0 ? `${wszystkie[idx - 1].start}:${wszystkie[idx - 1].d}` : '', next: idx < wszystkie.length - 1 ? `${wszystkie[idx + 1].start}:${wszystkie[idx + 1].d}` : '' }));
+  const biez = poniedzialek(), nast = dodajDni(biez, 7), ma = s => tyg.some(q => q.start === s);
   if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>Bieżący tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
-  if (!ma(nast)) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się pod bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
+  if (!ma(nast)) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
   h += `<button class="btn glowny szeroki" id="doZakupow" style="margin-top:12px">Lista zakupów</button>`;
   $('#view').innerHTML = h;
   window._w = window._wBy[plan.start];
+  const pas = $('#pasekDni'), ak = pas && pas.querySelector('.akt'); if (ak) pas.scrollLeft = ak.offsetLeft - pas.clientWidth / 2 + ak.clientWidth / 2;
 }
 const kluczZ = (d, slot, start = plan.start) => `${start}|${d}|${slot}`;
 // jaka część garnka przypada na posiłek danego dnia (garnek na 2 dni dzieli się wg kcal)
@@ -1364,6 +1370,7 @@ document.addEventListener('click', e => {
     day.nb = { ona: k === 'bezona', on: k === 'bezon' };            // „bez niego” = on nieobecny, „bez niej” = ona nieobecna
     LS.set('plan', plan); Z([[['dni', +d, 'nb'], day.nb]]); otwartyDzien = +d; rysuj();
   }
+  else if (t.dataset.pdzien !== undefined) { if (t.dataset.pdzien) { const [st, d] = t.dataset.pdzien.split(':'); otwartyTyg = st; otwartyDzien = +d; rysuj(); } }
   else if (t.dataset.zakdzien) {
     const s = wybraneDni(); s.has(t.dataset.zakdzien) ? s.delete(t.dataset.zakdzien) : s.add(t.dataset.zakdzien);
     zakDni = [...s].sort(); LS.set('zakDni', zakDni); rysuj();

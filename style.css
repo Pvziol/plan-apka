@@ -254,3 +254,140 @@ ol.worki { margin: 4px 0 10px; padding-left: 20px; }
 ol.worki li { padding: 5px 0; line-height: 1.35; }
 ol.worki li small { display: block; color: var(--mute); font-size: 12.5px; }
 .znaczek.mroz { background: var(--on-tlo); color: var(--on); }
+
+/* ───────── paleta v34 ───────── */
+:root {
+  --bg: #f2f7f3; --bg2: #cfeede; --card: #ffffff; --ink: #0f1f19; --mute: #62726a; --line: #e2eae4;
+  --zielony: #0a9a68; --zielony2: #16c28c; --zielony-tlo: #dcf4e8;
+  --ona: #c23a63; --ona-tlo: #fdeaf0; --on: #1f63b3; --on-tlo: #e6f0fc;
+  --ostrz: #b0560a; --ostrz-tlo: #fff0dc;
+  --nav: rgba(255, 255, 255, .9);
+  --cien: 0 1px 2px rgba(15, 50, 35, .05), 0 10px 30px rgba(15, 50, 35, .07);
+  --cien-maly: 0 1px 2px rgba(15, 50, 35, .07);
+  --r: 24px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c120f; --bg2: #12301f; --card: #17201b; --ink: #ecf2ee; --mute: #98a8a0; --line: #26312b;
+    --zielony: #4fd3a0; --zielony2: #7be6bb; --zielony-tlo: #173326;
+    --ona: #f391aa; --ona-tlo: #3a1f2a; --on: #86bcee; --on-tlo: #172a3e;
+    --ostrz: #f0b25e; --ostrz-tlo: #33270f;
+    --nav: rgba(23, 32, 27, .9);
+    --cien: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .3);
+    --cien-maly: 0 1px 2px rgba(0, 0, 0, .35);
+  }
+}
+body {
+  background: radial-gradient(700px 420px at 85% -160px, var(--bg2), transparent 70%), var(--bg);
+  background-attachment: fixed;
+  font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ───────── odświeżony wygląd (v34) ───────── */
+h1 { font-size: 32px; letter-spacing: -.03em; }
+.karta { border: 0; }
+.btn { min-height: 52px; border-radius: 16px; border-color: transparent; background: var(--card); box-shadow: var(--cien-maly), 0 0 0 1px var(--line) inset; }
+.btn.glowny { background: linear-gradient(135deg, var(--zielony), var(--zielony2)); box-shadow: 0 8px 20px color-mix(in srgb, var(--zielony) 35%, transparent); }
+.btn.maly { box-shadow: 0 0 0 1px var(--line) inset; }
+#tabs { border: 0; border-radius: 28px; padding: 6px; gap: 4px; box-shadow: 0 12px 36px rgba(10, 60, 40, .2), 0 0 0 1px rgba(0, 0, 0, .04); }
+#tabs button { border-radius: 22px; min-height: 56px; font-size: 10.5px; }
+#tabs button.akt { background: linear-gradient(135deg, var(--zielony), var(--zielony2)); color: #fff; box-shadow: 0 6px 14px color-mix(in srgb, var(--zielony) 35%, transparent); }
+@media (prefers-color-scheme: dark) { #tabs button.akt { color: #08140e; } }
+details.dzien { border: 0; }
+details.dzien.dzis { box-shadow: 0 0 0 2px var(--zielony2), var(--cien); }
+.obr { border-radius: 18px; }
+
+/* wskazówki */
+.wskazowka { background: linear-gradient(135deg, var(--zielony-tlo), color-mix(in srgb, var(--zielony-tlo) 40%, var(--card))); border-radius: 20px; padding: 14px 16px; margin: 12px 0; position: relative; }
+.wskazowka .wsk-et { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--zielony); margin-bottom: 4px; }
+.wskazowka p { margin: 0 0 10px; font-size: 14.5px; line-height: 1.45; }
+
+/* ekran „Dziś” */
+.hero-gora small { color: var(--mute); font-weight: 600; }
+.hero-gora h1 { margin: 2px 0 8px; font-size: 36px; }
+.hero { border-radius: 28px; padding: 20px; margin: 14px 0; color: #fff; background: linear-gradient(145deg, #087a55, #12b383 60%, #52d6a6); box-shadow: 0 16px 36px rgba(10, 130, 90, .3); }
+.hero.ok { background: linear-gradient(145deg, #4b6bd6, #6f8cf0); box-shadow: 0 16px 36px rgba(70, 100, 220, .3); }
+.hero-et { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; opacity: .92; }
+.hero-dan { display: flex; gap: 14px; align-items: center; margin: 12px 0; }
+.hero-dan b { display: block; font-size: 21px; line-height: 1.2; letter-spacing: -.015em; }
+.hero-dan small { display: block; opacity: .9; margin-top: 4px; font-size: 13.5px; }
+.hero .obr.duzy { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
+.hero-liczby { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.hero-liczby span { background: rgba(255, 255, 255, .22); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 700; }
+.hero-btn { background: #fff !important; color: #07684a !important; box-shadow: 0 6px 16px rgba(0, 0, 0, .15) !important; }
+.hero-btn.jasny { background: rgba(255, 255, 255, .22) !important; color: #fff !important; box-shadow: none !important; }
+.postep { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 4px; }
+.postep > div { background: var(--card); border-radius: 20px; padding: 12px 14px; box-shadow: var(--cien-maly); }
+.postep b { font-size: 11.5px; letter-spacing: .1em; }
+.postep .ona b, .postep .ona .pasek i { color: var(--ona); } .postep .on b, .postep .on .pasek i { color: var(--on); }
+.pasek { height: 8px; border-radius: 8px; background: var(--line); margin: 8px 0 6px; overflow: hidden; }
+.pasek i { display: block; height: 100%; border-radius: 8px; background: currentColor; transition: width .4s ease; }
+.postep small { color: var(--mute); font-size: 12.5px; }
+.posilki-dnia { padding: 6px 14px; }
+.pos-wiersz { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.pos-wiersz:last-child { border-bottom: 0; }
+.pos-ptak { flex: none; position: relative; width: 30px; height: 30px; }
+.pos-ptak input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.pos-ptak span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); color: transparent; font-weight: 800; transition: all .15s; }
+.pos-ptak span::after { content: '✓'; font-size: 16px; }
+.pos-ptak input:checked + span { background: var(--zielony); border-color: var(--zielony); color: #fff; }
+.pos-wiersz .pos-tx { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; box-shadow: none; }
+.pos-wiersz small { display: block; font-size: 11.5px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.pos-wiersz b { display: block; font-size: 16px; line-height: 1.3; font-weight: 650; }
+.pos-wiersz.nast .pos-ptak span { border-color: var(--zielony2); }
+.pos-wiersz.zjedzone b { text-decoration: line-through; color: var(--mute); }
+.pos-wiersz.zjedzone { opacity: .65; }
+.zad ul { margin: 6px 0 0; padding-left: 18px; }
+.pusta-karta { text-align: center; padding: 28px 18px; }
+.pusta-karta b { font-size: 18px; }
+
+/* Więcej */
+.kafel { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--card); border: 0; border-radius: 22px; padding: 14px 16px; margin: 10px 0; box-shadow: var(--cien); }
+.kafel-ik { flex: none; width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; background: var(--zielony-tlo); color: var(--zielony); }
+.kafel-ik svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.kafel-tx { flex: 1; }
+.kafel-tx b { display: block; font-size: 17px; }
+.kafel-tx small { color: var(--mute); font-size: 13px; }
+.kafel-str { color: var(--mute); font-size: 24px; }
+.wstecz { background: none; border: 0; padding: 6px 0; margin: 0 0 2px; font-weight: 700; color: var(--zielony); font-size: 16px; box-shadow: none; }
+details.faq { background: var(--card); border-radius: 18px; margin: 8px 0; padding: 0 16px; box-shadow: var(--cien-maly); }
+details.faq summary { cursor: pointer; font-weight: 650; padding: 14px 0; list-style: none; }
+details.faq summary::-webkit-details-marker { display: none; }
+details.faq summary::after { content: '+'; float: right; color: var(--zielony); font-size: 20px; line-height: 1; }
+details.faq[open] summary::after { content: '–'; }
+details.faq p { margin: 0 0 14px; color: var(--mute); font-size: 14.5px; }
+
+/* wprowadzenie dla nowych osób */
+.intro { text-align: center; padding: 18px 6px 4px; }
+.intro-ik { width: 76px; height: 76px; border-radius: 26px; margin: 0 auto 14px; display: grid; place-items: center; background: linear-gradient(135deg, var(--zielony), var(--zielony2)); color: #fff; box-shadow: 0 12px 28px color-mix(in srgb, var(--zielony) 35%, transparent); }
+.intro-ik svg { width: 38px; height: 38px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.intro h2 { margin: 0 0 8px; font-size: 24px; }
+.intro p { color: var(--mute); font-size: 16px; margin: 0 0 18px; }
+.kropki { display: flex; justify-content: center; gap: 7px; margin-bottom: 18px; }
+.kropki i { width: 8px; height: 8px; border-radius: 8px; background: var(--line); }
+.kropki i.akt { width: 24px; background: var(--zielony); }
+
+/* ekran powitalny */
+.witaj { text-align: center; padding: 18px 4px 6px; }
+.witaj .logo { width: 72px; height: 72px; border-radius: 24px; margin: 0 auto 10px; display: grid; place-items: center; background: linear-gradient(135deg, var(--zielony), var(--zielony2)); color: #fff; box-shadow: 0 14px 30px color-mix(in srgb, var(--zielony) 38%, transparent); }
+.witaj .logo svg { width: 38px; height: 38px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.witaj h1 { font-size: 40px; margin: 6px 0; }
+.witaj .lead { font-size: 17px; color: var(--mute); margin: 0 auto 14px; max-width: 420px; }
+.plusy { list-style: none; padding: 0; margin: 0 0 8px; text-align: left; }
+.plusy li { background: var(--card); border-radius: 18px; padding: 12px 16px; margin: 8px 0; box-shadow: var(--cien-maly); font-size: 15px; color: var(--mute); }
+.plusy b { color: var(--ink); }
+h2.krok { display: flex; align-items: center; gap: 10px; }
+h2.krok span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--zielony); color: #fff; font-size: 14px; font-weight: 800; flex: none; }
+
+/* zakupy: zwinięty wybór dni */
+details.wybor-dni { padding: 0; overflow: hidden; }
+details.wybor-dni > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; }
+details.wybor-dni > summary::-webkit-details-marker { display: none; }
+details.wybor-dni .wd-tx small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--mute); }
+details.wybor-dni .wd-tx b { font-size: 17px; letter-spacing: -.01em; }
+details.wybor-dni .wd-zmien { flex: none; font-size: 13px; font-weight: 700; color: var(--zielony); background: var(--zielony-tlo); padding: 7px 14px; border-radius: 999px; }
+details.wybor-dni > :not(summary) { margin-left: 16px; margin-right: 16px; }
+details.wybor-dni > :last-child { margin-bottom: 16px; }
+.postep-zak { margin: 4px 0 0; }
+.postep-zak .pasek { color: var(--zielony); margin-bottom: 4px; }
+.postep-zak small { color: var(--mute); font-size: 12.5px; font-weight: 600; }

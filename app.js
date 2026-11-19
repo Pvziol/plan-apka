@@ -114,7 +114,13 @@ function zapotrzebowanie(o) {
   const b = Math.round(gkg * o.waga);
   return { bmr: r0(bmr), cpm: r0(cpm), kcal, b, bMin: r0(b * 0.9), bMax: r0(b * 1.15) };
 }
-function cele() { return { ona: zapotrzebowanie(profil.ona), on: zapotrzebowanie(profil.on) }; }
+// Aktualna waga = ostatni pomiar z zakładki Waga (jeśli jest), inaczej waga z profilu. Z niej liczą się cele, a więc gramatury całego planu.
+function wagaAktualna(p) {
+  const e = Object.keys((waga && waga[p]) || {}).sort();
+  return e.length ? waga[p][e[e.length - 1]] : (profil && profil[p] ? profil[p].waga : null);
+}
+const profilEf = p => profil && profil[p] ? Object.assign({}, profil[p], { waga: wagaAktualna(p) }) : null;
+function cele() { return { ona: zapotrzebowanie(profilEf('ona')), on: zapotrzebowanie(profilEf('on')) }; }
 
 // ---------- baza ----------
 async function wczytaj(plik, domyslne) {
@@ -969,7 +975,7 @@ function tekstListy() {
 }
 
 function widokUstawienia(pierwszy) {
-  const p0 = profil || { ona: { plec: 'k', akt: '1.375', cel: 'redukcja' }, on: { plec: 'm', akt: '1.375', cel: 'redukcja' } };
+  const p0 = profil ? { ona: profilEf('ona'), on: profilEf('on') } : { ona: { plec: 'k', akt: '1.375', cel: 'redukcja' }, on: { plec: 'm', akt: '1.375', cel: 'redukcja' } };
   const pole = (p, k, et, typ = 'number', dod = '') => `<label class="pole"><span>${et}</span><input type="${typ}" inputmode="decimal" data-p="${p}" data-k="${k}" value="${esc(p0[p][k] ?? '')}" ${dod || `placeholder="${{ wiek: 'np. 30', waga: 'np. 62', wzrost: 'np. 168' }[k] || ''}"`}></label>`;
   const blok = p => `<div class="karta"><h2 class="${p}" style="margin-top:0">${ETY[p]}</h2>
     <div class="dwa">${pole(p, 'wiek', 'Wiek (lata)')}${pole(p, 'waga', 'Waga (kg)')}</div>
@@ -997,6 +1003,7 @@ function widokUstawienia(pierwszy) {
     if (!zapotrzebowanie(o.ona) || !zapotrzebowanie(o.on)) { alert('Uzupełnij wiek, wagę i wzrost dla obojga.'); return; }
     // zapisuję tylko osobę, której dane ktoś tu zmienił — nie nadpiszę zmian zrobionych w tym czasie na drugim telefonie
     const zmienione = OS.filter(p => !profil || stabilny(o[p]) !== stabilny(formStart[p]));
+    OS.forEach(pp => { if (profil && o[pp].waga && o[pp].waga !== formStart[pp].waga) { waga[pp] = waga[pp] || {}; waga[pp][isoDzis()] = o[pp].waga; LS.set('waga', waga); Z([[['waga', pp, isoDzis()], o[pp].waga]]); } });   // zmiana wagi w ustawieniach = nowy pomiar z dzisiaj
     profil = { ona: zmienione.includes('ona') ? o.ona : profil.ona, on: zmienione.includes('on') ? o.on : profil.on };
     LS.set('profil', profil);
     Z(zmienione.map(p => [['profil', p], o[p]]));
@@ -1244,7 +1251,7 @@ function widokWaga() {
     <div class="wpisz"><button class="strz" data-wkstep="${p}:-0.1" aria-label="Mniej">−</button><label class="wpisz-pole"><input type="text" inputmode="decimal" id="wk-${p}" value="${kgTxt(start)}" aria-label="Waga w kg"><span>kg</span></label><button class="strz" data-wkstep="${p}:0.1" aria-label="Więcej">+</button></div>
     <label class="pole"><span>Data</span><input type="date" id="wd-${p}" value="${isoDzis()}" max="${isoDzis()}"></label>
     <button class="btn glowny szeroki" data-zapisz-wage="${p}">Zapisz pomiar</button>`;
-  if (ost && profil[p] && Math.abs(profil[p].waga - ost[1]) >= 0.5) h += `<button class="btn szeroki" style="margin-top:8px" data-wage-profil="${p}">Zaktualizuj wagę w profilu (${kgTxt(ost[1])} kg) i przelicz zapotrzebowanie</button>`;
+  const cc = cele()[p]; if (ost && cc) h += `<p class="mute" style="margin:12px 0 0">Plan liczy się z ostatniego pomiaru (${kgTxt(ost[1])} kg): cel ${cc.kcal} kcal i ${cc.bMin}–${cc.bMax} g białka dziennie. Po zapisaniu nowej wagi gramatury dań dopasują się same.</p>`;
   h += `</div>`;
   if (e.length) h += `<h2>Historia</h2><div class="karta hist">` + e.slice(-10).reverse().map(([d, v], i, arr) => { const prev = e[e.length - 1 - i - 1], zm = prev ? v - prev[1] : null; return `<div class="hist-w"><span class="hist-d">${new Date(d + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}</span><b>${kgTxt(v)} kg</b><span class="hist-zm ${zm == null ? '' : dobry((profil[p] || {}).cel, zm) ? 'dobry' : 'zly'}">${zm == null ? '' : zm === 0 ? '=' : (zm > 0 ? '▲ ' : '▼ ') + kgTxt(Math.abs(zm))}</span><button class="btn maly" data-usun-wage="${p}|${d}" aria-label="Usuń pomiar">✕</button></div>`; }).join('') + `</div>`;
   $('#view').innerHTML = h;
@@ -1253,9 +1260,12 @@ function zapiszWage(p) {
   const v = parseFloat(String(($('#wk-' + p) || {}).value).replace(',', '.')), d = ($('#wd-' + p) || {}).value || isoDzis();
   if (!(v >= 25 && v <= 300)) { alert('Wpisz wagę w kilogramach, np. 62,4.'); return; }
   const w = Math.round(v * 10) / 10;
+  const przed = cele()[p];
   waga[p] = waga[p] || {}; waga[p][d] = w;
   LS.set('waga', waga); Z([[['waga', p, d], w]]);
   rysuj();
+  const po = cele()[p];
+  pokazToast(przed && po && przed.kcal !== po.kcal ? `Zapisano. Plan przeliczony: ${ETY[p]} ${przed.kcal} → ${po.kcal} kcal` : 'Zapisano pomiar');
 }
 
 // ---------- lodówka ----------
@@ -1296,41 +1306,104 @@ function prognoza(w) {
   }
   return Object.entries(pierwszy).map(([k, x]) => { const [p, u] = k.split('|'); return { produkt: p, u, brakuje: -stan[k], d: x.d, dish: x.dish, pilne: x.d <= od0 + 1 }; }).sort((a, b) => a.d - b.d);
 }
-let lodKat = 'wszystko';
+let lodKat = 'wszystko', lodSzukaj = '', dodU = 'g', toastFn = null, toastT = null;
 const KROK_LOD = u => (u === 'g' || u === 'ml') ? 50 : 1;
+const ILOSCI_LOD = u => u === 'g' || u === 'ml' ? [100, 250, 500, 1000] : u === 'szt.' ? [1, 2, 4, 6, 10] : u === 'krom.' ? [4, 8, 16] : [1, 2, 3];
+// Krótki komunikat nad paskiem zakładek, opcjonalnie z przyciskiem (np. „Cofnij”).
+function pokazToast(tekst, et, fn) {
+  const el = $('#toast'); if (!el) return;
+  toastFn = fn || null;
+  el.innerHTML = `<span>${esc(tekst)}</span>${et ? `<button data-toast>${esc(et)}</button>` : ''}`;
+  el.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastFn = null; }, 5000);
+}
+function filtrujLodowke() {
+  const q = znorm(lodSzukaj.trim());
+  document.querySelectorAll('.stan2').forEach(r => { r.hidden = !!q && !r.dataset.nm.includes(q); });
+  document.querySelectorAll('.lod-grupa').forEach(g => { g.hidden = ![...g.querySelectorAll('.stan2')].some(r => !r.hidden); });
+  const brak = $('#lod-brak'); if (brak) brak.hidden = !q || [...document.querySelectorAll('.stan2')].some(r => !r.hidden);
+}
 function widokLodowka() {
-  const w = oblicz(plan, cele()), pr = prognoza(w);
-  const katNazwa = { 'świeże': 'Świeże', 'zamrażarka': 'Mrożone', 'zapas': 'Zapasy' }, grupy = { 'świeże': [], 'zamrażarka': [], 'zapas': [] };
-  for (const [pp, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) { const k = (DB.produkty.get(pp) || {}).kat; grupy[k in grupy ? k : 'zapas'].push([pp, u, q]); }
-  const razem = Object.values(grupy).reduce((a, l) => a + l.length, 0);
-  let h = `<h1>Lodówka</h1>` + wskazowka('lodowka', 'Lodówka liczy się sama: zakupy ją dopisują, a „zjedzone” odejmuje. Przyciskami − i + poprawisz ilość, a na górze zobaczysz, co zaczyna się kończyć.');
-  h += `<div class="lod-kafle"><div><b>${razem}</b><small>produktów w domu</small></div><div class="${pr.length ? 'ostrz' : ''}"><b>${pr.length}</b><small>${pr.length === 1 ? 'zaczyna brakować' : 'zaczyna brakować'}</small></div></div>
+  const w = oblicz(plan, cele()), pr = prognoza(w), niskie = new Map(pr.map(x => [x.produkt, x]));
+  const katNazwa = { 'świeże': 'Świeże', 'zamrażarka': 'Mrożone', 'zapas': 'Zapasy' }, grupy = { 'świeże': new Map(), 'zamrażarka': new Map(), 'zapas': new Map() };
+  for (const [pp, us] of Object.entries(lodowka)) { const jed = Object.entries(us); if (!jed.length) continue; const k = (DB.produkty.get(pp) || {}).kat; grupy[k in grupy ? k : 'zapas'].set(pp, jed); }
+  const razem = Object.values(grupy).reduce((a, m) => a + m.size, 0);
+  let h = `<h1>Lodówka</h1>` + wskazowka('lodowka', 'Lodówka liczy się sama: zakupy ją dopisują, a „zjedzone” odejmuje. Przyciskami − i + poprawisz ilość, a „＋ Dodaj” wpisze nowe produkty.');
+  h += `<div class="lod-kafle"><div><b>${razem}</b><small>produktów w domu</small></div><div class="${pr.length ? 'ostrz' : ''}"><b>${pr.length}</b><small>zaczyna brakować</small></div></div>
     <button class="spont-cta" id="spont"><span class="spont-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="spont-tx"><b>Co ugotować z tego, co mamy?</b><small>Spontaniczne gotowanie z Waszej lodówki</small></span><span class="spont-str">›</span></button>`;
-  if (pr.length) h += `<h2>Zaczyna brakować</h2><div class="alerty">${pr.map(x => `<div class="alert ${x.pilne ? 'pilne' : ''}"><b>${esc(x.produkt)}</b><span>brakuje ${fmtStan(x.brakuje, x.u)}</span><small>od: ${esc(x.dish)} (${DNI_KR[x.d]})</small></div>`).join('')}</div><p class="mute">Kup przed pierwszym z tych dni. Prognoza zakłada, że jecie według planu i zaznaczacie „zjedzone”.</p>`;
-  h += `<h2>W lodówce</h2><div class="lod-filtr"><div class="seg mini">${[['wszystko', 'Wszystko'], ['świeże', 'Świeże'], ['zamrażarka', 'Mrożone'], ['zapas', 'Zapasy']].map(([k, et]) => `<button data-lodkat="${k}" class="${lodKat === k ? 'akt' : ''}">${et}</button>`).join('')}</div>
-    <input id="lod-szukaj" type="search" placeholder="Szukaj w lodówce…" autocomplete="off"></div>`;
+  if (pr.length) h += `<h2>Zaczyna brakować</h2><div class="alerty">${pr.map(x => `<button class="alert ${x.pilne ? 'pilne' : ''}" data-popraw="${esc(x.produkt)}|${esc(x.u)}"><b>${esc(x.produkt)}</b><span>brakuje ${fmtStan(x.brakuje, x.u)}</span><small>od: ${esc(x.dish)} (${DNI_KR[x.d]})</small><em>Popraw ilość ›</em></button>`).join('')}</div><button class="btn szeroki" id="doZakupow" style="margin-top:10px">Otwórz listę zakupów</button><p class="mute">Kliknij kartę, jeśli ilość w lodówce się nie zgadza — poprawisz ją od razu. Prognoza zakłada, że jecie według planu i zaznaczacie „zjedzone”.</p>`;
+  h += `<h2>W lodówce</h2><div class="lod-filtr"><div class="lod-rzad"><input id="lod-szukaj" type="search" placeholder="Szukaj w lodówce…" autocomplete="off" value="${esc(lodSzukaj)}"><button class="btn glowny maly" data-dodaj>＋ Dodaj</button></div>
+    <div class="seg mini">${[['wszystko', 'Wszystko'], ['świeże', 'Świeże'], ['zamrażarka', 'Mrożone'], ['zapas', 'Zapasy']].map(([k, et]) => `<button data-lodkat="${k}" class="${lodKat === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`;
+  const kontrolka = (pp, u, q) => q < 0.5
+    ? `<div class="stan-ster"><span class="ostrz-txt jedn-k">skończone</span><button class="btn maly" data-stanusun="${esc(pp)}|${esc(u)}">Usuń</button><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|1" aria-label="Więcej">+</button></div>`
+    : `<div class="stan-ster"><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|-1" aria-label="Mniej">−</button><input type="text" inputmode="decimal" data-sp="${esc(pp)}" data-su="${esc(u)}" value="${String(Math.max(0, Math.round(q * 10) / 10)).replace('.', ',')}" aria-label="Ilość ${esc(pp)}"><span class="jedn">${esc(u)}</span><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|1" aria-label="Więcej">+</button></div>`;
   let ile = 0;
   for (const k of ['świeże', 'zamrażarka', 'zapas']) {
     if (lodKat !== 'wszystko' && lodKat !== k) continue;
-    const l = grupy[k].sort((a, b) => a[0].localeCompare(b[0], 'pl')); if (!l.length) continue; ile += l.length;
-    h += `<div class="lod-grupa"><h3>${katNazwa[k]} · ${l.length}</h3><div class="karta">${l.map(([pp, u, q]) => { const kon = q < 0.5; return `<div class="stan2" data-nm="${esc(znorm(pp))}"><span class="stan-ik k-${k === 'zamrażarka' ? 'zam' : k === 'zapas' ? 'zap' : 'swi'}">${esc(pp.charAt(0).toUpperCase())}</span>
-      <div class="stan-nm"><b>${esc(pp)}</b>${kon ? '<small class="ostrz-txt">skończone</small>' : ''}</div>
-      <div class="stan-ster">${kon ? `<button class="btn maly" data-stanusun="${esc(pp)}|${esc(u)}">Usuń</button><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|1" aria-label="Więcej">+</button>` : `<button class="stp" data-stpm="${esc(pp)}|${esc(u)}|-1" aria-label="Mniej">−</button><input type="text" inputmode="decimal" data-sp="${esc(pp)}" data-su="${esc(u)}" value="${String(Math.max(0, Math.round(q * 10) / 10)).replace('.', ',')}" aria-label="Ilość"><span class="jedn">${esc(u)}</span><button class="stp" data-stpm="${esc(pp)}|${esc(u)}|1" aria-label="Więcej">+</button>`}</div></div>`; }).join('')}</div></div>`;
+    const l = [...grupy[k].entries()].sort((a, b) => a[0].localeCompare(b[0], 'pl')); if (!l.length) continue; ile += l.length;
+    h += `<div class="lod-grupa"><h3>${katNazwa[k]} · ${l.length}</h3><div class="karta">${l.map(([pp, jed]) => { const n = niskie.get(pp); return `<div class="stan2 ${n ? 'nisko' : ''}" data-nm="${esc(znorm(pp))}"><span class="stan-ik k-${k === 'zamrażarka' ? 'zam' : k === 'zapas' ? 'zap' : 'swi'}">${esc(pp.charAt(0).toUpperCase())}</span>
+      <div class="stan-nm"><b>${esc(pp)}</b>${n ? `<small class="ostrz-txt">kończy się · od ${DNI_KR[n.d]}</small>` : ''}</div>
+      <div class="stan-kol">${jed.sort((a, b) => a[0].localeCompare(b[0])).map(([u, q]) => kontrolka(pp, u, q)).join('')}</div></div>`; }).join('')}</div></div>`;
   }
-  if (!ile) h += `<div class="karta pusta-karta"><b>${razem ? 'Nic w tej kategorii' : 'Lodówka jest pusta'}</b><p class="mute">${razem ? 'Zmień filtr powyżej.' : 'Odhaczaj zakupy na liście albo dodaj produkty poniżej.'}</p></div>`;
-  h += `<details class="karta dodaj-lod"><summary>＋ Dodaj do lodówki</summary><div class="dwa"><label class="pole"><span>Produkt</span><input id="nowy-p" list="produkty" autocomplete="off" placeholder="np. kurczak"></label>
-    <label class="pole"><span>Ilość</span><input id="nowy-q" type="text" inputmode="decimal" placeholder="np. 500"></label></div>
-    <label class="pole"><span>Jednostka</span><select id="nowy-u">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<option>${u}</option>`).join('')}</select></label>
-    <datalist id="produkty">${[...DB.produkty.keys()].sort((a, b) => a.localeCompare(b, 'pl')).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-    <button class="btn szeroki" id="dodajStan">Dodaj</button>
-    <h3>Albo kilka rzeczy naraz</h3><p class="mute">Po jednej w linii, np. „kurczak 500 g”, „jajka 6”, „ryż”. Bez ilości wstawię typową paczkę.</p>
-    <textarea id="szybkie-tekst" rows="4" placeholder="kurczak 500 g&#10;jajka 6&#10;ryż"></textarea><button class="btn szeroki" id="szybkie">Dodaj wszystko</button></details>`;
+  h += `<div class="karta pusta-karta" id="lod-brak" hidden><b>Nic nie pasuje</b><p class="mute">Spróbuj innego słowa albo dodaj ten produkt przyciskiem „＋ Dodaj”.</p></div>`;
+  if (!ile) h += `<div class="karta pusta-karta"><b>${razem ? 'Nic w tej kategorii' : 'Lodówka jest pusta'}</b><p class="mute">${razem ? 'Zmień filtr powyżej.' : 'Odhaczaj zakupy na liście — wpadną tu same. Możesz też wpisać, co macie w domu.'}</p><button class="btn glowny szeroki" data-dodaj>＋ Dodaj produkty</button></div>`;
   $('#view').innerHTML = h;
+  filtrujLodowke();
+}
+// Okno dodawania: podpowiedzi produktów, wybór jednostki, szybkie ilości; zostaje otwarte, żeby dodać kilka rzeczy pod rząd.
+function oknoDodaj(tryb) {
+  tryb = tryb || 'jeden';
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Dodaj do lodówki</h2><button class="btn maly" data-zamknij>Gotowe</button></div>
+    <div class="seg"><button data-dodtryb="jeden" class="${tryb === 'jeden' ? 'akt' : ''}">Jeden produkt</button><button data-dodtryb="wiele" class="${tryb === 'wiele' ? 'akt' : ''}">Wiele naraz</button></div>` + (tryb === 'jeden' ? `
+    <label class="pole"><span>Produkt</span><input id="dod-p" autocomplete="off" autocapitalize="off" placeholder="np. kurczak, ryż, jajka"></label>
+    <div class="chips" id="dod-sug"></div>
+    <label class="pole"><span>Ilość</span><input id="dod-q" type="text" inputmode="decimal" placeholder="np. 500"></label>
+    <div class="chips" id="dod-ilosci"></div>
+    <div class="seg mini" id="dod-jedn" style="margin-top:10px">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<button data-dodu="${u}" class="${dodU === u ? 'akt' : ''}">${u}</button>`).join('')}</div>
+    <button class="btn glowny szeroki" id="dodajStan" style="margin-top:14px">Dodaj do lodówki</button>` : `
+    <p class="mute">Po jednej w linii, np. „kurczak 500 g”, „jajka 6”, „ryż”. Bez ilości wstawię typową paczkę.</p>
+    <textarea id="szybkie-tekst" rows="6" placeholder="kurczak 500 g&#10;jajka 6&#10;ryż"></textarea><button class="btn glowny szeroki" id="szybkie">Dodaj wszystko</button>`);
+  $('#modal').hidden = false;
+  if (tryb === 'jeden') { odswiezDodawanie(); setTimeout(() => { const i = $('#dod-p'); if (i) i.focus(); }, 60); }
+}
+// Korekta ilości z karty „zaczyna brakować”: gdy apka źle liczy (zły wpis, coś dokupione poza listą), wpisujesz, ile faktycznie jest.
+function oknoPopraw(pp, uu) {
+  const cur = (lodowka[pp] || {})[uu] || 0, x = prognoza(oblicz(plan, cele())).find(y => y.produkt === pp && y.u === uu);
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Popraw ilość: ${esc(pp)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+    <p class="mute">${x ? `Wg planu zabraknie ${fmtStan(x.brakuje, uu)}, najpierw przy: ${esc(x.dish)} (${DNI[x.d].toLowerCase()}). ` : ''}Apka myśli, że masz <b>${fmtStan(Math.max(0, cur), uu)}</b>. Jeśli to nieprawda, wpisz, ile masz naprawdę.</p>
+    <div class="wpisz"><button class="strz" data-pop-step="${KROK_LOD(uu) * -1}" aria-label="Mniej">−</button><label class="wpisz-pole"><input type="text" inputmode="decimal" id="pop-q" value="${String(Math.max(0, Math.round(cur * 10) / 10)).replace('.', ',')}" aria-label="Ile masz"><span>${esc(uu)}</span></label><button class="strz" data-pop-step="${KROK_LOD(uu)}" aria-label="Więcej">+</button></div>
+    <input type="hidden" id="pop-p" value="${esc(pp)}"><input type="hidden" id="pop-u" value="${esc(uu)}">
+    <button class="btn glowny szeroki" id="popZapisz">Zapisz ilość</button>
+    <div class="rzad" style="margin-top:8px"><button class="btn" id="popZero">Nie mam wcale</button><button class="btn" data-zamknij>Zostaw bez zmian</button></div>`;
+  $('#modal').hidden = false;
+  setTimeout(() => { const i = $('#pop-q'); if (i) { i.focus(); i.select(); } }, 60);
+}
+function zapiszPoprawke(zero) {
+  const pp = $('#pop-p').value, uu = $('#pop-u').value, cur = (lodowka[pp] || {})[uu] || 0;
+  const v = zero ? 0 : parseFloat(String($('#pop-q').value).replace(',', '.'));
+  if (!(v >= 0)) { pokazToast('Wpisz ilość, np. 300'); return; }
+  zmienLodowke(pp, uu, v - cur);
+  if (v === 0 && lodowka[pp] && Math.abs(lodowka[pp][uu] || 0) < 0.01) { delete lodowka[pp][uu]; if (!Object.keys(lodowka[pp]).length) delete lodowka[pp]; LS.set('lodowka', lodowka); Z([[['lodowka', pp, uu], undefined]]); }
+  $('#modal').hidden = true; rysuj();
+  pokazToast(v === 0 ? `Usunięto z lodówki: ${pp}` : `Poprawiono: ${pp} ${fmtStan(v, uu)}`);
+}
+function odswiezDodawanie() {
+  const wpis = ($('#dod-p') || {}).value || '', zn = znorm(wpis.trim());
+  const sug = zn ? [...DB.produkty.keys()].filter(k => znorm(k).includes(zn) && znorm(k) !== zn).sort((a, b) => a.length - b.length).slice(0, 6) : [];
+  if ($('#dod-sug')) $('#dod-sug').innerHTML = sug.map(k => `<button class="chip" data-dodp="${esc(k)}">${esc(k)}</button>`).join('');
+  const op = DB.opak[wpis.trim()], il = ILOSCI_LOD(dodU).map(x => [x, '']);
+  if (op && op.jednostka === dodU && !il.some(x => x[0] === op.wielkosc)) il.push([op.wielkosc, ' (opak.)']);
+  if ($('#dod-ilosci')) $('#dod-ilosci').innerHTML = il.map(([x, et]) => `<button class="chip" data-dodq="${x}">${x}${et}</button>`).join('');
+  document.querySelectorAll('[data-dodu]').forEach(b => b.classList.toggle('akt', b.dataset.dodu === dodU));
 }
 function dodajStanReczny() {
-  const n = ($('#nowy-p').value || '').trim(), q = parseFloat(String($('#nowy-q').value).replace(',', '.'));
-  if (!n || !(q > 0)) { alert('Wpisz nazwę produktu i ilość.'); return; }
-  zmienLodowke(n, $('#nowy-u').value, q); rysuj();
+  const n = (($('#dod-p') || {}).value || '').trim(), q = parseFloat(String(($('#dod-q') || {}).value).replace(',', '.'));
+  if (!n) { pokazToast('Wpisz nazwę produktu'); const i = $('#dod-p'); if (i) i.focus(); return; }
+  if (!(q > 0)) { pokazToast('Wpisz ilość, np. 500'); const i = $('#dod-q'); if (i) i.focus(); return; }
+  const znany = [...DB.produkty.keys()].find(k => znorm(k) === znorm(n)) || n;
+  zmienLodowke(znany, dodU, q); rysuj();
+  pokazToast(`Dodano: ${znany} ${fmtStan(q, dodU)}`);
+  $('#dod-p').value = ''; $('#dod-q').value = ''; odswiezDodawanie(); $('#dod-p').focus();
 }
 function szybkieDodanie(tekst) {
   const mapa = { g: 'g', gr: 'g', kg: 'kg', ml: 'ml', l: 'l', szt: 'szt.', 'szt.': 'szt.', sztuk: 'szt.', sztuki: 'szt.', krom: 'krom.', 'krom.': 'krom.', pusz: 'pusz.', 'pusz.': 'pusz.', puszka: 'pusz.', puszki: 'pusz.', łyżka: 'łyż.', łyżki: 'łyż.', łyżeczka: 'łyżecz.', łyżeczki: 'łyżecz.' };
@@ -1348,7 +1421,7 @@ function szybkieDodanie(tekst) {
     if (u === 'kg') { q *= 1000; u = 'g'; } else if (u === 'l') { q *= 1000; u = 'ml'; } else if (u === 'łyż.' || u === 'łyżecz.') { q *= gNaLyzke(nazwa || wpis, u); u = 'g'; }
     zmienLodowke(nazwa || wpis, u, q); n++;
   }
-  if (n) rysuj(); else alert('Nie rozpoznałem żadnej linii.');
+  if (n) { rysuj(); pokazToast(`Dodano ${n} ${n === 1 ? 'pozycję' : n < 5 ? 'pozycje' : 'pozycji'} do lodówki`); const t = $('#szybkie-tekst'); if (t) t.value = ''; } else pokazToast('Nie rozpoznałem żadnej linii');
 }
 
 // ---------- spontaniczne gotowanie ----------
@@ -1413,6 +1486,7 @@ document.addEventListener('click', e => {
   const t = e.target.closest('button, summary');
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
+  if (t.dataset.toast !== undefined) { const f = toastFn; $('#toast').hidden = true; toastFn = null; if (f) f(); return; }
   if (t.dataset.zuzyj) { e.preventDefault(); oknoZuzyj(t.dataset.zuzyj); return; }
   if (t.dataset.zuzWstaw) { const [st, d, sl, ...id] = t.dataset.zuzWstaw.split('|'); if (st !== plan.start && inny && inny.start === st) przelaczTydzien(); wybierz(+d, sl, id.join('|')); return; }
   if (t.dataset.wsk) { wskazowki[t.dataset.wsk] = 1; LS.set('wskazowki', wskazowki); rysuj(); return; }
@@ -1497,8 +1571,17 @@ document.addEventListener('click', e => {
   else if (t.dataset.usunWage) { const [pp, dd] = t.dataset.usunWage.split('|'); delete waga[pp][dd]; LS.set('waga', waga); Z([[['waga', pp, dd], undefined]]); rysuj(); }
   else if (t.dataset.wageProfil) { const pp = t.dataset.wageProfil, e = Object.entries(waga[pp] || {}).sort(); if (e.length) { profil[pp].waga = e[e.length - 1][1]; LS.set('profil', profil); Z([[['profil', pp], profil[pp]]]); rysuj(); } }
   else if (t.dataset.lodkat) { lodKat = t.dataset.lodkat; rysuj(); }
+  else if (t.dataset.popraw) { const [pp, uu] = t.dataset.popraw.split('|'); oknoPopraw(pp, uu); }
+  else if (t.dataset.popStep) { const el = $('#pop-q'), v = parseFloat(String(el.value).replace(',', '.')) || 0; el.value = String(Math.max(0, Math.round((v + +t.dataset.popStep) * 10) / 10)).replace('.', ','); }
+  else if (t.id === 'popZapisz') zapiszPoprawke(false)
+  else if (t.id === 'popZero') zapiszPoprawke(true)
+  else if ('dodaj' in t.dataset) oknoDodaj('jeden')
+  else if (t.dataset.dodtryb) oknoDodaj(t.dataset.dodtryb)
+  else if (t.dataset.dodu) { dodU = t.dataset.dodu; odswiezDodawanie(); }
+  else if (t.dataset.dodq) { $('#dod-q').value = t.dataset.dodq; }
+  else if (t.dataset.dodp) { $('#dod-p').value = t.dataset.dodp; const k = DB.produkty.get(t.dataset.dodp); if (k && ['g', 'ml', 'szt.', 'krom.', 'pusz.'].includes(k.u)) dodU = k.u; odswiezDodawanie(); $('#dod-q').focus(); }
   else if (t.dataset.stpm) { const [pp, uu, dl] = t.dataset.stpm.split('|'), cur = (lodowka[pp] || {})[uu] || 0, st = KROK_LOD(uu); zmienLodowke(pp, uu, +dl > 0 ? st : -Math.min(st, cur)); rysuj(); }
-  else if (t.dataset.stanusun) { const [pp, uu] = t.dataset.stanusun.split('|'); if (lodowka[pp]) { delete lodowka[pp][uu]; if (!Object.keys(lodowka[pp]).length) delete lodowka[pp]; } LS.set('lodowka', lodowka); Z([[['lodowka', pp, uu], undefined]]); rysuj(); }
+  else if (t.dataset.stanusun) { const [pp, uu] = t.dataset.stanusun.split('|'), byl = (lodowka[pp] || {})[uu] || 0; if (lodowka[pp]) { delete lodowka[pp][uu]; if (!Object.keys(lodowka[pp]).length) delete lodowka[pp]; } LS.set('lodowka', lodowka); Z([[['lodowka', pp, uu], undefined]]); rysuj(); pokazToast(`Usunięto: ${pp}`, 'Cofnij', () => { zmienLodowke(pp, uu, byl > 0.5 ? byl : 0.01); rysuj(); }); }
   else if (t.id === 'dodajStan') dodajStanReczny();
   else if (t.id === 'szybkie') szybkieDodanie(($('#szybkie-tekst') || {}).value || '');
   else if (t.id === 'spont') oknoSpont();
@@ -1510,7 +1593,8 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'szukaj' && zmienCtx) listaWyboru(t.value);
-  else if (t.id === 'lod-szukaj') { const q = znorm(t.value.trim()); document.querySelectorAll('.stan2').forEach(r => { r.hidden = !!q && !r.dataset.nm.includes(q); }); document.querySelectorAll('.lod-grupa').forEach(g => { g.hidden = ![...g.querySelectorAll('.stan2')].some(r => !r.hidden); }); }
+  else if (t.id === 'lod-szukaj') { lodSzukaj = t.value; filtrujLodowke(); }
+  else if (t.id === 'dod-p') odswiezDodawanie()
   else if (t.id === 'szukaj-sp') { spontFiltr.q = t.value; listaSpont(); }
   else if (t.id === 'nowy-p') { const k = DB.produkty.get(t.value); if (k && $('#nowy-u')) $('#nowy-u').value = ['g', 'ml', 'szt.', 'krom.', 'pusz.'].includes(k.u) ? k.u : 'g'; }
 });

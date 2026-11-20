@@ -46,6 +46,7 @@ let mapaPar = LS.get('mapaPar', {});                       // nazwa z paragonu (
 let kody = LS.get('kody', {});                               // zeskanowane kody kreskowe: kody[ean] = { p: produkt, r: rozmiar opakowania, u }; wspólne
 let wlasneProd = LS.get('wlasneProd', {});                   // produkty dodane z paragonów: wlasneProd[nazwa] = { kat, u }; wspólne
 let pakiety = LS.get('pakiety', {});                       // pakiety[produkt] = { r, u, et, w: [rozmiary], t }: standardowe opakowania poznane z paragonów; wspólne
+let historia = LS.get('historia', []);                     // zapisane podsumowania minionych tygodni (patrz zbierzTydzien), wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
 let prepOd = null, prepH = 3;
 let otwartyDzien = null, otwartyTyg = null;   // który dzień którego tygodnia jest rozwinięty
@@ -802,7 +803,7 @@ function widokTydzien() {
   if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
   const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
-  h += paskAkcji(['prep', 'wykl', 'zakupy']);
+  h += paskAkcji(['prep', 'podsum', 'wykl', 'zakupy']);
   { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${nar.length === 1 ? 'posiłek zawiera' : 'posiłków zawiera'} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
@@ -1073,12 +1074,13 @@ const AKCJE = {
   waga: ['Zważ się', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5'],
   wykl: ['Czego nie jecie', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12'],
   dodaj: ['Dodaj ręcznie', 'M12 5v14M5 12h14'],
+  podsum: ['Podsumowanie tygodnia', 'M5 20V10M12 20V4M19 20v-7'],
   zakupy: ['Zakupy', 'M5 8.5h14l-1.2 11.5H6.2zM9 8.5a3 3 0 0 1 6 0']
 };
 const paskAkcji = lista => `<div class="szybkie" role="group" aria-label="Szybkie akcje">${lista.map(k => `<button class="szybka" data-szybka="${k}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE[k][1]}"/></svg><span>${AKCJE[k][0]}</span></button>`).join('')}</div>`;
 function szybkaAkcja(k) {
   if (k === 'skan') oknoSkaner(); else if (k === 'paragon') oknoParagonWklej(); else if (k === 'spont') oknoSpont(); else if (k === 'dodaj') oknoDodaj('jeden');
-  else { zakladka = { prep: 'prep', waga: 'waga', wykl: 'wykluczone', zakupy: 'zakupy' }[k]; rysuj(); window.scrollTo(0, 0); }
+  else { zakladka = { prep: 'prep', waga: 'waga', wykl: 'wykluczone', zakupy: 'zakupy', podsum: 'podsum' }[k]; rysuj(); window.scrollTo(0, 0); }
 }
 // ---------- skaner kodów kreskowych (aparat + Open Food Facts) ----------
 let skan = null, skanWynik = null;
@@ -1667,6 +1669,73 @@ function otworzSesje(pl, se) {
   otworzGotowanie(g, false); got.prep = true; got.sesja = se; rysujGot();
 }
 
+// ---------- podsumowanie tygodnia ----------
+// Co się faktycznie stało w tygodniu: ile posiłków zjedzonych, średnio kcal i białka (tylko z dni z odhaczonym jedzeniem), zmiana wagi, wydatki z paragonów, ulubione danie.
+function zbierzTydzien(t) {
+  const c = cele(), w = oblicz({ start: t.start, dni: t.dni }, c), zj = (d, g) => !!t.zuz[kluczZ(d, g.slot, t.start)];
+  const koniec = dodajDni(t.start, 6), o = { start: t.start, posilkow: 0, zjedzone: 0, dniZ: 0, kcal: {}, b: {}, cel: {}, bCel: {}, waga: {}, wydatki: 0, nPar: 0, ulub: null };
+  OS.forEach(p => { o.kcal[p] = []; o.b[p] = []; o.cel[p] = []; o.bCel[p] = []; });
+  w.dni.forEach((x, d) => {
+    const jedz = x.sloty.filter(({ g }) => zj(d, g));
+    o.posilkow += x.sloty.length; o.zjedzone += jedz.length;
+    if (!jedz.length) return; o.dniZ++;
+    for (const p of OS) {
+      if (nieob(t.dni[d], p)) continue;
+      const dos = g => (g.dosypka && p === 'on' ? g.dosypka : { kcal: 0, b: 0 });
+      o.kcal[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)));
+      o.b[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + dos(g).b)));
+      o.cel[p].push(x[p].kcal); o.bCel[p].push(x[p].b);
+    }
+  });
+  const sr = a => a.length ? sum(a, v => v) / a.length : null;
+  for (const p of OS) {
+    o.kcal[p] = sr(o.kcal[p]); o.b[p] = sr(o.b[p]); o.cel[p] = sr(o.cel[p]); o.bCel[p] = sr(o.bCel[p]);
+    const e = Object.entries(waga[p] || {}).filter(([d]) => d >= dodajDni(t.start, -3) && d <= dodajDni(koniec, 3)).sort();
+    o.waga[p] = e.length >= 2 ? Math.round((e[e.length - 1][1] - e[0][1]) * 10) / 10 : null;
+  }
+  const par = paragony.filter(x => x.data >= t.start && x.data <= koniec); o.nPar = par.length; o.wydatki = Math.round(sum(par, x => x.suma) * 100) / 100;
+  const lub = {}; for (const [id, v] of Object.entries(smaki)) if (OS.some(p => v[p] && v[p].v === 2 && v[p].t && String(v[p].t).slice(0, 10) >= t.start && String(v[p].t).slice(0, 10) <= koniec)) lub[id] = 1;
+  const id0 = Object.keys(lub)[0]; if (id0 && DB.dania.has(id0)) o.ulub = DB.dania.get(id0).nazwa;
+  return o;
+}
+function zapiszHistorie() {
+  if (!plan || !DB.dania.size) return;
+  let zm = false;
+  for (const t of tygodnieZapisane()) {
+    if (dodajDni(t.start, 6) >= isoDzis() || historia.some(h => h.start === t.start)) continue;
+    try { const o = zbierzTydzien(t); if (o.zjedzone > 0) { historia.push(o); zm = true; } } catch (e) { /* tydzień z nieznanym daniem */ }
+  }
+  if (zm) { historia = historia.sort((a, b) => a.start.localeCompare(b.start)).slice(-12); LS.set('historia', historia); Z([[['historia'], historia]]); }
+}
+let podsumStart = '';
+function widokPodsumowanie() {
+  const biez = tygodnieZapisane().find(t => isoDzis() >= t.start && isoDzis() <= dodajDni(t.start, 6));
+  const lista = [...historia.map(h => ({ start: h.start, o: h })), ...(biez ? [{ start: biez.start, o: null, t: biez }] : [])].sort((a, b) => a.start.localeCompare(b.start));
+  if (!lista.length) { $('#view').innerHTML = `<h1>Podsumowanie</h1><div class="pusty"><b>Jeszcze nie ma tygodnia do podsumowania</b><span>Zaznaczaj „zjedzone” przy posiłkach, a tu pojawi się, jak Wam poszło.</span></div>`; return; }
+  const wyb = lista.find(x => x.start === podsumStart) || lista[lista.length - 1]; podsumStart = wyb.start;
+  const o = wyb.o || zbierzTydzien(wyb.t), live = !wyb.o, proc = o.posilkow ? Math.round(o.zjedzone / o.posilkow * 100) : 0;
+  const zl2 = v => String(Math.round(v * 10) / 10).replace('.', ',');
+  const dzienN = iso => `${new Date(iso + 'T12:00:00').getDate()}.${String(new Date(iso + 'T12:00:00').getMonth() + 1).padStart(2, '0')}`;
+  const ocena = proc >= 90 ? 'Świetny tydzień — plan prawie w całości dowieziony.' : proc >= 70 ? 'Dobry tydzień. Większość posiłków zgodnie z planem.' : proc >= 40 ? 'Wyszło połowicznie. Warto sprawdzić, które posiłki najczęściej wypadają, i je zamienić.' : 'Mało odhaczonych posiłków. Jeśli jecie według planu, zaznaczajcie „zjedzone”, a podsumowanie będzie dokładne.';
+  const os = OS.filter(p => o.kcal[p] != null).map(p => {
+    const k = o.kcal[p], cel = o.cel[p], b = o.b[p], bc = o.bCel[p], pr = cel ? Math.min(130, Math.round(k / cel * 100)) : 0, d = cel ? Math.round((k - cel) / cel * 100) : 0;
+    return `<div class="ps-os ${p}"><b>${ETY[p]}</b>
+      <div class="ps-wiersz"><span>Kalorie dziennie</span><span><b>${r0(k)}</b> / ${r0(cel)} kcal</span></div><div class="pasek"><i style="width:${Math.min(100, pr)}%"></i></div><small>${Math.abs(d) <= 5 ? 'w celu' : d > 0 ? `${d}% ponad cel` : `${-d}% poniżej celu`}</small>
+      <div class="ps-wiersz"><span>Białko dziennie</span><span><b>${r0(b)}</b> / ${r0(bc)} g</span></div>
+      <div class="ps-wiersz"><span>Waga w tygodniu</span><span><b>${o.waga[p] == null ? '—' : (o.waga[p] > 0 ? '+' : '') + zl2(o.waga[p]) + ' kg'}</b></span></div></div>`;
+  }).join('');
+  $('#view').innerHTML = `<h1>Podsumowanie</h1>
+    ${lista.length > 1 ? `<div class="chips ps-tyg">${lista.map(x => `<button class="chip ${x.start === wyb.start ? 'akt' : ''}" data-podsum="${x.start}">${dzienN(x.start)}–${dzienN(dodajDni(x.start, 6))}${!x.o ? ' · teraz' : ''}</button>`).join('')}</div>` : ''}
+    <div class="hero ps-hero"><span class="hero-et">${live ? 'Ten tydzień, jak dotąd' : `Tydzień ${dzienN(o.start)}–${dzienN(dodajDni(o.start, 6))}`}</span>
+      <div class="ps-gl"><div class="kolo ps-kolo" style="--d:${(Math.min(100, proc) * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${proc}">${proc}</span><small>%</small></span></div>
+      <div><b class="ps-duze">${o.zjedzone} z ${o.posilkow}</b><small>posiłków zjedzonych</small></div></div>
+      <p class="ps-ocena">${esc(ocena)}</p></div>
+    ${os ? `<div class="ps-osoby">${os}</div>` : ''}
+    <div class="lod-kafle"><div><b>${o.nPar ? zl(o.wydatki).replace(' zł', '') : '—'}</b><small>${o.nPar ? `zł z ${o.nPar} ${mn(o.nPar, 'paragonu', 'paragonów', 'paragonów')}` : 'brak paragonów'}</small></div><div><b>${o.dniZ}</b><small>${mn(o.dniZ, 'dzień', 'dni', 'dni')} z odhaczonym jedzeniem</small></div></div>
+    ${o.ulub ? `<div class="karta"><b>Najlepiej smakowało</b><p class="mute" style="margin:4px 0 0">${esc(o.ulub)}</p></div>` : ''}
+    <p class="mute" style="margin-top:10px">Średnie liczone tylko z dni, w których zaznaczono jedzenie. Podsumowania minionych tygodni zapisują się same.</p>`;
+  setTimeout(animujLiczby, 150);
+}
 // ---------- ekran meal prep ----------
 function okazjePrepu() {   // oszczędność dla każdego z najbliższych 7 dni
   return Array.from({ length: 7 }, (_, i) => { const od = dodajDni(isoDzis(), i), pl = planPrepu(od, prepH); return { od, min: pl.oszczMin, n: pl.komp.length }; });
@@ -2268,6 +2337,7 @@ function widokDzis() {
     { const brak = prognoza(w).filter(x => x.pilne); if (brak.length) kar.push(`<div class="karta zad ostrz-karta"><b>Zaraz zabraknie w lodówce</b><p class="mute">${brak.slice(0, 4).map(x => `${esc(x.produkt)} (${DNI_KR[x.d]})`).join(', ')}${brak.length > 4 ? ' i inne' : ''}.</p><div class="rzad"><button class="btn glowny" data-tab="zakupy">Lista zakupów</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
     if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
     const idx = dzienTyg();
+    if ((idx === 6 || idx === 0) && (historia.length || sum(Object.keys(zuzyte), () => 1) > 4)) kar.push(`<div class="karta zad"><b>${idx === 6 ? 'Koniec tygodnia' : 'Nowy tydzień'}</b><p class="mute">${idx === 6 ? 'Zobacz, jak Wam poszło w tym tygodniu.' : 'Zobacz podsumowanie poprzedniego tygodnia.'}</p><button class="btn szeroki" data-szybka="podsum">Podsumowanie tygodnia</button></div>`);
     if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista jest gotowa na: <b>${zakresDni(new Set(domyslneDni(dniDostepne())))}</b>.</p><button class="btn glowny szeroki" id="doZakupowDzis">Otwórz listę zakupów</button></div>`);
     const lastW = p => Object.keys(waga[p] || {}).sort().pop();
     if (OS.some(p => !lastW(p) || (new Date(dzis) - new Date(lastW(p))) / 864e5 >= 7)) kar.push(`<div class="karta zad"><b>Czas na ważenie</b><p class="mute">Raz w tygodniu, rano. Wynik pomaga ocenić, czy kalorie są dobre.</p><button class="btn szeroki" data-tab="waga">Zapisz wagę</button></div>`);
@@ -2329,6 +2399,7 @@ function widokWiecej() {
   $('#view').innerHTML = `<h1>Więcej</h1>
     ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
     <button class="kafel" data-szybka="skan"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE.skan[1]}"/></svg></span><span class="kafel-tx"><b>Skanuj kod produktu</b><small>Dodaj do lodówki z aparatu</small></span><span class="kafel-str">›</span></button>
+    ${kafel('podsum', 'Podsumowanie tygodnia', 'Jak Wam poszło: posiłki, kalorie, białko, waga, wydatki', 'M5 20V10M12 20V4M19 20v-7')}
     ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
     ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} ${paragony.length === 1 ? 'paragon' : [2, 3, 4].includes(paragony.length % 10) && (paragony.length % 100 < 10 || paragony.length % 100 >= 20) ? 'paragony' : 'paragonów'} · ceny ${Object.keys(ceny).length} ${Object.keys(ceny).length === 1 ? 'produktu' : 'produktów'}` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
@@ -2358,6 +2429,7 @@ function ustawPlame(bez) {
 window.addEventListener('resize', () => ustawPlame(true));
 function rysuj() {
   $('#view').oninput = null;
+  try { zapiszHistorie(); } catch (e) { /* podsumowanie nie może blokować aplikacji */ }
   ekranStartowy = ekranCzekania = false;
   const S = window.Sync;
   if (S && S.kod && !plan && S.stan !== 'blad') {
@@ -2378,10 +2450,10 @@ function rysuj() {
     ulozTydzien();
   }
   $('#tabs').hidden = false;
-  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony', 'prep'].includes(zakladka);
+  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony', 'prep', 'podsum'].includes(zakladka);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('akt', b.dataset.tab === (pod ? 'wiecej' : zakladka)));
   ustawPlame(); if (window._ostZakl !== zakladka) { setTimeout(animujLiczby, 150); window._ostZakl = zakladka; const v = $('#view'); v.classList.remove('wejscie'); void v.offsetWidth; v.classList.add('wejscie'); clearTimeout(window._wejT); window._wejT = setTimeout(() => v.classList.remove('wejscie'), 900); }
-  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else if (zakladka === 'prep') widokPrep(); else widokWiecej();
+  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else if (zakladka === 'podsum') widokPodsumowanie(); else if (zakladka === 'prep') widokPrep(); else widokWiecej();
   if (pod) $('#view').insertAdjacentHTML('afterbegin', `<button class="wstecz" data-tab="wiecej">‹ Więcej</button>`);
   if (!LS.get('intro', false) && profil && plan) { LS.set('intro', true); pokazIntro(0); }
 }
@@ -2818,6 +2890,7 @@ document.addEventListener('click', e => {
   if (t.dataset.skOdhacz) { const pr = t.dataset.skOdhacz; odhaczKup(kluczKup(pr), true); LS.set('odhaczone', odhaczone); rysuj(); oknoSkaner(`Odhaczono na liście: ${pr}. Zeskanuj następny.`); return; }
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
   if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
+  if (t.dataset.podsum) { podsumStart = t.dataset.podsum; rysuj(); return; }
   if (t.dataset.prepDzis !== undefined) { prepOd = isoDzis(); const se = sesje.find(x => x.id === t.dataset.prepDzis); prepH = se ? se.h : prepH; const pl = planPrepu(prepOd, prepH); otworzSesje(pl, zapiszSesje(pl)); return; }
   if (t.dataset.prepOtworz) { prepOd = t.dataset.prepOtworz; zakladka = 'prep'; rysuj(); window.scrollTo(0, 0); return; }
   if (t.dataset.prepStart) { const pl = planPrepu(prepOd, prepH), se = zapiszSesje(pl); otworzSesje(pl, se); return; }
@@ -3028,7 +3101,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -3041,12 +3114,12 @@ window.App = {
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
-    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
-    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza

@@ -97,7 +97,8 @@
   // ---------- dopasowanie planu ----------
   await test('Dopasowanie', 'parser tekstu: dni, tryby, goście, wyjazd', async () => {
     const a = rozumiemTekst('wtorek lekki, piątek bez mięsa, sobota goście 4 osoby, w środę wyjeżdżamy'); const d = x => a.filter(y => y.d === x);
-    prawda(d(1).some(y => y.tryby.lekko), 'wtorek lekko'); prawda(d(4).some(y => y.tryby.bezMiesa), 'piątek bez mięsa'); prawda(d(5).some(y => y.goscie === 4), 'sobota 4 gości'); prawda(d(2).some(y => y.nb && y.nb.ona && y.nb.on), 'środa wyjazd');
+    const minal = i => tygodnieZapisane().length < 2 && i < dzienTyg();   // bez następnego tygodnia minione dni bieżącego są pomijane
+    prawda(minal(1) || d(1).some(y => y.tryby.lekko), 'wtorek lekko'); prawda(minal(4) || d(4).some(y => y.tryby.bezMiesa), 'piątek bez mięsa'); prawda(minal(5) || d(5).some(y => y.goscie === 4), 'sobota 4 gości'); prawda(minal(2) || d(2).some(y => y.nb && y.nb.ona && y.nb.on), 'środa wyjazd');
     rowne(rozumiemTekst('bla bla bla').length, 0, 'bzdura');
   });
   await test('Dopasowanie', '„szybko”: nowe dania mieszczą się w limicie czasu', async () => {
@@ -182,6 +183,16 @@
   await test('Mięso', 'podział mięsa liczony od dziś, niezależnie od zaznaczonych dni', async () => {
     const d = miesoPodzial(isoDzis(), 14); for (const [pr, w] of Object.entries(d)) for (const x of w) prawda(x.dt >= isoDzis() && x.g > 0, pr + ' ma woreczek z przeszłości');
     prawda(/id="sync-pasek"|sync-pasek/.test(await tekst('app.js')));
+  });
+  await test('Pominięcie', 'zjedzony posiłek nie rośnie po pominięciu innego, a cel dnia zostaje stały', async () => {
+    const c = cele(), k = JSON.parse(JSON.stringify(plan)), d = k.dni.findIndex(x => x.k18 && !x.m13.wsp && x.m13.ona);
+    if (d < 0) return;
+    const w0 = oblicz(k, c), sn0 = w0.garnki.find(g => g.d === d && g.slot === 'sn').porcje.find(q => q.p === 'ona' && q.d === d).kcal, dzien0 = w0.dni[d].ona.kcal;
+    k.dni[d].pom = { ona: { k18: true }, on: {} }; k.dni[d].pomSl = { ona: ['m13ona'] };      // śniadanie już zjedzone, pominięta kolacja
+    const w1 = oblicz(k, c), sn1 = w1.garnki.find(g => g.d === d && g.slot === 'sn').porcje.find(q => q.p === 'ona' && q.d === d).kcal;
+    prawda(Math.abs(sn1 - sn0) < 0.5, 'zjedzone śniadanie zmieniło wielkość: ' + sn0 + ' → ' + sn1);
+    prawda(w1.dni[d].ona.kcal < dzien0, 'pominięty posiłek powinien zmniejszyć sumę dnia');
+    const b = bazaDnia(k, c, d, 'ona'); prawda(b && Math.abs(b.kcal - dzien0) < 0.5, 'cel dnia nie jest stały: ' + (b && b.kcal) + ' vs ' + dzien0);
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

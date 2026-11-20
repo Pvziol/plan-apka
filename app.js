@@ -364,13 +364,14 @@ const skala = (g, i) => (stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b)) + 
 // Pominięty posiłek (day.pom[osoba][slot]): znika z dnia tej osoby. Jego kalorie nie przepadają:
 // 40% (max +25%) rozkładam na pozostałe posiłki tego samego dnia, reszta idzie na następny dzień (max +15% jego celu).
 const pozaKcal = (day, p) => sum((day && day.poza && day.poza[p]) || [], x => x.k || 0);
-// Sztywny cel kcal dnia: ile wynosiłby plan tego dnia BEZ posiłków spoza planu. Zjedzone poza planem zwiększają tylko „zjedzone”, nie cel.
-function celDnia(pl, c, d, p) {
-  const day = pl.dni[d];
-  if (!pozaKcal(day, p)) return null;
-  const kopia = Object.assign({}, pl, { dni: pl.dni.map((dd, i) => i === d ? Object.assign({}, dd, { poza: { ona: [], on: [] } }) : dd) });
-  return oblicz(kopia, c).dni[d][p].kcal;
+// Sztywny cel dnia (kcal i białko): plan tego dnia BEZ pominięć i BEZ posiłków spoza planu. Zjedzone poza planem zwiększają tylko „zjedzone”, a pominięcie tylko przesuwa kalorie, nie zmienia celu.
+function bazaDnia(pl, c, d, p) {
+  const day = pl.dni[d], maPom = !!(day.pom && day.pom[p] && Object.keys(day.pom[p]).some(k => day.pom[p][k]));
+  if (!pozaKcal(day, p) && !maPom) return null;
+  const kopia = Object.assign({}, pl, { dni: pl.dni.map((dd, i) => i === d ? Object.assign({}, dd, { poza: { ona: [], on: [] }, pom: { ona: {}, on: {} }, pomSl: {} }) : dd) });
+  const x = oblicz(kopia, c).dni[d][p]; return { kcal: x.kcal, b: x.b };
 }
+const celDnia = (pl, c, d, p) => { const b = bazaDnia(pl, c, d, p); return b ? b.kcal : null; };
 const pomija = (day, p, slot) => !!(day && day.pom && day.pom[p] && day.pom[p][slot]);
 const shakeAkt = (day, p) => !!(day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake'));
 function oblicz(pl, c) {
@@ -381,11 +382,14 @@ function oblicz(pl, c) {
   const maOb = x => !!(pl.dni[x].ob || (x > 0 && pl.dni[x - 1].ob2 && pl.dni[x - 1].ob));
   const slotyOsoby = (d, p) => ['sn', pl.dni[d].m13.wsp ? 'm13' : 'm13' + p, maOb(d) ? 'ob' : null, 'k18'].filter(Boolean);
   const mnoz = pl.dni.map(() => ({ ona: 1, on: 1 }));
+  // day.pomSl[osoba] = posiłki, które były jeszcze do zjedzenia w chwili pominięcia: tylko one dostają przeniesione kalorie (zjedzony posiłek nie rośnie wstecz). Brak wpisu = wszystkie (stare dane).
+  const nm = x => String(x).startsWith('m13') ? 'm13' : x;
+  const el = (day, p, x) => !(day.pomSl && day.pomSl[p]) || day.pomSl[p].some(y => nm(y) === nm(x));
   OS.forEach(p => {
     let wchodzi = 0;
     pl.dni.forEach((day, d) => {
       if (nieob(day, p)) { wchodzi = 0; return; }
-      const sl = slotyOsoby(d, p), rem = sum(sl.filter(x => !pomija(day, p, x)), x => bud0(p, d, x));
+      const sl = slotyOsoby(d, p), rem = sum(sl.filter(x => !pomija(day, p, x) && el(day, p, x)), x => bud0(p, d, x));
       const skp = sum(sl.filter(x => pomija(day, p, x)), x => bud0(p, d, x)) + (day.tr[p] && pomija(day, p, 'shake') ? DB.shake[p].kcal : 0);
       const przyj = rem > 0 ? Math.min(wchodzi, 0.15 * c[p].kcal) : 0, same = rem > 0 ? Math.min(0.4 * skp, 0.25 * rem) : 0;
       mnoz[d][p] = rem > 0 ? Math.min(1.4, 1 + (przyj + same) / rem) : 1;
@@ -394,8 +398,8 @@ function oblicz(pl, c) {
     });
   });
   // Jedzenie poza planem (day.poza[osoba] = [{ n, k, sl: [posiłki, które zostały do zjedzenia w chwili wpisu] }]): te posiłki dostają mniej, żeby dzień zgadzał się z celem (nie mniej niż 50%).
-  const fPz = pl.dni.map((day, d) => { const o = { ona: {}, on: {} }; OS.forEach(p => ((day.poza && day.poza[p]) || []).forEach(e => { const E = (e.sl || []).filter(x => slotyOsoby(d, p).includes(x) && !pomija(day, p, x)), S = sum(E, x => bud0(p, d, x) * mnoz[d][p]); if (!S) return; const f = Math.max(0.5, (S - (e.k || 0)) / S); E.forEach(x => { o[p][x] = (o[p][x] || 1) * f; }); })); return o; });
-  const bud = (p, d, slot) => bud0(p, d, slot) * mnoz[d][p] * (fPz[d][p][slot] || 1);
+  const fPz = pl.dni.map((day, d) => { const o = { ona: {}, on: {} }; OS.forEach(p => ((day.poza && day.poza[p]) || []).forEach(e => { const E = (e.sl || []).filter(x => slotyOsoby(d, p).includes(x) && !pomija(day, p, x)), S = sum(E, x => bud0(p, d, x) * (el(day, p, x) ? mnoz[d][p] : 1)); if (!S) return; const f = Math.max(0.5, (S - (e.k || 0)) / S); E.forEach(x => { o[p][x] = (o[p][x] || 1) * f; }); })); return o; });
+  const bud = (p, d, slot) => bud0(p, d, slot) * (el(pl.dni[d], p, slot) ? mnoz[d][p] : 1) * (fPz[d][p][slot] || 1);
   const obecni = d => OS.filter(p => !nieob(pl.dni[d], p));
   const obecniSlot = (d, slot) => OS.filter(p => !nieob(pl.dni[d], p) && !pomija(pl.dni[d], p, slot));
   function garnek(id, slot, d, porcje, ratio) {
@@ -825,8 +829,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
       <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button><button class="btn maly blok blok-ik ${day.blok && day.blok[g.slot] ? 'akt' : ''}" data-blok="${d}:${g.slot}" aria-pressed="${!!(day.blok && day.blok[g.slot])}" aria-label="${day.blok && day.blok[g.slot] ? 'Odblokuj danie' : 'Zablokuj danie (zostanie przy losowaniu tygodnia)'}" title="Zablokuj danie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${day.blok && day.blok[g.slot] ? 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z' : 'M7 11V8a5 5 0 0 1 9.5-2M6 11h12v9H6z'}"/></svg></button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
   });
   if (day.tr.ona || day.tr.on) h += OS.filter(p => day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake')).map(p => `<button class="pomin-shake" data-pomin-shake="${d}:${p}">Pomiń shake (${ETY[p]})</button>`).join('');
-  const pomL = []; OS.forEach(p => { const pm = !nieob(day, p) && day.pom && day.pom[p]; if (pm) Object.keys(pm).filter(k => pm[k]).forEach(k => pomL.push([p, k])); });
-  if (pomL.length) h += `<div class="pomin-lista"><b>Pominięte posiłki</b>${pomL.map(([p, k]) => `<div class="pomin-w"><span><i class="${p}">${ETY[p]}</i> ${k === 'shake' ? 'shake po treningu' : esc(PORA[k].split(' · ').join(' · '))}</span><button class="btn maly" data-przywroc="${d}:${p}:${k}">Przywróć</button></div>`).join('')}</div>`;
+  h += pominLista(day, d);
   const sh = OS.filter(p => shakeAkt(day, p));
   if (sh.length) h += `<div class="pk"><div class="pk-pora">po treningu · shake</div><div class="liczby">${sh.map(p => `<span class="${p}">${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml · ${DB.shake[p].kcal} kcal · ${DB.shake[p].bialko} g</span>`).join('')}</div></div>`;
   const wi = wieczorem(w, d);
@@ -904,6 +907,13 @@ function wieczorem(w, d) {
   return out;
 }
 
+// Pominięte posiłki dnia (z nazwą dania i przyciskiem „Przywróć”): w Planie i na Dziś.
+function pominLista(day, d) {
+  const lista = []; OS.forEach(p => { const pm = !nieob(day, p) && day.pom && day.pom[p]; if (pm) Object.keys(pm).filter(k => pm[k]).forEach(k => lista.push([p, k])); });
+  if (!lista.length) return '';
+  const nazwa = k => { const id = k === 'sn' ? day.sn : k === 'm13' ? day.m13.wsp : k === 'm13ona' ? day.m13.ona : k === 'm13on' ? day.m13.on : k === 'ob' ? (day.ob || (d > 0 && plan.dni[d - 1].ob2 && plan.dni[d - 1].ob)) : k === 'k18' ? day.k18 : null, dd = id && DB.dania.get(id); return dd ? dd.nazwa : ''; };
+  return `<div class="pomin-lista"><b>Pominięte posiłki</b>${lista.map(([p, k]) => `<div class="pomin-w"><span><i class="${p}">${ETY[p]}</i> ${k === 'shake' ? 'shake po treningu' : esc(PORA[k].split(' · ').join(' · '))}${nazwa(k) ? `<br><span class="mute">${esc(nazwa(k))}</span>` : ''}</span><button class="btn maly" data-przywroc="${d}:${p}:${k}">Przywróć</button></div>`).join('')}</div>`;
+}
 function oknoPrzepis(gi) { pokazPrzepis(window._w.garnki[gi], false); }
 function pokazPrzepis(g, spont) {
   const dish = g.dish; window._przepisG = g;
@@ -2130,9 +2140,9 @@ function zbierzTydzien(t) {
     for (const p of OS) {
       if (nieob(t.dni[d], p)) continue;
       const dos = g => (g.dosypka && p === 'on' ? g.dosypka : { kcal: 0, b: 0 });
-      const kv = sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)) + pozaKcal(t.dni[d], p), bv = sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + dos(g).b)), cv = celDnia({ start: t.start, dni: t.dni }, cele(), d, p) || x[p].kcal;
-      o.kcal[p].push(kv); o.b[p].push(bv); o.cel[p].push(cv); o.bCel[p].push(x[p].b);
-      Object.assign(o.dni[d], { kcal: Object.assign(o.dni[d].kcal, { [p]: Math.round(kv) }), b: Object.assign(o.dni[d].b, { [p]: Math.round(bv) }), cel: Object.assign(o.dni[d].cel, { [p]: Math.round(cv) }), bc: Object.assign(o.dni[d].bc, { [p]: Math.round(x[p].b) }) });
+      const kv = sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)) + pozaKcal(t.dni[d], p), bv = sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + dos(g).b)), bz = bazaDnia({ start: t.start, dni: t.dni }, cele(), d, p), cv = bz ? bz.kcal : x[p].kcal, bcv = bz ? bz.b : x[p].b;
+      o.kcal[p].push(kv); o.b[p].push(bv); o.cel[p].push(cv); o.bCel[p].push(bcv);
+      Object.assign(o.dni[d], { kcal: Object.assign(o.dni[d].kcal, { [p]: Math.round(kv) }), b: Object.assign(o.dni[d].b, { [p]: Math.round(bv) }), cel: Object.assign(o.dni[d].cel, { [p]: Math.round(cv) }), bc: Object.assign(o.dni[d].bc, { [p]: Math.round(bcv) }) });
     }
   });
   const sr = a => a.length ? sum(a, v => v) / a.length : null;
@@ -2861,7 +2871,7 @@ function widokDzis() {
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
-    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = celDnia(plan, c, d, p) || x[p].kcal, z = zjed(p) + pozaKcal(day, p), pr = cel ? Math.round(z / cel * 100) : 0; return `<div class="${p}"><div class="kolo ${pr > 100 ? 'ponad' : ''}" style="--d:${(Math.min(100, pr) * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
+    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const baza = bazaDnia(plan, c, d, p), cel = baza ? baza.kcal : x[p].kcal, bCel = baza ? baza.b : x[p].b, z = zjed(p) + pozaKcal(day, p), pr = cel ? Math.round(z / cel * 100) : 0; return `<div class="${p}"><div class="kolo ${pr > 100 ? 'ponad' : ''}" style="--d:${(Math.min(100, pr) * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(bCel)} g</span></small></div></div>`; }).join('')}</div>`;
     o += paskAkcji(['czas', 'poza', 'skan', 'paragon', 'spont', 'waga']);
     o += kartaPrepDzis(dzis);
     // lista posiłków
@@ -2871,6 +2881,7 @@ function widokDzis() {
         <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
     o += pozaLista(day, d);
+    o += pominLista(day, d);
     o += kartaWieczor(wieczorem(w, d), dzis);
     const sh = OS.filter(p => shakeAkt(day, p));
     if (sh.length) o += `<div class="karta"><b>Po treningu · shake</b><p class="mute">${sh.map(p => `${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml`).join(' · ')}</p></div>`;
@@ -3414,7 +3425,18 @@ function listaSpont() {
 function zapiszPom(d, p, slot, on) {
   const day = plan.dni[d]; day.pom = day.pom || {}; day.pom[p] = day.pom[p] || {};
   if (on) day.pom[p][slot] = true; else delete day.pom[p][slot];
-  LS.set('plan', plan); Z([[['dni', d, 'pom', p, slot], on ? true : undefined]]);
+  const zm = [[['dni', d, 'pom', p, slot], on ? true : undefined]];
+  if (slot !== 'shake') {
+    day.pomSl = day.pomSl || {};
+    const maPom = Object.keys(day.pom[p]).some(k => k !== 'shake' && day.pom[p][k]);
+    if (!maPom) delete day.pomSl[p];
+    else if (on) {
+      const wsz = ['sn', day.m13 && day.m13.wsp ? 'm13' : 'm13' + p, (day.ob || (d > 0 && plan.dni[d - 1].ob2 && plan.dni[d - 1].ob)) ? 'ob' : null, 'k18'].filter(Boolean);
+      day.pomSl[p] = wsz.filter(x => !zuzyte[kluczZ(d, x)] && (!day.pomSl[p] || day.pomSl[p].includes(x)));
+    }
+    zm.push([['dni', d, 'pomSl', p], day.pomSl[p] || undefined]);
+  }
+  LS.set('plan', plan); Z(zm);
 }
 function infoPrzeniesienia(d, osoby) {
   const w = oblicz(plan, cele()), t = osoby.map(p => { const x = w.dni[d].przenos[p], nast = d < 6 ? w.dni[d + 1].przenos[p] : null; return `${ETY[p]}: +${r0(x.same)} kcal dziś${nast && nast.przyj > 1 ? `, +${r0(nast.przyj)} kcal jutro` : ''}`; });

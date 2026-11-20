@@ -9732,5 +9732,254 @@
    "dodane do bazy"
   ],
   "wystapienia": []
+ },
+ {
+  "id": "zapiekanka-z-budki-z-kurczakiem-pieczarkami-i-serem",
+  "typ": "obiad",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Zapiekanka z budki — długa bagietka z kurczakiem, pieczarkami i serem",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "patelnia, piekarnik, blacha",
+  "skladniki": [
+   {
+    "nazwa": "bagietka",
+    "produkt": "bagietka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 540,
+    "bialko": 18,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "pierś z kurczaka",
+    "produkt": "pierś z kurczaka",
+    "ilosc": 240,
+    "jednostka": "g",
+    "kcal": 264,
+    "bialko": 55,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "pieczarki",
+    "produkt": "pieczarki",
+    "ilosc": 250,
+    "jednostka": "g",
+    "kcal": 55,
+    "bialko": 8,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cebula",
+    "produkt": "cebula",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 40,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 70,
+    "jednostka": "g",
+    "kcal": 245,
+    "bialko": 18,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ketchup",
+    "produkt": "ketchup",
+    "ilosc": 2,
+    "jednostka": "łyż.",
+    "kcal": 40,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "jogurt naturalny",
+    "produkt": "jogurt naturalny",
+    "ilosc": 60,
+    "jednostka": "g",
+    "kcal": 36,
+    "bialko": 3,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, majeranek, papryka słodka, sól, pieprz, szczypiorek do posypania"
+  ],
+  "razem": {
+   "kcal": 1340,
+   "bialko": 103
+  },
+  "na_porcje": {
+   "kcal": 670,
+   "bialko": 52
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Piekarnik 220°C (góra-dół). Kurczaka (240 g) pokrój w drobną kostkę, oprósz papryką słodką, solą i pieprzem.",
+   "Na patelni rozgrzej oliwę (1 łyżka). Smaż kurczaka 5 min na mocnym ogniu, odłóż na talerz.",
+   "Na tej samej patelni podsmaż cebulę w kostce 2 min, dodaj pieczarki (250 g) w plasterkach i smaż 6–7 min, aż odparują. Dodaj majeranek, zmiażdżony czosnek, sól i pieprz.",
+   "Bagietkę przekrój wzdłuż, wydrąż trochę miękkiego środka (będzie więcej miejsca na farsz). Posmaruj ketchupem (2 łyżki).",
+   "Ułóż farsz: pieczarki z cebulą, na to kurczaka. Posyp startym serem (70 g).",
+   "Piecz 8–10 min, aż ser się roztopi i zarumieni, a brzegi bagietki zrobią się chrupiące. Przekrój na pół — to dwie długie porcje.",
+   "Sos czosnkowy: wymieszaj jogurt (60 g) ze szczypiorkiem, odrobiną czosnku i solą. Polej zapiekankę tuż przed jedzeniem."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Sekret budkowego smaku: wydrąż środek bagietki, a ser dawaj na samą górę. Dla niej możesz pominąć cebulę (zostaje sam czosnek i pieczarki).",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
+ },
+ {
+  "id": "zapiekanka-pizzowa-z-indykiem-papryka-i-kukurydza",
+  "typ": "obiad",
+  "porcje": 2,
+  "kod": null,
+  "nazwa": "Zapiekanka pizzowa z indykiem, papryką i kukurydzą",
+  "dodane": true,
+  "czas": "25 min",
+  "sprzet": "patelnia, piekarnik, blacha",
+  "skladniki": [
+   {
+    "nazwa": "bagietka",
+    "produkt": "bagietka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 540,
+    "bialko": 18,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "indyk mielony",
+    "produkt": "indyk mielony",
+    "ilosc": 250,
+    "jednostka": "g",
+    "kcal": 300,
+    "bialko": 50,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zamrażarka"
+   },
+   {
+    "nazwa": "passata",
+    "produkt": "passata",
+    "ilosc": 120,
+    "jednostka": "g",
+    "kcal": 42,
+    "bialko": 2,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryka",
+    "produkt": "papryka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 35,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "kukurydza konserwowa",
+    "produkt": "kukurydza konserwowa",
+    "ilosc": 40,
+    "jednostka": "g",
+    "kcal": 30,
+    "bialko": 1,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "ser żółty",
+    "produkt": "ser żółty",
+    "ilosc": 70,
+    "jednostka": "g",
+    "kcal": 245,
+    "bialko": 18,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "oliwa / olej",
+    "produkt": "oliwa / olej",
+    "ilosc": 1,
+    "jednostka": "łyż.",
+    "kcal": 120,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "zapas"
+   }
+  ],
+  "przyprawy": [
+   "czosnek 2 ząbki, oregano, bazylia, słodka papryka, sól, pieprz"
+  ],
+  "razem": {
+   "kcal": 1312,
+   "bialko": 90
+  },
+  "na_porcje": {
+   "kcal": 656,
+   "bialko": 45
+  },
+  "tylko_wybor": false,
+  "weekend": false,
+  "warianty": [],
+  "kroki": [
+   "Piekarnik 220°C. Na patelni rozgrzej oliwę (1 łyżka), smaż indyka (250 g) 6–7 min, rozbijając na grudki. Dodaj czosnek, oregano, bazylię, paprykę słodką, sól i pieprz.",
+   "Wlej passatę (120 g) i gotuj 3 min, aż sos zgęstnieje. Zdejmij z ognia.",
+   "Bagietkę przekrój wzdłuż i lekko wydrąż środek. Wypełnij sosem z indykiem.",
+   "Posyp paprykę w paski i kukurydzę (40 g), na wierzch ser żółty starty (70 g).",
+   "Piecz 8–10 min, aż ser się zarumieni. Przekrój na pół — dwie długie porcje, smak jak z pizzerii."
+  ],
+  "odgrzewanie": null,
+  "uwaga": "Najlepsza prosto z piekarnika, póki bagietka chrupie. Do tego świeży ogórek albo sałata jako dodatek.",
+  "wieczorem": [],
+  "podzial": {},
+  "zrodlo": [
+   "dodane do bazy"
+  ],
+  "wystapienia": []
  }
 ]

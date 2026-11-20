@@ -1257,3 +1257,12 @@ body.ma-sync-pasek #view { padding-top: calc(var(--sync-h, 46px) + 8px); }
 @keyframes pytTlo { from { opacity: 0; } }
 @keyframes pytBox { from { opacity: 0; transform: translateY(14px) scale(.96); } }
 @media (prefers-reduced-motion: reduce) { .pytanie-tlo, .pytanie-box { animation: none; } }
+/* v97: podział mięsa po wpisaniu kupionej ilości */
+.miesc-wpis { margin: 6px 0 4px; }
+.miesc-wpis input { min-height: 48px; }
+.miesc-wynik { margin-top: 8px; }
+.miesc-pod { margin: 4px 0 2px; font-size: 14px; }
+.miesc-brak, .miesc-zostaje { margin: 10px 0 4px; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.4; }
+.miesc-brak { background: var(--ostrz-tlo); color: var(--ostrz); }
+.miesc-zostaje { background: var(--on-tlo); color: var(--on); }
+.miesc-wynik .rzad { margin-top: 10px; }

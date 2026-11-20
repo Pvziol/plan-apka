@@ -194,6 +194,20 @@
     prawda(w1.dni[d].ona.kcal < dzien0, 'pominięty posiłek powinien zmniejszyć sumę dnia');
     const b = bazaDnia(k, c, d, 'ona'); prawda(b && Math.abs(b.kcal - dzien0) < 0.5, 'cel dnia nie jest stały: ' + (b && b.kcal) + ' vs ' + dzien0);
   });
+  await test('Biblioteki', 'OCR i skaner działają z plików lokalnych, bez zewnętrznych serwerów', async () => {
+    const kod = await tekst('app.js');
+    prawda(!/cdn\.jsdelivr\.net|projectnaptha|unpkg\.com|cdnjs/.test(kod), 'w kodzie został adres zewnętrznej biblioteki');
+    for (const f of ['lib/tesseract/tesseract.min.js', 'lib/tesseract/worker.min.js', 'lib/tesseract/tesseract-core-simd-lstm.wasm.js', 'lib/tesseract/tesseract-core-lstm.wasm.js', 'lib/tessdata/pol.traineddata.gz', 'lib/zxing/index.min.js']) { const r = await fetch(f, { method: 'HEAD' }); prawda(r.ok, 'brak pliku ' + f); }
+    prawda(/biblioteki/.test(await tekst('sw.js')), 'service worker nie trzyma bibliotek');
+  });
+  await test('Mięso', 'podział kupionej ilości na woreczki wg dni', async () => {
+    rowne([parsujMase('2,5 kg'), parsujMase('800'), parsujMase('2.5'), parsujMase('1200 g'), parsujMase('abc'), parsujMase('')], [2500, 800, 2500, 1200, null, null]);
+    const mk = (dt, g) => ({ dt, g, dish: 'x', slot: 'ob' }), b = [mk('2026-11-20', 100), mk('2026-11-21', 100), mk('2026-11-22', 100)];
+    let r = rozdzielMieso(b, 250); rowne([r.pelne.length, r.czesc && r.czesc.g, r.brak.length], [2, 50, 0], '250 g na 3 woreczki po 100');
+    r = rozdzielMieso(b, 350); rowne([r.pelne.length, r.czesc, r.brak.length, r.zostaje], [3, null, 0, 50], '350 g');
+    r = rozdzielMieso(b, 100); rowne([r.pelne.length, r.brak.length], [1, 2], '100 g starcza na jeden dzień');
+    r = rozdzielMieso(b, 2500); rowne([r.pelne.length, r.zostaje], [3, 2200], 'duża nadwyżka');
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

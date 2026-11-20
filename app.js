@@ -1140,7 +1140,7 @@ function szybkaAkcja(k) {
 let skan = null, skanWynik = null;
 const kodWazny = k => /^\d{8}$|^\d{12,14}$/.test(k);
 function zaladujZxing() {
-  return window.ZXing ? Promise.resolve() : new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js'; sc.onload = ok; sc.onerror = () => err(new Error('zxing')); document.head.appendChild(sc); });
+  return window.ZXing ? Promise.resolve() : new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = 'lib/zxing/index.min.js'; sc.onload = ok; sc.onerror = () => err(new Error('zxing')); document.head.appendChild(sc); });
 }
 function zatrzymajSkan(wszystko) {
   if (!skan) return;
@@ -1315,7 +1315,9 @@ function oknoNowyProdukt(i, nazwaStart) {
 
 const _skrypty = {};
 const zaladujSkrypt = url => _skrypty[url] || (_skrypty[url] = new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = url; sc.onload = ok; sc.onerror = () => { delete _skrypty[url]; err(new Error('Nie udało się pobrać modułu rozpoznawania (sprawdź internet).')); }; document.head.appendChild(sc); }));
-const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', TESS_LANG = 'https://tessdata.projectnaptha.com/4.0.0_fast';
+// OCR działa z plików w lib/ (bez zewnętrznych serwerów). Ścieżki muszą być bezwzględne: worker ładuje je z kontekstu blob.
+const bezwzgl = p => new URL(p, location.href).href;
+const TESS_URL = 'lib/tesseract/tesseract.min.js', TESS_LANG = bezwzgl('lib/tessdata'), TESS_WORKER = bezwzgl('lib/tesseract/worker.min.js'), TESS_CORE = bezwzgl('lib/tesseract/');
 async function inflateBajty(u8) { return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer()); }
 function unfilterPng(dane, kol, kan) {
   const rowLen = kol * kan, rows = Math.floor(dane.length / (rowLen + 1)), out = new Uint8Array(rows * rowLen);
@@ -1364,7 +1366,7 @@ async function ocrObraz(cv, postep) {
   const wi = cv.width * 2, he = cv.height * 2, c2 = document.createElement('canvas'); c2.width = wi; c2.height = he;
   const cx = c2.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.filter = 'grayscale(1) contrast(1.4)'; cx.drawImage(cv, 0, 0, wi, he);
   await zaladujSkrypt(TESS_URL);
-  if (!ocrWorker) ocrWorker = await Tesseract.createWorker('pol', 1, { langPath: TESS_LANG, logger: m => postep && postep(m) });
+  if (!ocrWorker) ocrWorker = await Tesseract.createWorker('pol', 1, { workerPath: TESS_WORKER, corePath: TESS_CORE, langPath: TESS_LANG, workerBlobURL: false, logger: m => postep && postep(m) });
   await ocrWorker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
   return (await ocrWorker.recognize(c2)).data.text;
 }
@@ -2574,22 +2576,47 @@ function miesoPodzial(od, h) {
   }
   return out;
 }
-function kartaMiesa() {
-  const dzis = isoDzis(), dane = miesoPodzial(dzis, MIESO_DNI), prods = Object.keys(dane).sort((a, b) => a.localeCompare(b, 'pl'));
-  const dniDo = dt => Math.round((new Date(dt + 'T12:00:00') - new Date(dzis + 'T12:00:00')) / 864e5);
-  const wszystkie = prods.flatMap(pr => dane[pr]), nLod = wszystkie.filter(x => dniDo(x.dt) <= 2).length, nMroz = wszystkie.length - nLod;
-  const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5L12 6.5l2.5-2M9.5 19.5l2.5-2 2.5 2"/></svg>';
-  let h = `<section class="karta miesc"><div class="miesc-gora"><span class="miesc-ik">${ik}</span><div><b>Mięso i ryby: lodówka czy zamrażarka</b><small>Podzielone od dziś (${dzienTxt(dzis)}) na kolejne dni planu</small></div></div>`;
-  if (!prods.length) return h + `<p class="mute miesc-pusto">W planie na kolejne dni nie ma dań z mięsem ani rybą z zamrażarki, albo są już ugotowane.</p></section>`;
-  h += `<div class="miesc-sum"><span class="znaczek">LODÓWKA · ${nLod}</span><span class="znaczek mroz">ZAMRAŻARKA · ${nMroz}</span><span class="mute">woreczków</span></div>
-    <p class="mute miesc-opis">Woreczki są ułożone od tego, który pójdzie do garnka pierwszy. Co zjesz w ciągu 2 dni, zostaje w lodówce. Resztę mrozisz tak, żeby najwcześniej potrzebny leżał na wierzchu. Jeden woreczek = jedno danie.</p>`;
-  for (const pr of prods) {
-    const b = dane[pr].slice().sort((x, y) => x.dt.localeCompare(y.dt) || y.g - x.g), suma = b.reduce((a, x) => a + x.g, 0), nazwaEt = pr.replace(/ filet| mielon\w*/g, '');
-    h += `<div class="miesc-prod"><div class="miesc-prod-gora"><b>${esc(pr)}</b><span class="miesc-razem">razem ${suma >= 1000 ? (suma / 1000).toFixed(2).replace(/0$/, '').replace('.', ',') + ' kg' : suma + ' g'}<small> w ${b.length} ${mn(b.length, 'woreczku', 'woreczkach', 'woreczkach')}</small></span></div>` + b.map((x, i) => {
-      const lod = dniDo(x.dt) <= 2, za = dniDo(x.dt);
-      return `<div class="wor ${lod ? 'lod' : 'mroz'}"><span class="wor-g">${x.g}<small>g</small></span><span class="wor-tx"><b>${dzienTxt(x.dt)}${za === 0 ? ' · dziś' : za === 1 ? ' · jutro' : ''}</b><span class="mute">${esc(x.dish)}</span><small>Podpisz: ${esc(nazwaEt)} ${x.g} g · ${dzienTxt(x.dt)}</small></span><span class="znaczek ${lod ? '' : 'mroz'}">${lod ? 'LODÓWKA' : 'ZAMRAŻARKA'}</span>${i === 0 ? '<i class="wor-pierw">pierwszy do użycia</i>' : ''}</div>`;
-    }).join('') + `</div>`;
+// „2,5 kg”, „2500 g”, „2,5” (poniżej 50 = kilogramy) → gramy
+function parsujMase(t) {
+  const m = String(t || '').trim().toLowerCase().replace(',', '.').match(/^(\d+(?:\.\d+)?)\s*(kg|g)?$/); if (!m) return null;
+  const v = parseFloat(m[1]); if (!(v > 0)) return null;
+  return Math.round(m[2] === 'kg' ? v * 1000 : m[2] === 'g' ? v : (v < 50 ? v * 1000 : v));
+}
+// Rozdziela kupioną ilość B (g) na woreczki w kolejności dni: pełne woreczki, ewentualnie jeden niepełny, reszta „nie starczy”, albo nadwyżka.
+function rozdzielMieso(bags, B) {
+  const ord = bags.slice().sort((x, y) => x.dt.localeCompare(y.dt) || y.g - x.g), pelne = [], brak = []; let zost = B, czesc = null;
+  for (const x of ord) {
+    if (czesc || brak.length) { brak.push(x); continue; }
+    if (zost >= x.g) { pelne.push(x); zost -= x.g; }
+    else if (zost >= 0.35 * x.g) { czesc = { x, g: Math.round(zost / 5) * 5 }; zost = 0; }
+    else brak.push(x);
   }
+  return { pelne, czesc, brak, zostaje: Math.round(Math.max(0, zost) / 5) * 5, potrzeba: ord.reduce((a, x) => a + x.g, 0) };
+}
+const gTxt = g => g >= 1000 ? (g / 1000).toFixed(2).replace(/0$/, '').replace('.', ',') + ' kg' : g + ' g';
+// Karta w Zakupach: wpisujesz, ile mięsa lub ryby kupiliście, a apka dzieli to na woreczki na kolejne dni planu od dziś (lodówka do 2 dni, reszta zamrażarka).
+function kartaMiesa() {
+  const dzis = isoDzis(), dane = miesoPodzial(dzis, MIESO_DNI), prods = Object.keys(dane).sort((a, b) => a.localeCompare(b, 'pl')), kup = LS.get('miesoKup', {}) || {};
+  window._miesoProds = prods;
+  const dniDo = dt => Math.round((new Date(dt + 'T12:00:00') - new Date(dzis + 'T12:00:00')) / 864e5);
+  const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5L12 6.5l2.5-2M9.5 19.5l2.5-2 2.5 2"/></svg>';
+  let h = `<section class="karta miesc"><div class="miesc-gora"><span class="miesc-ik">${ik}</span><div><b>Podział mięsa i ryb</b><small>Wpisz, ile kupiliście, a podzielę na kolejne dni od dziś (${dzienTxt(dzis)})</small></div></div>`;
+  if (!prods.length) return h + `<p class="mute miesc-pusto">W planie na kolejne dni nie ma dań z mięsem ani rybą z zamrażarki.</p></section>`;
+  h += prods.map((pr, i) => {
+    const bags = dane[pr], k = kup[pr], nazwaEt = pr.replace(/ filet| mielon\w*/g, '');
+    let wynik = '';
+    if (k && k.g > 0) {
+      const r = rozdzielMieso(bags, k.g), wor = x => { const lod = dniDo(x.dt) <= 2, za = dniDo(x.dt); return { lod, za }; };
+      const wiersz = (x, g, niep) => { const { lod, za } = wor(x); return `<div class="wor ${lod ? 'lod' : 'mroz'}"><span class="wor-g">${g}<small>g</small></span><span class="wor-tx"><b>${dzienTxt(x.dt)}${za === 0 ? ' · dziś' : za === 1 ? ' · jutro' : ''}</b><span class="mute">${esc(x.dish)}</span>${niep ? `<small class="ostrz-txt">tylko ${g} g z ${x.g} g potrzebnych</small>` : `<small>Podpisz: ${esc(nazwaEt)} ${g} g · ${dzienTxt(x.dt)}</small>`}</span><span class="znaczek ${lod ? '' : 'mroz'}">${lod ? 'LODÓWKA' : 'ZAMRAŻARKA'}</span></div>`; };
+      const pierwszy = r.pelne[0] || (r.czesc && r.czesc.x);
+      wynik = `<div class="miesc-wynik"><p class="miesc-pod"><b>${esc(gTxt(k.g))}</b> na ${r.pelne.length + (r.czesc ? 1 : 0)} ${mn(r.pelne.length + (r.czesc ? 1 : 0), 'posiłek', 'posiłki', 'posiłków')}${pierwszy ? ` · pierwszy woreczek: ${dzienTxt(pierwszy.dt)}` : ''}</p>${r.pelne.map(x => wiersz(x, x.g, false)).join('')}${r.czesc ? wiersz(r.czesc.x, r.czesc.g, true) : ''}
+        ${r.brak.length ? `<p class="miesc-brak">Na te dni już nie starczy: ${esc(r.brak.map(x => dzienTxt(x.dt)).join(', '))}. Do planu brakuje ok. ${gTxt(Math.max(0, r.potrzeba - k.g))}.</p>` : ''}
+        ${!r.brak.length && !r.czesc && r.zostaje >= 20 ? (() => { const typ = Math.round(bags.map(x => x.g).sort((x, y) => x - y)[Math.floor(bags.length / 2)] / 5) * 5, n = typ ? Math.floor(r.zostaje / typ) : 0; return `<p class="miesc-zostaje">Zostaje ${esc(gTxt(r.zostaje))} ponad plan na najbliższe dni${n >= 1 ? `: to ${n} ${mn(n, 'woreczek', 'woreczki', 'woreczków')} po ${typ} g (typowa porcja) na kolejne tygodnie` : ''}. Zamroź osobno i podpisz.</p>`; })() : ''}
+        <div class="rzad"><button class="btn maly" data-mieso-gotowe="${i}">Gotowe, schowaj</button></div></div>`;
+    }
+    return `<div class="miesc-prod"><div class="miesc-prod-gora"><b>${esc(pr)}</b><span class="mute">plan na ${MIESO_DNI} dni: ${esc(gTxt(bags.reduce((a, x) => a + x.g, 0)))}</span></div>
+      <div class="lod-rzad miesc-wpis"><input id="mieso-in-${i}" type="text" inputmode="decimal" autocomplete="off" placeholder="Ile kupiliście? np. 2,5 kg" value="${k ? esc(gTxt(k.g)) : ''}" aria-label="Ile ${esc(pr)} kupiliście"><button class="btn glowny maly" data-mieso-podziel="${i}">${k ? 'Przelicz' : 'Podziel'}</button></div>${wynik}</div>`;
+  }).join('');
   return h + `<details class="miesc-tipy"><summary>Jak pakować i rozmrażać</summary><ul class="mute"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem na jutro”). Rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></details></section>`;
 }
 let zakOtw = false;
@@ -2979,7 +3006,7 @@ function widokWiecej() {
     ${q('Jak zmienić jedzenie na inne?', 'W „Planie” rozwiń dzień i kliknij „zmień” przy posiłku. Możesz szukać po nazwie lub składniku. Gramatury nowego dania dopasują się do tych samych kalorii.')}
     ${q('Kogoś nie ma w danym dniu', 'W „Planie” rozwiń dzień i wybierz „Bez niego” albo „Bez niej”. Posiłki tej osoby znikną, a obiad i zakupy policzą się na jedną osobę.')}
     ${q('Jak ułożyć następny tydzień?', 'W „Planie” na dole jest karta „Ułóż następny tydzień”. Oba tygodnie są potem w jednym widoku, jeden pod drugim.')}
-    ${q('Jak podzielić mięso po zakupach?', 'W „Zakupach”, pod wyborem dni, jest karta „Mięso i ryby”, liczona od dziś: kolejność woreczków, co zostaje w lodówce, co do zamrażarki i co wpisać na etykiecie.')}
+    ${q('Jak podzielić mięso po zakupach?', 'W „Zakupach”, pod wyborem dni, jest karta „Podział mięsa i ryb”: wpisujesz, ile kupiliście (np. 2,5 kg), a apka dzieli to od dziś na kolejne dni: kolejność woreczków, co zostaje w lodówce, co do zamrażarki i co wpisać na etykiecie.')}
     ${q('Co zrobić z resztkami po zakupach?', 'Przy produktach z resztą opakowania lista pisze, w których daniach w planie ich użyjesz, i podpowiada pomysły. W „Lodówce” działa też „Spontaniczne gotowanie”.')}
     ${q('Telefon drugiej osoby', 'W „Ustawieniach” utwórz wspólny plan i wyślij zaproszenie. Plan, lodówka i zakupy synchronizują się między telefonami.')}
     <p class="mute wersja-stopka">Wersja aplikacji: ${esc((window._wersja || '').replace('plan-', '') || '—')}${window.Sync && window.Sync.kod && window.Sync.ostatni ? ` · synchronizacja ${new Date(window.Sync.ostatni).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>`;
@@ -3597,6 +3624,13 @@ document.addEventListener('click', async e => {
     const s = wybraneDni(), dniT = dniDostepne().filter(x => x.start === t.dataset.zakweek).map(x => x.iso), wsz = dniT.every(x => s.has(x));
     dniT.forEach(x => wsz ? s.delete(x) : s.add(x)); zakDni = [...s].sort(); LS.set('zakDni', zakDni); rysuj();
   }
+  else if (t.dataset.miesoPodziel !== undefined) {
+    const pr = (window._miesoProds || [])[+t.dataset.miesoPodziel], inp = $('#mieso-in-' + t.dataset.miesoPodziel), g = parsujMase(inp && inp.value);
+    if (!pr) return;
+    if (!g) { pokazToast('Wpisz ilość, np. 2,5 kg albo 800 g'); return; }
+    const kup = LS.get('miesoKup', {}) || {}; kup[pr] = { g, dt: isoDzis() }; LS.set('miesoKup', kup); rysuj();
+  }
+  else if (t.dataset.miesoGotowe !== undefined) { const pr = (window._miesoProds || [])[+t.dataset.miesoGotowe], kup = LS.get('miesoKup', {}) || {}; if (pr) { delete kup[pr]; LS.set('miesoKup', kup); rysuj(); } }
   else if (t.dataset.zakpreset) { zakDni = t.dataset.zakpreset === 'auto' ? null : []; if (zakDni) LS.set('zakDni', zakDni); else LS.del('zakDni'); rysuj(); }
   else if ('nowy' in t.dataset) { if (await pytaj('Ułożyć ten tydzień od nowa?', 'Twoje zamiany w nim przepadną.', 'Ułóż od nowa')) { const sn = snapStanu(); ulozTydzien(plan.start); rysuj(); toastCofnij('Tydzień ułożony od nowa', sn); } }
   else if (t.id === 'doZakupowDzis') { zakDni = null; LS.del('zakDni'); zakOtw = false; zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }   // z przypomnienia: od razu najbliższa wyprawa (pon: wt–pt, pt: sob–pon)

@@ -1,6 +1,6 @@
 // Sieć najpierw, pamięć jako zapas: odświeżenie zawsze bierze nową bazę, a bez sieci działa ostatnia pobrana.
 // Obsługuję tylko pliki aplikacji i biblioteki Firebase — samego ruchu bazy (firestore.googleapis.com) nie dotykam.
-const CACHE = 'plan-v95';
+const CACHE = 'plan-v98';
 const PLIKI = ['./', 'index.html', 'style.css', 'app.js', 'obrazki.js', 'sync.js', 'manifest.json',
   'data/dania.json', 'data/dania-dodane.json', 'data/shake.json', 'data/opakowania.json', 'data/firebase.json',
   'icons/icon-180.png', 'icons/icon-192.png'];
@@ -9,7 +9,7 @@ self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PLIKI)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => e.waitUntil(
-  caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'udostepnione').map(k => caches.delete(k)))).then(() => self.clients.claim())
+  caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'udostepnione' && k !== 'biblioteki').map(k => caches.delete(k)))).then(() => self.clients.claim())
 ));
 // Udostępnianie paragonu do aplikacji (Android): odbieram plik/tekst, zapisuję w pamięci 'udostepnione' i przekierowuję do aplikacji, która go wczyta.
 async function przyjmijUdostepnienie(req) {
@@ -28,6 +28,11 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const u = new URL(e.request.url);
   if (u.origin !== self.location.origin && u.hostname !== 'www.gstatic.com') return;
+  // duże biblioteki (OCR, skaner) z lib/: pamięć najpierw, pobieram raz i trzymam między wersjami aplikacji
+  if (u.origin === self.location.origin && /\/lib\//.test(u.pathname)) {
+    e.respondWith(caches.open('biblioteki').then(async c => { const t = await c.match(e.request); if (t) return t; const r = await fetch(e.request); if (r.ok) c.put(e.request, r.clone()); return r; }));
+    return;
+  }
   e.respondWith(
     fetch(e.request, { cache: 'no-store' })
       .then(r => {

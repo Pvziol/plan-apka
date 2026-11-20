@@ -46,6 +46,8 @@ let mapaPar = LS.get('mapaPar', {});                       // nazwa z paragonu (
 let kody = LS.get('kody', {});                               // zeskanowane kody kreskowe: kody[ean] = { p: produkt, r: rozmiar opakowania, u }; wspólne
 let wlasneProd = LS.get('wlasneProd', {});                   // produkty dodane z paragonów: wlasneProd[nazwa] = { kat, u }; wspólne
 let pakiety = LS.get('pakiety', {});                       // pakiety[produkt] = { r, u, et, w: [rozmiary], t }: standardowe opakowania poznane z paragonów; wspólne
+let trasa = LS.get('trasa', {});                          // trasa[sklep][produkt] = 0..1: gdzie w kolejności zakupów zwykle trafia ten produkt (uczone z odhaczania), wspólne
+let sklepZak = LS.get('sklepZak', ''), trasaTryb = LS.get('trasaTryb', 'moja'), sesjaKup = LS.get('sesjaKup', null);
 let historia = LS.get('historia', []);                     // zapisane podsumowania minionych tygodni (patrz zbierzTydzien), wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
 let prepOd = null, prepH = 3;
@@ -114,7 +116,7 @@ const ukryte = id => oceny[id] === -1;
 const nieob = (day, p) => !!(day && day.nb && day.nb[p]);                 // osoba p jest nieobecna w tym dniu (plan pomija jej posiłki)
 const obecneDni = (pl, p) => pl.dni.map((_, i) => i).filter(i => !nieob(pl.dni[i], p));
 const stanKto = day => nieob(day, 'on') && !nieob(day, 'ona') ? 'bezon' : nieob(day, 'ona') && !nieob(day, 'on') ? 'bezona' : 'oboje';
-const opisGarnka = g => { if (g.prep) return 'sesja meal prep'; const os = [...new Set(g.porcje.map(q => q.p))], dn = new Set(g.porcje.map(q => q.d)).size; return (os.length === 1 ? 'dla ' + (os[0] === 'ona' ? 'niej' : 'niego') : (dn > 1 ? '' : 'dla Was dwojga')) + (dn > 1 ? (os.length === 1 ? ' ' : '') + 'na ' + dn + ' dni' : ''); };
+const opisGarnka = g => { if (g.prep) return 'sesja meal prep'; const os = [...new Set(g.porcje.map(q => q.p))], dn = new Set(g.porcje.map(q => q.d)).size; return (os.length === 1 ? 'dla ' + (os[0] === 'ona' ? 'niej' : 'niego') : (dn > 1 ? '' : 'dla Was dwojga')) + (dn > 1 ? (os.length === 1 ? ' ' : '') + 'na ' + dn + ' dni' : '') + (g.gosc ? ' + ' + g.gosc + ' ' + mn(g.gosc, 'gość', 'gości', 'gości') : ''); };
 const sredniaOsoby = (w, p, pole) => { const ix = obecneDni(plan, p); return ix.length ? sum(ix, i => w.dni[i][p][pole]) / ix.length : 0; };
 const fmtStan = (q, u) => (u === 'g' || u === 'ml') ? Math.round(q) + ' ' + u : (Math.round(q * 2) / 2).toString().replace('.', ',') + ' ' + u;
 
@@ -336,7 +338,7 @@ function rozwiaz(dish, Kc, ratio, skyrMax = 0, lever = true) {
 }
 const rz = (dish, K, ratio, slot) => rozwiaz(dish, K, ratio, 0, slot !== 'ob');     // w obiadach nie ruszam proporcji (mięso zostaje, jak w woreczku)
 const SKYR = { kcal: 0.63, b: 0.11 };   // na 1 g, jak w PDF-ach
-const skala = (g, i) => stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b);
+const skala = (g, i) => (stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b)) + (g.gosc ? g.gosc / ((g.dish && g.dish.porcje) || 2) : 0);   // goście: każdy dojada 1 standardową porcję przepisu
 
 // ---------- silnik: cały tydzień ----------
 // Pominięty posiłek (day.pom[osoba][slot]): znika z dnia tej osoby. Jego kalorie nie przepadają:
@@ -378,6 +380,7 @@ function oblicz(pl, c) {
       dni[x.d][x.p].kcal += x.kcal; dni[x.d][x.p].b += x.b;
       if (!dni[x.d].sloty.some(s => s.g === g)) dni[x.d].sloty.push({ g, odgrzewane: x.d !== d });
     }
+    if (slot === 'ob') g.gosc = sum([...new Set(porcje.map(q => q.d))], x => pl.dni[x].gosc || 0);   // goście na obiad nie zmieniają kalorii domowników, tylko ilości do kupienia i ugotowania
     garnki.push(g);
     return g;
   }
@@ -765,7 +768,9 @@ function kartaDnia(t, c, dzisIso, nawig) {
     <button class="strz" data-pdzien="${nawig.next || ''}" ${nawig.next ? '' : 'disabled'} aria-label="Następny dzień">›</button></div>
     <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small>${x.przenos[p].przyj > 1 ? `<small class="przen">w tym +${r0(x.przenos[p].przyj)} kcal z poprzedniego dnia</small>` : ''}${x.przenos[p].skp > 1 ? `<small class="przen">pominięte ${r0(x.przenos[p].skp)} kcal: +${r0(x.przenos[p].same)} dziś, reszta jutro</small>${x[p].b < c[p].bMin - 3 ? `<small class="ostrz-txt">brakuje ${r0(c[p].bMin - x[p].b)} g białka do celu — dopij np. skyr lub odżywkę</small>` : ''}` : ''}</div>`).join('')}</div>
     <div class="dnia-ust"><div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
-      <div class="kto-dnia"><span class="mute">Kto je w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div></div>`;
+      <div class="kto-dnia"><span class="mute">Kto je w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>
+      <div class="dop-dnia"><span class="mute">Dopasuj dzień:</span><div class="chips">${[['szybko', 'Szybko'], ['bezMiesa', 'Bez mięsa'], ['zimno', 'Bez gotowania'], ['lekko', 'Lekko']].map(([k, et]) => `<button class="chip" data-dop="${d}:${k}">${et}</button>`).join('')}</div></div>
+      <div class="gosc-dnia"><span class="mute">Goście na obiad:</span><div class="gosc-ster"><button class="stp" data-gosc="${d}:-1" aria-label="Mniej gości" ${day.gosc ? '' : 'disabled'}>−</button><b>${day.gosc || 0}</b><button class="stp" data-gosc="${d}:1" aria-label="Więcej gości">+</button></div></div></div>`;
   x.sloty.forEach(({ g, odgrzewane }) => {
     const moje = g.porcje.filter(q => q.d === d), ez = !!zuzyte[kluczZ(d, g.slot)];
     const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join('');
@@ -804,6 +809,7 @@ function widokTydzien() {
   const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
   h += paskAkcji(['prep', 'podsum', 'wykl', 'zakupy']);
+  h += kartaOpisTygodnia();
   { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${nar.length === 1 ? 'posiłek zawiera' : 'posiłków zawiera'} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
@@ -1074,11 +1080,13 @@ const AKCJE = {
   waga: ['Zważ się', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5'],
   wykl: ['Czego nie jecie', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12'],
   dodaj: ['Dodaj ręcznie', 'M12 5v14M5 12h14'],
+  czas: ['Nie mam czasu', 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'],
   podsum: ['Podsumowanie tygodnia', 'M5 20V10M12 20V4M19 20v-7'],
   zakupy: ['Zakupy', 'M5 8.5h14l-1.2 11.5H6.2zM9 8.5a3 3 0 0 1 6 0']
 };
 const paskAkcji = lista => `<div class="szybkie" role="group" aria-label="Szybkie akcje">${lista.map(k => `<button class="szybka" data-szybka="${k}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE[k][1]}"/></svg><span>${AKCJE[k][0]}</span></button>`).join('')}</div>`;
 function szybkaAkcja(k) {
+  if (k === 'czas') { const dz = isoDzis(), t = tygodnieZapisane().find(x => dz >= x.start && dz <= dodajDni(x.start, 6)); if (!t) { pokazToast('Na dziś nie ma planu'); return; } oknoDopasuj([{ start: t.start, d: Math.round((new Date(dz + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5), iso: dz, tryby: { szybko: true } }]); return; }
   if (k === 'skan') oknoSkaner(); else if (k === 'paragon') oknoParagonWklej(); else if (k === 'spont') oknoSpont(); else if (k === 'dodaj') oknoDodaj('jeden');
   else { zakladka = { prep: 'prep', waga: 'waga', wykl: 'wykluczone', zakupy: 'zakupy', podsum: 'podsum' }[k]; rysuj(); window.scrollTo(0, 0); }
 }
@@ -1669,6 +1677,159 @@ function otworzSesje(pl, se) {
   otworzGotowanie(g, false); got.prep = true; got.sesja = se; rysujGot();
 }
 
+// ---------- trasa po sklepie ----------
+// Apka uczy się kolejności, w jakiej odhaczacie produkty w sklepie (osobno dla każdego sklepu), i układa następną listę w tej kolejności. Bez gazetek i bez usług zewnętrznych.
+function sklepAktywny() {
+  if (sklepZak) return sklepZak;
+  const l = {}; paragony.forEach(x => { l[x.sklep] = (l[x.sklep] || 0) + 1; });
+  const naj = Object.entries(l).sort((a, b) => b[1] - a[1])[0];
+  return naj ? naj[0] : 'Mój sklep';
+}
+function sklepyDoWyboru() {
+  const l = []; paragony.forEach(x => { if (x.sklep && !l.includes(x.sklep)) l.push(x.sklep); });
+  Object.keys(trasa).forEach(k => { if (!l.includes(k)) l.push(k); });
+  const a = sklepAktywny(); if (!l.includes(a)) l.push(a);
+  return l.slice(0, 5);
+}
+function trasaZapis(klucz, on) {
+  const sk = sklepAktywny(), teraz = Date.now();
+  if (!sesjaKup || sesjaKup.sklep !== sk || teraz - (sesjaKup.t || 0) > 4 * 36e5) sesjaKup = { sklep: sk, t: teraz, snap: JSON.parse(JSON.stringify(trasa[sk] || {})), kol: [] };
+  sesjaKup.t = teraz; sesjaKup.kol = sesjaKup.kol.filter(x => x !== klucz);
+  if (on) sesjaKup.kol.push(klucz);
+  LS.set('sesjaKup', sesjaKup);
+  const n = sesjaKup.kol.length; if (n < 8) return;
+  const nowa = Object.assign({}, sesjaKup.snap);
+  sesjaKup.kol.forEach((k, i) => { const pr = k.slice(4), r = i / (n - 1); nowa[pr] = nowa[pr] == null ? r : Math.round((0.5 * nowa[pr] + 0.5 * r) * 1000) / 1000; });
+  const nowo = !trasa[sk] || Object.keys(trasa[sk]).length < 8;
+  trasa[sk] = nowa; LS.set('trasa', trasa); Z([[['trasa', sk], nowa]]);
+  if (nowo) pokazToast(`Zapamiętuję kolejność w sklepie: ${sk}`);
+}
+function trasaUklad(l, sk) {   // zwraca { dzialy: kolejność kodów, r: produkt → pozycja } albo null, gdy za mało danych
+  const tr = trasa[sk]; if (trasaTryb !== 'moja' || !tr || Object.keys(tr).length < 8) return null;
+  const wynik = {};
+  DZIALY.forEach(([kod], i) => {
+    const p = (l[kod] || []).map(x => tr[x.produkt]).filter(v => v != null);
+    wynik[kod] = p.length ? sum(p, v => v) / p.length : (i + 0.5) / DZIALY.length;
+  });
+  return { dzialy: DZIALY.map(d => d[0]).sort((a, b) => wynik[a] - wynik[b]), sr: wynik, tr };
+}
+// ---------- dopasowanie dnia i tygodnia („Opisz tydzień”, „Nie mam czasu”) ----------
+// Z tekstu albo jednego przycisku: szybkie dania, bez mięsa, bez gotowania, lekko, goście, nieobecność. Wszystko liczy się na telefonie, bez żadnych usług zewnętrznych.
+function minDania(d) {
+  const sx = String(d.czas || ''), hm = sx.match(/([0-9]+) *h *([0-9]+) *min/), h = sx.match(/([0-9]+(?:,[0-9]+)?) *h/), m = sx.match(/([0-9]+) *min/);
+  const v = hm ? +hm[1] * 60 + +hm[2] : h ? Math.round(parseFloat(h[1].replace(',', '.')) * 60) : m ? +m[1] : null;
+  return v || null;
+}
+const tkDania = d => d._tk || (d._tk = znorm(d.nazwa + ' ' + d.skladniki.map(i => i.nazwa + ' ' + (i.produkt || '')).join(' ')));
+const MIESO_RE = /(^|[^a-z0-9])(kurczak|indyk|drob|cwiartki|wieprzow|boczek|kielbas|schab|szynk|zeberk|karkowk|wolowin|poledwic|pulpet|bekon|mielon)/;
+const TRYBY = {
+  szybko: { et: 'Szybko', ok: (d, slot, o) => { const m = minDania(d), lim = slot === 'ob' ? Math.max(30, o.min || 30) : (o.min || 15); return m == null || m <= lim; } },
+  zimno: { et: 'Bez gotowania', ok: d => !/(patelni|garnek|piekarnik|airfryer|blacha|grill|toster|opiekacz|rondel)/i.test(d.sprzet || '') },
+  bezMiesa: { et: 'Bez mięsa', ok: d => !MIESO_RE.test(tkDania(d)) },
+  bezRyb: { et: 'Bez ryb', ok: d => !GRUPY_WYKL.ryby[1].test(tkDania(d)) },
+  lekko: { et: 'Lekko', ok: d => { const m = minDania(d); return (m == null || m <= 35) && !['obiad_sobota', 'obiad_niedziela'].includes(d.typ) && !/frytk|airfryer/i.test(d.nazwa + ' ' + (d.sprzet || '')); } }
+};
+function dopasujDzien(start, d, tryby, o) {
+  const t = tygodnieZapisane().find(x => x.start === start); if (!t) return { zm: [], uw: ['Na ten dzień nie ma planu.'] };
+  const w = oblicz({ start, dni: t.dni }, cele()), day = t.dni[d], zm = [], uw = [], akt = Object.keys(tryby || {}).filter(k => tryby[k] && TRYBY[k]);
+  if (!akt.length) return { zm, uw };
+  const ok = (dish, slot) => akt.every(k => TRYBY[k].ok(dish, slot, o || {}));
+  for (const { g, odgrzewane } of w.dni[d].sloty) {
+    if (odgrzewane || t.zuz[kluczZ(d, g.slot, start)]) continue;       // odgrzewane z wczoraj albo już zjedzone: nic do zmiany
+    if (g.slot === 'ob' && day.ob2) { if (!ok(g.dish, g.slot)) uw.push('Obiad na dwa dni zostawiam bez zmian (garnek jest na dwa dni).'); continue; }
+    if (ok(g.dish, g.slot)) continue;
+    const kto = osobySlotu(g.slot), pula = puleDlaSlotu(day, g.slot);
+    let kand = pula.filter(x => x.id !== g.dish.id && !ukryte(x.id) && dopuszcza(x, kto) && ok(x, g.slot) && (g.slot !== 'm13on' || !x.tylko_wybor));
+    const tenSam = kand.filter(x => x.typ === g.dish.typ); if (tenSam.length) kand = tenSam;
+    if (!kand.length) { uw.push(`${nazwaSlotu(g.slot)}: w bazie nie ma dania spełniającego te warunki.`); continue; }
+    const dens = x => x.razem.bialko / x.razem.kcal, d0 = dens(g.dish);
+    kand.sort((a, b) => Math.abs(dens(a) - d0) - Math.abs(dens(b) - d0));
+    zm.push({ slot: g.slot, stary: g.dish, nowy: los(kand.slice(0, 3)), ratio: g.P / g.K });
+  }
+  return { zm, uw };
+}
+const DNI_PREF = [['poniedzia', 0], ['wtor', 1], ['srod', 2], ['czwart', 3], ['piat', 4], ['sobot', 5], ['niedziel', 6]], DNI_EX = { pon: 0, wt: 1, sr: 2, czw: 3, pt: 4, sob: 5, nd: 6, niedz: 6 };
+function rozumiemTekst(txt) {
+  const t = znorm(txt), dzis = isoDzis(), tyg = tygodnieZapisane();
+  const wszystkie = tyg.flatMap(w => [0, 1, 2, 3, 4, 5, 6].map(d => ({ start: w.start, d, iso: dodajDni(w.start, d) })));
+  const poIso = iso => wszystkie.find(x => x.iso === iso) || null;
+  const nastepny = idx => wszystkie.filter(x => x.d === idx && x.iso >= dzis).sort((a, b) => a.iso.localeCompare(b.iso))[0] || null;
+  const akcje = [];
+  let poprz = [];
+  for (const kl of t.split(/[,;.]+| a /)) {
+    const sl = kl.split(/[^a-z0-9]+/).filter(Boolean), cele_ = new Map(), dodaj = x => { if (x) cele_.set(x.iso, x); };
+    sl.forEach(wd => {
+      if (DNI_EX[wd] !== undefined) dodaj(nastepny(DNI_EX[wd]));
+      else for (const [pr, i] of DNI_PREF) if (wd.startsWith(pr)) dodaj(nastepny(i));
+      if (wd === 'dzis' || wd === 'dzisiaj') dodaj(poIso(dzis));
+      if (wd === 'jutro') dodaj(poIso(dodajDni(dzis, 1)));
+      if (wd === 'pojutrze') dodaj(poIso(dodajDni(dzis, 2)));
+    });
+    if (/weekend/.test(kl)) { dodaj(nastepny(5)); dodaj(nastepny(6)); }
+    if (/caly tydzien|kazdy dzien|codziennie/.test(kl)) wszystkie.filter(x => x.iso >= dzis && x.iso <= dodajDni(dzis, 6)).forEach(dodaj);
+    if (/w tygodniu|robocze|dni robocze/.test(kl)) wszystkie.filter(x => x.iso >= dzis && x.iso <= dodajDni(dzis, 6) && x.d <= 4).forEach(dodaj);
+    const tr = {}, o = {};
+    if (/szybk|malo czasu|nie mam czasu|spiesz/.test(kl)) { tr.szybko = true; const m = kl.match(/do ([0-9]+) min/); if (m) o.min = +m[1]; }
+    if (/bez gotowania|na zimno|nie chce gotowac|nie gotuj|bez kuchni/.test(kl)) tr.zimno = true;
+    if (/lekk/.test(kl)) tr.lekko = true;
+    if (/wegetarian|bez miesa|bezmies/.test(kl)) { tr.bezMiesa = true; if (/wegetarian|bez ryb/.test(kl)) tr.bezRyb = true; }
+    let nb = null;
+    if (/wyjezdz|wyjazd|nie ma nas|nas nie ma|nie bedzie nas/.test(kl)) nb = { ona: true, on: true };
+    else if (/bez niego|nie ma go|jego nie ma|on nie je/.test(kl)) nb = { ona: false, on: true };
+    else if (/bez niej|nie ma jej|jej nie ma|ona nie je/.test(kl)) nb = { ona: true, on: false };
+    let go = null; const mg = kl.match(/([0-9]+) *(osob|gosc)|gosc[a-z]* *([0-9]+)/);
+    if (mg) go = +(mg[1] || mg[3]); else if (/gosc/.test(kl)) go = 2;
+    const cos = Object.keys(tr).length || nb || go != null;
+    if (!cos) { if (cele_.size) poprz = [...cele_.values()]; continue; }
+    let cel = [...cele_.values()]; if (!cel.length) cel = poprz.length ? poprz : [poIso(dzis)].filter(Boolean);
+    if (cele_.size) poprz = cel;
+    cel.forEach(c => akcje.push({ start: c.start, d: c.d, iso: c.iso, tryby: tr, min: o.min, goscie: go, nb }));
+  }
+  return akcje;
+}
+function oknoDopasuj(akcje) {
+  if (!akcje.length) { pokazToast('Nie rozumiem. Spróbuj np.: „wtorek lekki, piątek bez mięsa”'); return; }
+  const prop = akcje.map(a => Object.assign({}, a, dopasujDzien(a.start, a.d, a.tryby, a)));
+  window._dop = prop;
+  const ile = sum(prop, a => a.zm.length), zmienia = prop.some(a => a.zm.length || a.nb || a.goscie != null);
+  const kart = prop.map(a => {
+    const et = Object.keys(a.tryby).filter(k => TRYBY[k]).map(k => TRYBY[k].et + (k === 'szybko' && a.min ? ` do ${a.min} min` : '')).concat(a.nb ? [a.nb.ona && a.nb.on ? 'Wyjazd (nikogo nie ma)' : a.nb.on ? 'Bez niego' : 'Bez niej'] : []).concat(a.goscie != null ? [`${a.goscie} ${mn(a.goscie, 'gość', 'gości', 'gości')} na obiad`] : []);
+    return `<div class="karta dop-kart"><div class="dop-gora"><b>${DNI[a.d]} ${krotkaData(a.iso)}</b></div><div class="chips">${et.map(x => `<span class="chip akt stat">${esc(x)}</span>`).join('')}</div>
+      ${a.zm.map(z => `<div class="dop-zm"><small>${esc(nazwaSlotu(z.slot))}</small><span>${esc(z.stary.nazwa)}${minDania(z.stary) ? ` <em>${minDania(z.stary)} min</em>` : ''}</span><span class="dop-str">→</span><b>${esc(z.nowy.nazwa)}${minDania(z.nowy) ? ` <em>${minDania(z.nowy)} min</em>` : ''}</b></div>`).join('')}
+      ${a.uw.map(u => `<p class="mute dop-uw">${esc(u)}</p>`).join('')}
+      ${!a.zm.length && !a.uw.length && Object.keys(a.tryby).length ? '<p class="mute dop-uw">Ten dzień już pasuje, nic nie trzeba zmieniać.</p>' : ''}</div>`;
+  }).join('');
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Dopasowanie planu</h2><button class="btn maly" data-zamknij>Anuluj</button></div>
+    <p class="mute">Kalorie i białko zostają takie same, zmieniają się tylko dania. „Szybko”: śniadania i drugie śniadania do 15 min, obiad do 30 min.</p>${kart}
+    <button class="btn glowny szeroki" data-dop-ok="1" ${zmienia ? '' : 'disabled'}>${ile ? `Zastosuj (${ile} ${mn(ile, 'zmiana', 'zmiany', 'zmian')})` : 'Zastosuj'}</button>`;
+  $('#modal').hidden = false;
+}
+function zastosujDopasowanie() {
+  const prop = window._dop || []; if (!prop.length) return;
+  const orig = plan.start, wg = {}; let n = 0;
+  prop.forEach(a => { (wg[a.start] = wg[a.start] || []).push(a); });
+  for (const [start, lista] of Object.entries(wg)) {
+    if (plan.start !== start) { if (inny && inny.start === start) przelaczTydzien(); else continue; }
+    for (const a of lista) {
+      const day = plan.dni[a.d];
+      if (a.nb) { day.nb = a.nb; Z([[['dni', a.d, 'nb'], day.nb]]); }
+      if (a.goscie != null) { day.gosc = Math.max(0, Math.min(12, a.goscie)); Z([[['dni', a.d, 'gosc'], day.gosc]]); }
+      for (const z of a.zm) { ustawDanie(a.d, z.slot, z.nowy.id, z.ratio); n++; }
+    }
+    LS.set('plan', plan);
+  }
+  if (plan.start !== orig && inny && inny.start === orig) przelaczTydzien();
+  window._dop = null; zamknijOkno(); otwartyDzien = null; rysuj();
+  pokazToast(n ? `Zmieniono ${n} ${mn(n, 'posiłek', 'posiłki', 'posiłków')}` : 'Zapisano ustawienia dnia');
+}
+let dopOtw = false;
+function kartaOpisTygodnia() {
+  if (!dopOtw) return `<button class="kafel dop-zwin" data-dop-pokaz="1"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="kafel-tx"><b>Opisz tydzień</b><small>np. „wtorek lekki, piątek bez mięsa, sobota goście”</small></span><span class="kafel-str">›</span></button>`;
+  const ex = ['wtorek lekki', 'piątek bez mięsa', 'sobota goście 4 osoby', 'środa nie mam czasu'];
+  return `<div class="karta dop-karta"><b>Opisz tydzień</b><p class="mute" style="margin:4px 0 10px">Napisz po swojemu, a dopasuję dania (kalorie zostają).</p>
+    <div class="lod-rzad"><input id="dop-tekst" type="text" autocomplete="off" placeholder="np. wtorek lekki, piątek bez mięsa"><button class="btn glowny maly" data-dop-tekst="1">Dopasuj</button></div>
+    <div class="chips" style="margin-top:10px">${ex.map(x => `<button class="chip" data-dop-przyklad="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`;
+}
 // ---------- podsumowanie tygodnia ----------
 // Co się faktycznie stało w tygodniu: ile posiłków zjedzonych, średnio kcal i białka (tylko z dni z odhaczonym jedzeniem), zmiana wagi, wydatki z paragonów, ulubione danie.
 function zbierzTydzien(t) {
@@ -1884,6 +2045,7 @@ function rysujGot() {
     <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe' : 'Dalej'} ›</button>` : ''}</div>`;
   if (got._ostI !== i) { const kier = got._ostI === undefined ? 0 : (i > got._ostI ? 1 : -1); got._ostI = i; const m = $('#gotuj .got-main'); if (m && kier) m.dataset.kier = kier; if (m) m.scrollTop = 0; }
 }
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'dop-tekst') oknoDopasuj(rozumiemTekst(e.target.value)); });
 document.addEventListener('paste', e => { if (e.target && e.target.id === 'par-tekst' && e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) { e.preventDefault(); wczytajPlik(e.clipboardData.files[0]); return; } if (e.target && e.target.id === 'par-tekst') setTimeout(() => { const v = e.target.value; if (v && v.length > 40) wczytajParagon(v); }, 30); });
 document.addEventListener('keydown', e => { if (!got) return; if (e.key === 'ArrowRight') gotIdz(got.i + 1); else if (e.key === 'ArrowLeft') gotIdz(got.i - 1); else if (e.key === 'Escape') zamknijGotowanie(); });
 (function () {   // przesunięcie palcem: w lewo = dalej, w prawo = wstecz
@@ -2117,11 +2279,15 @@ function widokZakupy() {
   h += paskAkcji(['paragon', 'skan']);
   if (!wyb.size) h += `<div class="karta pusta-karta"><b>Zaznacz przynajmniej jeden dzień</b><p class="mute">Kliknij „Zmień dni” powyżej.</p></div>`;
   const wDzial = {}; wszystkie.forEach(p => { (wDzial[dzialSklepu(p)] = wDzial[dzialSklepu(p)] || []).push(p); });
-  for (const [kod, nazwa, ikona] of DZIALY) {
+  const sk = sklepAktywny(), uk = trasaUklad(wDzial, sk), maTrase = !!(trasa[sk] && Object.keys(trasa[sk]).length >= 8);
+  if (razemPoz) h += `<div class="trasa-wiersz"><span class="mute">Idę do:</span><div class="chips">${sklepyDoWyboru().map(x => `<button class="chip ${x === sk ? 'akt' : ''}" data-sklepzak="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+    <small class="mute">${maTrase ? `Lista ułożona wg Waszej trasy w sklepie. <button class="link" data-trasa-tryb="${trasaTryb === 'moja' ? 'std' : 'moja'}">${trasaTryb === 'moja' ? 'Pokaż standardową kolejność' : 'Użyj mojej trasy'}</button>` : 'Odhaczajcie w sklepie po kolei, a zapamiętam waszą trasę i następnym razem ułożę listę tak, żeby nie wracać po coś.'}</small></div>`;
+  const dzialyKol = uk ? uk.dzialy.map(k => DZIALY.find(d => d[0] === k)) : DZIALY;
+  for (const [kod, nazwa, ikona] of dzialyKol) {
     const l = wDzial[kod]; if (!l || !l.length) continue;
     const kup = l.filter(p => odhK(klucz(p.produkt))).length;
     h += `<section class="zk-sek"><div class="zk-sek-gora"><span class="zk-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ikona}"/></svg></span><b>${nazwa}</b><em data-licznik>${kup}/${l.length}</em></div><div class="karta zk-karta">`
-      + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
+      + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || (uk ? (uk.tr[a.produkt] != null ? uk.tr[a.produkt] : uk.sr[kod]) - (uk.tr[b.produkt] != null ? uk.tr[b.produkt] : uk.sr[kod]) : 0) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
         const k = klucz(p.produkt), on = !!odhK(k);
         const ci = cmp.info[p.produkt], cenyTxt = ci && Object.keys(ci.c).length > 1 ? Object.entries(ceny[p.produkt] || {}).filter(([sk]) => ci.c[sk] != null).sort((a, b) => cenaX(a[1]) - cenaX(b[1])).map(([sk, v]) => `${sk} ${zl(cenaX(v))}/${jednCeny(v.u)}`).join(' · ') : '';
         const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', cenyTxt ? `taniej: ${cenyTxt}` : ''].filter(Boolean).join(' · ');
@@ -2319,7 +2485,7 @@ function widokDzis() {
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
     o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
-    o += paskAkcji(['skan', 'paragon', 'spont', 'waga']);
+    o += paskAkcji(['czas', 'skan', 'paragon', 'spont', 'waga']);
     o += kartaPrepDzis(dzis);
     // lista posiłków
     o += `<h2>Dzisiejsze posiłki</h2><div class="karta posilki-dnia">` + sloty.map(({ g, odgrzewane }) => {
@@ -2890,6 +3056,14 @@ document.addEventListener('click', e => {
   if (t.dataset.skOdhacz) { const pr = t.dataset.skOdhacz; odhaczKup(kluczKup(pr), true); LS.set('odhaczone', odhaczone); rysuj(); oknoSkaner(`Odhaczono na liście: ${pr}. Zeskanuj następny.`); return; }
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
   if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
+  if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
+  if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
+  if (t.dataset.sklepzak) { sklepZak = t.dataset.sklepzak; LS.set('sklepZak', sklepZak); rysuj(); return; }
+  if (t.dataset.trasaTryb) { trasaTryb = t.dataset.trasaTryb; LS.set('trasaTryb', trasaTryb); rysuj(); return; }
+  if (t.dataset.dopPokaz) { dopOtw = true; rysuj(); setTimeout(() => { const i = $('#dop-tekst'); if (i) i.focus(); }, 80); return; }
+  if (t.dataset.dopTekst) { oknoDopasuj(rozumiemTekst(($('#dop-tekst') || {}).value || '')); return; }
+  if (t.dataset.dopPrzyklad) { const i = $('#dop-tekst'); if (i) { i.value = t.dataset.dopPrzyklad; i.focus(); } return; }
+  if (t.dataset.dopOk) { zastosujDopasowanie(); return; }
   if (t.dataset.podsum) { podsumStart = t.dataset.podsum; rysuj(); return; }
   if (t.dataset.prepDzis !== undefined) { prepOd = isoDzis(); const se = sesje.find(x => x.id === t.dataset.prepDzis); prepH = se ? se.h : prepH; const pl = planPrepu(prepOd, prepH); otworzSesje(pl, zapiszSesje(pl)); return; }
   if (t.dataset.prepOtworz) { prepOd = t.dataset.prepOtworz; zakladka = 'prep'; rysuj(); window.scrollTo(0, 0); return; }
@@ -3090,7 +3264,7 @@ document.addEventListener('change', e => {
   }
   else if (t.dataset.spontTyp) { spontFiltr.typ = t.value; listaSpont(); }
   else if (t.dataset.kup) {
-    haptyka(10); odhaczKup(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);
+    haptyka(10); odhaczKup(t.dataset.kup, t.checked); trasaZapis(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);
     const poz = t.closest('.zk-poz'), kart = poz.parentNode;
     poz.classList.toggle('kupione', t.checked);
     if (t.checked) kart.appendChild(poz);                              // odhaczone spada na koniec działu
@@ -3101,7 +3275,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -3114,12 +3288,12 @@ window.App = {
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
-    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; trasa = data.trasa || {}; wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
-    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza

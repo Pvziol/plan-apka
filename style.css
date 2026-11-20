@@ -1046,3 +1046,23 @@ select { -webkit-appearance: none; appearance: none; padding-right: 38px; backgr
 .ps-wiersz { display: flex; flex-direction: column; margin-top: 10px; font-size: 12.5px; color: var(--mute); } .ps-wiersz b { color: var(--ink); font-size: 16px; }
 .ps-os small { color: var(--mute); font-size: 12px; }
 @media (max-width: 359px) { .ps-osoby { grid-template-columns: 1fr; } }
+
+/* v65: dopasowanie planu i goście */
+.dop-karta .lod-rzad { display: flex; gap: 8px; } .dop-karta input { flex: 1; min-width: 0; }
+.dop-dnia, .gosc-dnia { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.gosc-dnia { flex-direction: row; align-items: center; justify-content: space-between; }
+.gosc-ster { display: flex; align-items: center; gap: 12px; } .gosc-ster b { min-width: 22px; text-align: center; font-size: 18px; }
+.gosc-ster .stp { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--szklo); font-size: 20px; font-weight: 700; }
+.gosc-ster .stp:disabled { opacity: .4; }
+.dop-zm { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.dop-zm small { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.dop-zm em { font-style: normal; color: var(--mute); font-size: 12.5px; } .dop-zm b { color: var(--zielony); }
+.dop-str { color: var(--mute); }
+.dop-uw { margin: 8px 0 0; }
+.dop-kart .chips { margin-top: 8px; }
+.dop-zwin { margin: 8px 0 4px; }
+
+/* v66: trasa po sklepie */
+.trasa-wiersz { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+.trasa-wiersz > span.mute { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.trasa-wiersz small { line-height: 1.4; }

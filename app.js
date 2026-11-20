@@ -1383,7 +1383,15 @@ function listaProduktowPar(i, q) {
   const zn = znorm(q.trim()), lista = [...DB.produkty.keys()].filter(k => !zn || znorm(k).includes(zn)).sort((a, b) => a.localeCompare(b, 'pl')).slice(0, 60);
   $('#pw-lista').innerHTML = `<button class="btn szeroki" data-par-pomin-poz="${i}" style="margin-bottom:8px">Pomiń tę pozycję (nie jedzenie / poza planem)</button>`
     + (q.trim().length >= 2 && !lista.some(k => znorm(k) === zn) ? `<button class="btn glowny szeroki" data-par-nowy-prod="${i}|${esc(q.trim())}" style="margin-bottom:8px">＋ Nowy produkt: „${esc(q.trim())}”</button>` : '')
-    + lista.map(k => `<button class="wybor" data-par-wybrany="${i}|${esc(k)}" style="margin:6px 0"><span class="tx"><b>${esc(k)}</b><span class="mute">${esc((DB.produkty.get(k) || {}).u || '')}</span></span></button>`).join('');
+    + (() => {
+      const wiersz = k => `<button class="wybor" data-par-wybrany="${i}|${esc(k)}" style="margin:6px 0"><span class="tx"><b>${esc(k)}</b><span class="mute">${esc((DB.produkty.get(k) || {}).u || '')}</span></span></button>`;
+      let podobne = [];
+      if (!zn) {
+        const sl = znorm(parag.w.poz[i].raw).split(/[^a-z0-9]+/).filter(w => w.length >= 4).map(w => w.slice(0, 4));
+        podobne = [...DB.produkty.keys()].map(k => { const nk = znorm(k); return [k, sl.filter(w => nk.includes(w)).length]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pl')).slice(0, 5).map(x => x[0]);
+      }
+      return (podobne.length ? `<h3>Najbardziej podobne</h3>${podobne.map(wiersz).join('')}<h3>Wszystkie produkty</h3>` : '') + lista.map(wiersz).join('');
+    })();
 }
 function zapiszParagon() {
   const { w, wiersze } = parag, sklep = ($('#par-sklep') || {}).value || parag.sklep, data = ($('#par-data') || {}).value || parag.data;
@@ -2197,7 +2205,7 @@ function widokDzis() {
     } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div></div>`;
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
-    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span>${pr}<small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>${z >= cel ? 'cel osiągnięty' : 'jeszcze ' + r0(Math.max(0, cel - z))}</small></div></div>`; }).join('')}</div>`;
+    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>${z >= cel ? 'cel osiągnięty' : 'jeszcze ' + r0(Math.max(0, cel - z))}</small></div></div>`; }).join('')}</div>`;
     o += paskAkcji(['skan', 'paragon', 'spont', 'waga']);
     o += kartaPrepDzis(dzis);
     // lista posiłków
@@ -2328,7 +2336,7 @@ function rysuj() {
   $('#tabs').hidden = false;
   const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony', 'prep'].includes(zakladka);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('akt', b.dataset.tab === (pod ? 'wiecej' : zakladka)));
-  ustawPlame(); if (window._ostZakl !== zakladka) { window._ostZakl = zakladka; const v = $('#view'); v.classList.remove('wejscie'); void v.offsetWidth; v.classList.add('wejscie'); clearTimeout(window._wejT); window._wejT = setTimeout(() => v.classList.remove('wejscie'), 900); }
+  ustawPlame(); if (window._ostZakl !== zakladka) { setTimeout(animujLiczby, 150); window._ostZakl = zakladka; const v = $('#view'); v.classList.remove('wejscie'); void v.offsetWidth; v.classList.add('wejscie'); clearTimeout(window._wejT); window._wejT = setTimeout(() => v.classList.remove('wejscie'), 900); }
   if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else if (zakladka === 'prep') widokPrep(); else widokWiecej();
   if (pod) $('#view').insertAdjacentHTML('afterbegin', `<button class="wstecz" data-tab="wiecej">‹ Więcej</button>`);
   if (!LS.get('intro', false) && profil && plan) { LS.set('intro', true); pokazIntro(0); }
@@ -2527,6 +2535,22 @@ let lodKat = 'wszystko', lodSzukaj = '', dodU = 'g', toastFn = null, toastT = nu
 const KROK_LOD = u => (u === 'g' || u === 'ml') ? 50 : 1;
 const ILOSCI_LOD = u => u === 'g' || u === 'ml' ? [100, 250, 500, 1000] : u === 'szt.' ? [1, 2, 4, 6, 10] : u === 'krom.' ? [4, 8, 16] : [1, 2, 3];
 // Krótki komunikat nad paskiem zakładek, opcjonalnie z przyciskiem (np. „Cofnij”).
+const haptyka = (ms = 12) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* brak wibracji */ } };
+// Konfetti po zjedzeniu wszystkich posiłków dnia: kilkadziesiąt kolorowych kawałków, sprząta się samo. Przy „ogranicz ruch” — tylko komunikat.
+function konfetti() {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const k = document.createElement('div'); k.className = 'konfetti'; k.setAttribute('aria-hidden', 'true');
+  const kol = ['#3ccf91', '#7ad7a3', '#f391aa', '#86bcee', '#f0b25e', '#ffffff'];
+  for (let i = 0; i < 42; i++) { const e = document.createElement('i'); e.style.cssText = `left:${Math.random() * 100}%;background:${kol[i % kol.length]};--dx:${Math.round((Math.random() - .5) * 160)}px;--r:${Math.round(Math.random() * 720 - 360)}deg;animation-delay:${Math.round(Math.random() * 350)}ms;animation-duration:${1500 + Math.round(Math.random() * 1100)}ms;width:${6 + Math.round(Math.random() * 6)}px;height:${9 + Math.round(Math.random() * 8)}px`; k.appendChild(e); }
+  document.body.appendChild(k); haptyka([20, 40, 30]); setTimeout(() => k.remove(), 3200);
+}
+// Liczby w pierścieniach „liczą się” od zera przy wejściu na ekran.
+function animujLiczby() {
+  document.querySelectorAll('[data-licz]').forEach(el => {
+    const cel = +el.dataset.licz, t0 = performance.now(), dur = 1100; if (!cel) return;
+    const f = t => { const x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 3); el.firstChild.nodeValue = Math.round(cel * e); if (x < 1) requestAnimationFrame(f); }; requestAnimationFrame(f);
+  });
+}
 function pokazToast(tekst, et, fn) {
   const el = $('#toast'); if (!el) return;
   toastFn = fn || null;
@@ -2937,7 +2961,8 @@ document.addEventListener('change', e => {
   else if (t.dataset.zuz) {
     const [d, sl] = t.dataset.zuz.split(':'), g = window._w.garnki.find(x => x.slot === sl && x.porcje.some(q => q.d === +d));
     if (!g) return;
-    zjedz(g, +d, t.checked); otwartyDzien = +d; rysuj();
+    zjedz(g, +d, t.checked); otwartyDzien = +d; haptyka(); rysuj();
+    if (t.checked && zakladka === 'dzis' && document.querySelector('.hero.ok') && LS.get('konfetti', '') !== isoDzis()) { LS.set('konfetti', isoDzis()); konfetti(); }
     if (t.checked) zapytajSmak(g, +d);
   }
   else if (t.dataset.sp) {
@@ -2947,7 +2972,7 @@ document.addEventListener('change', e => {
   }
   else if (t.dataset.spontTyp) { spontFiltr.typ = t.value; listaSpont(); }
   else if (t.dataset.kup) {
-    odhaczKup(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);
+    haptyka(10); odhaczKup(t.dataset.kup, t.checked); LS.set('odhaczone', odhaczone);
     const poz = t.closest('.zk-poz'), kart = poz.parentNode;
     poz.classList.toggle('kupione', t.checked);
     if (t.checked) kart.appendChild(poz);                              // odhaczone spada na koniec działu

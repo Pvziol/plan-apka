@@ -1005,3 +1005,13 @@ details.dzien[open] { box-shadow: 0 18px 40px -14px rgba(20, 70, 50, .28), var(-
 @keyframes laser { 0%, 100% { top: 8%; } 50% { top: calc(92% - 3px); } }
 .ostrz-karta { background: linear-gradient(140deg, color-mix(in srgb, var(--ostrz) 14%, var(--szklo)), var(--szklo) 70%); }
 @media (prefers-reduced-motion: reduce) { .skan-celownik::after, .pusty::before { animation: none !important; } }
+
+/* v56: okna — drobne poprawki */
+.karta > .btn.maly[data-sug] { float: none !important; display: flex; margin: 10px 0 0 auto; }
+#pw-lista h3 { margin: 14px 0 4px; }
+.wybor { transition: transform .3s var(--sprez), box-shadow .25s; }
+.wybor:active { transform: scale(.975); }
+.kolo > span > span { display: inline; }
+.konfetti { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
+.konfetti i { position: absolute; top: -20px; border-radius: 2px; opacity: 0; animation: spada 2s cubic-bezier(.3, .6, .4, 1) forwards; }
+@keyframes spada { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), 105vh) rotate(var(--r)); } }

@@ -1405,16 +1405,17 @@ function zapiszParagon() {
   LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
   Z([[['paragony'], paragony], [['ceny'], ceny], [['mapaPar'], mapaPar], [['pakiety'], pakiety]]);
   parag = null; $('#modal').hidden = true; rysuj();
-  pokazToast(`Zapisano paragon z ${sklep}: ${nCen} cen${nLod ? `, ${nLod} produktów w lodówce` : ''}`);
+  pokazToast(`Zapisano paragon z ${sklep}: ${nCen} ${mn(nCen, 'cena', 'ceny', 'cen')}${nLod ? `, ${nLod} ${mn(nLod, 'produkt', 'produkty', 'produktów')} w lodówce` : ''}`);
 }
+const mn = (n, a, b, c) => n === 1 ? a : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? b : c;   // odmiana: 1 / 2–4 / 5+
 function widokParagony() {
   const teraz = isoDzis().slice(0, 7), mies = paragony.filter(x => x.data.startsWith(teraz)), sumaM = sum(mies, x => x.suma);
   const wSkl = {}; paragony.forEach(x => { const e = (wSkl[x.sklep] = wSkl[x.sklep] || { n: 0, suma: 0 }); e.n++; e.suma += x.suma; });
   let h = `<h1>Paragony i ceny</h1>` + wskazowka('paragony', 'Dodaj paragon po zakupach: wybierz PDF lub zdjęcie albo wklej go ze schowka. Zapamiętam ceny i sklep, a na liście zakupów podpowiem, gdzie wyjdzie taniej.');
-  h += `<div class="lod-kafle"><div><b>${zl(sumaM).replace(' zł', '')}</b><small>zł wydane w tym miesiącu</small></div><div><b>${paragony.length}</b><small>zapisanych paragonów</small></div></div>
+  h += `<div class="lod-kafle"><div><b>${zl(sumaM).replace(' zł', '')}</b><small>zł wydane w tym miesiącu</small></div><div><b>${paragony.length}</b><small>${mn(paragony.length, 'zapisany paragon', 'zapisane paragony', 'zapisanych paragonów')}</small></div></div>
     <button class="btn glowny szeroki" data-par-nowy>＋ Dodaj paragon</button>`;
   if (Object.keys(wSkl).length) h += `<div class="chips" style="margin-top:12px">${Object.entries(wSkl).map(([k, e]) => `<span class="chip stat">${esc(k)} · ${e.n}× · ${zl(e.suma)}</span>`).join('')}</div>`;
-  h += `<h2>Ostatnie paragony</h2>` + (paragony.length ? paragony.map(x => `<details class="karta par-karta"><summary><span><b>${esc(x.sklep)}</b><small>${new Date(x.data + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })} · ${x.poz.length} pozycji</small></span><b>${zl(x.suma)}</b></summary>
+  h += `<h2>Ostatnie paragony</h2>` + (paragony.length ? paragony.map(x => `<details class="karta par-karta"><summary><span><b>${esc(x.sklep)}</b><small>${new Date(x.data + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })} · ${x.poz.length} ${mn(x.poz.length, 'pozycja', 'pozycje', 'pozycji')}</small></span><b>${zl(x.suma)}</b></summary>
       ${x.poz.map(q => `<div class="par-pw"><span>${esc(q.n)}${q.p ? `<br><span class="mute">→ ${esc(q.p)}${q.q ? ' · ' + String(q.q).replace('.', ',') + ' ' + esc(q.u) : ''}</span>` : ''}</span><b>${zl(q.c)}</b></div>`).join('')}
       <button class="btn maly" data-par-usun="${esc(x.id)}" style="margin:10px 0 14px">Usuń paragon</button></details>`).join('') : '<div class="karta pusta-karta"><b>Brak paragonów</b><p class="mute">Dodaj pierwszy, a apka zacznie pamiętać ceny.</p></div>');
   const wl = Object.entries(wlasneProd).sort((a, b) => a[0].localeCompare(b[0], 'pl'));
@@ -1624,10 +1625,7 @@ function okazjePrepu() {   // oszczędność dla każdego z najbliższych 7 dni
   return Array.from({ length: 7 }, (_, i) => { const od = dodajDni(isoDzis(), i), pl = planPrepu(od, prepH); return { od, min: pl.oszczMin, n: pl.komp.length }; });
 }
 // Karta na ekranie Dziś: czy dzisiaj opłaca się meal prep, co już leży w pojemnikach (zapas) i kiedy najlepszy dzień.
-function kartaPrepDzis(dzis) {
-  const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
-  const ok = okazjePrepu(), dz = ok[0], naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
-  const zaplan = sesje.find(x => x.od === dzis && !x.zrobione);
+function zapasPrepu(dzis) {
   const zapas = [];
   for (const se of sesje) if (se.zrobione) for (const k of se.komp) {
     const reszta = k.uzycia.filter(u => u.iso >= dzis && !(u.wk === plan.start && zuzyte[kluczZ(u.d, u.slot)]));
@@ -1636,6 +1634,13 @@ function kartaPrepDzis(dzis) {
     zapas.push({ nazwa: PREP[k.prod] ? PREP[k.prod].nazwa : k.nazwa, u: k.u, dzisiaj: sum(dzisiaj, u => u.ugot), ost, n: reszta.length, dni: PREP[k.prod] ? PREP[k.prod].dni : 3 });
   }
   const zapasHtml = zapas.length ? `<div class="prep-zapas"><b>Z zapasu w lodówce</b>${zapas.map(z => `<div><span>${esc(z.nazwa)}</span><span class="mute">${z.dzisiaj ? `dziś weź ${z.dzisiaj} ${z.u === 'szt.' ? 'szt.' : 'g'} · ` : ''}starczy do ${dzienKrotki(z.ost)}${z.ost > dodajDni(dzis, z.dni) ? ' (sprawdź świeżość)' : ''}</span></div>`).join('')}</div>` : '';
+  return { zapas, html: zapasHtml };
+}
+function kartaPrepDzis(dzis) {
+  const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
+  const ok = okazjePrepu(), dz = ok[0], naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
+  const zaplan = sesje.find(x => x.od === dzis && !x.zrobione);
+  const { zapas, html: zapasHtml } = zapasPrepu(dzis);
   if (zaplan) return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś meal prep</b><small>zaplanowana sesja · ${zaplan.komp.map(k => esc(k.nazwa.toLowerCase())).join(', ')}</small></div></div><div class="rzad"><button class="btn glowny" data-prep-dzis="${esc(zaplan.id)}">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Szczegóły</button></div>${zapasHtml}</div>`;
   if (dz.min >= 20) { const pl = planPrepu(dzis, prepH); return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś dobry dzień na meal prep</b><small>oszczędzisz ok. ${dz.min} min przy kuchni w następnych dniach</small></div></div><p class="mute" style="margin:8px 0 10px">Ugotuj raz: ${esc(pl.komp.map(c => c.nazwa.toLowerCase()).join(', '))}.</p><div class="rzad"><button class="btn glowny" data-prep-dzis="">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Zobacz plan</button></div>${zapasHtml}</div>`; }
   if (zapas.length) return `<div class="karta prep-radar"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Masz jedzenie na zapas</b><small>dziś nie trzeba gotować tych składników</small></div></div>${zapasHtml}</div>`;
@@ -1761,6 +1766,7 @@ function rysujGot() {
   $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div><button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
     <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fq(x.ilosc * skala(g, x), x.jednostka)}</b></div>`).join('')}</div>` : ''}${tresc}</div>
     <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe' : 'Dalej'} ›</button>` : ''}</div>`;
+  if (got._ostI !== i) { const kier = got._ostI === undefined ? 0 : (i > got._ostI ? 1 : -1); got._ostI = i; const m = $('#gotuj .got-main'); if (m && kier) m.dataset.kier = kier; if (m) m.scrollTop = 0; }
 }
 document.addEventListener('paste', e => { if (e.target && e.target.id === 'par-tekst' && e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) { e.preventDefault(); wczytajPlik(e.clipboardData.files[0]); return; } if (e.target && e.target.id === 'par-tekst') setTimeout(() => { const v = e.target.value; if (v && v.length > 40) wczytajParagon(v); }, 30); });
 document.addEventListener('keydown', e => { if (!got) return; if (e.key === 'ArrowRight') gotIdz(got.i + 1); else if (e.key === 'ArrowLeft') gotIdz(got.i - 1); else if (e.key === 'Escape') zamknijGotowanie(); });
@@ -2207,6 +2213,7 @@ function widokDzis() {
     { const maOdh = Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).some(k => k.startsWith('zak|')), raz = Object.values(lodowka).reduce((a, us) => a + Object.keys(us).length, 0);
       if (maOdh && !paragony.some(x => x.data >= dodajDni(dzis, -2))) kar.push(`<div class="karta zad"><b>Masz paragon z zakupów?</b><p class="mute">Wklej go, a zapamiętam ceny i sklep, żeby podpowiadać, gdzie taniej.</p><button class="btn szeroki" data-szybka="paragon">Dodaj paragon</button></div>`);
       else if (!raz) kar.push(`<div class="karta zad"><b>Lodówka jest pusta</b><p class="mute">Zeskanuj kody produktów albo dodaj paragon, a apka będzie liczyć, co jeszcze masz.</p><div class="rzad"><button class="btn glowny" data-szybka="skan">Skanuj kod</button><button class="btn" data-szybka="paragon">Dodaj paragon</button></div></div>`); }
+    { const brak = prognoza(w).filter(x => x.pilne); if (brak.length) kar.push(`<div class="karta zad ostrz-karta"><b>Zaraz zabraknie w lodówce</b><p class="mute">${brak.slice(0, 4).map(x => `${esc(x.produkt)} (${DNI_KR[x.d]})`).join(', ')}${brak.length > 4 ? ' i inne' : ''}.</p><div class="rzad"><button class="btn glowny" data-tab="zakupy">Lista zakupów</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
     if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
     const idx = dzienTyg();
     if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista jest gotowa na: <b>${zakresDni(new Set(domyslneDni(dniDostepne())))}</b>.</p><button class="btn glowny szeroki" id="doZakupowDzis">Otwórz listę zakupów</button></div>`);
@@ -2271,7 +2278,7 @@ function widokWiecej() {
     ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
     <button class="kafel" data-szybka="skan"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE.skan[1]}"/></svg></span><span class="kafel-tx"><b>Skanuj kod produktu</b><small>Dodaj do lodówki z aparatu</small></span><span class="kafel-str">›</span></button>
     ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
-    ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} paragonów · ceny ${Object.keys(ceny).length} produktów` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
+    ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} ${paragony.length === 1 ? 'paragon' : [2, 3, 4].includes(paragony.length % 10) && (paragony.length % 100 < 10 || paragony.length % 100 >= 20) ? 'paragony' : 'paragonów'} · ceny ${Object.keys(ceny).length} ${Object.keys(ceny).length === 1 ? 'produktu' : 'produktów'}` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
     ${kafel('ustawienia', 'Ustawienia', 'Profile, cele, wspólny plan, ulubione dania', 'M4 7h9M17 7h3M4 17h3M11 17h9')}
     <button class="kafel" data-intro="0"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span><span class="kafel-tx"><b>Jak to działa</b><small>Krótkie wprowadzenie krok po kroku</small></span><span class="kafel-str">›</span></button>
@@ -2539,9 +2546,10 @@ function widokLodowka() {
   for (const [pp, us] of Object.entries(lodowka)) { const jed = Object.entries(us); if (!jed.length) continue; const k = (DB.produkty.get(pp) || {}).kat; grupy[k in grupy ? k : 'zapas'].set(pp, jed); }
   const razem = Object.values(grupy).reduce((a, m) => a + m.size, 0);
   let h = `<h1>Lodówka</h1>` + wskazowka('lodowka', 'Lodówka liczy się sama: zakupy ją dopisują, a „zjedzone” odejmuje. Przyciskami − i + poprawisz ilość, a „＋ Dodaj” wpisze nowe produkty.');
-  h += `<div class="lod-kafle"><div><b>${razem}</b><small>produktów w domu</small></div><div class="${pr.length ? 'ostrz' : ''}"><b>${pr.length}</b><small>zaczyna brakować</small></div></div>
+  h += `<div class="lod-kafle"><div><b>${razem}</b><small>${mn(razem, 'produkt w domu', 'produkty w domu', 'produktów w domu')}</small></div><div class="${pr.length ? 'ostrz' : ''}"><b>${pr.length}</b><small>${pr.length === 1 ? 'zaczyna brakować' : 'zaczynają brakować'}</small></div></div>
     <div class="rzad" style="margin:10px 0"><button class="btn glowny" data-szybka="skan">Skanuj kod</button><button class="btn" data-szybka="dodaj">＋ Dodaj ręcznie</button></div>
     <button class="spont-cta" id="spont"><span class="spont-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="spont-tx"><b>Co ugotować z tego, co mamy?</b><small>Spontaniczne gotowanie z Waszej lodówki</small></span><span class="spont-str">›</span></button>`;
+  { const zp = zapasPrepu(isoDzis()); if (zp.zapas.length) h += `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg></span><div><b>Ugotowane na zapas</b><small>z sesji meal prep, w pojemnikach</small></div></div>${zp.html}</div>`; }
   if (pr.length) h += `<h2>Zaczyna brakować</h2><div class="alerty">${pr.map(x => `<button class="alert ${x.pilne ? 'pilne' : ''}" data-popraw="${esc(x.produkt)}|${esc(x.u)}"><b>${esc(x.produkt)}</b><span>brakuje ${fmtStan(x.brakuje, x.u)}</span><small>od: ${esc(x.dish)} (${DNI_KR[x.d]})</small><em>Popraw ilość ›</em></button>`).join('')}</div><button class="btn szeroki" id="doZakupow" style="margin-top:10px">Otwórz listę zakupów</button><p class="mute">Kliknij kartę, jeśli ilość w lodówce się nie zgadza — poprawisz ją od razu. Prognoza zakłada, że jecie według planu i zaznaczacie „zjedzone”.</p>`;
   h += `<h2>W lodówce</h2><div class="lod-filtr"><div class="lod-rzad"><input id="lod-szukaj" type="search" placeholder="Szukaj w lodówce…" autocomplete="off" value="${esc(lodSzukaj)}"><button class="btn glowny maly" data-dodaj>＋ Dodaj</button></div>
     <div class="seg mini">${[['wszystko', 'Wszystko'], ['świeże', 'Świeże'], ['zamrażarka', 'Mrożone'], ['zapas', 'Zapasy']].map(([k, et]) => `<button data-lodkat="${k}" class="${lodKat === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`;
@@ -2686,7 +2694,7 @@ function listaSpont() {
   const lista = mozliwosci().filter(x => (!typy || typy.includes(x.d.typ)) && slowa.every(w => szukany(x.d).includes(w))).filter(x => x.brak.length <= 3).slice(0, 40);
   $('#spont-lista').innerHTML = lista.length ? lista.map(x => `<div class="wiersz"><button class="wybor" data-przepis-spont="${esc(x.d.id)}">${Obr.html(x.d)}<span class="tx"><b>${oceny[x.d.id] === 1 ? '★ ' : ''}${esc(x.d.nazwa)}</b>
       <span class="${x.brak.length ? 'mute' : 'ok-txt'}">${x.brak.length ? 'brakuje: ' + esc(x.brak.join(', ')) : '✓ masz wszystko'}${x.skala < 0.95 ? ` · porcja ×${x.skala.toFixed(1).replace('.', ',')}` : ''}</span></span></button></div>`).join('')
-    : '<p class="pusty">Nic nie pasuje — dopisz więcej rzeczy do lodówki albo zmień filtr.</p>';
+    : '<div class="pusty"><b>Nic nie pasuje</b><span>Dopisz więcej rzeczy do lodówki albo zmień filtr.</span><button class="btn glowny" data-szybka="dodaj">＋ Dodaj do lodówki</button></div>';
 }
 
 // ---------- zdarzenia ----------

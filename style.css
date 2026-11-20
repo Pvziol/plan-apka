@@ -953,3 +953,55 @@ details.dzien[open] { box-shadow: 0 18px 40px -14px rgba(20, 70, 50, .28), var(-
   .postep > div { gap: 8px; padding: 10px; } .kolo { width: 50px; height: 50px; } .kolo > span { font-size: 13px; }
   .kolo-tx > span { font-size: 15px; } .kolo-tx em { display: block; font-size: 11px; }
 }
+
+/* ═════════ v55 · tryb gotowania ═════════ */
+#gotuj { background: radial-gradient(520px 320px at 90% -6%, var(--a1), transparent 70%), radial-gradient(460px 340px at -5% 104%, var(--a3), transparent 70%), var(--bg); }
+.got-x, .got-skl { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); background: var(--szklo); border: 1px solid var(--szklo-brzeg); box-shadow: var(--szklo-cien); transition: transform .3s var(--sprez); }
+.got-skl { color: var(--zielony); }
+.got-postep { gap: 5px; }
+.got-postep i { height: 6px; background: color-mix(in srgb, var(--mute) 22%, transparent); transition: background .4s, transform .4s var(--sprez), box-shadow .4s; }
+.got-postep i.zrob { background: linear-gradient(90deg, var(--zielony), var(--zielony2)); }
+.got-postep i.akt { background: linear-gradient(90deg, var(--zielony2), color-mix(in srgb, var(--zielony2) 55%, #fff)); transform: scaleY(1.5); box-shadow: 0 0 14px color-mix(in srgb, var(--zielony2) 70%, transparent); }
+.got-main[data-kier] > * { animation: gotWej .55s var(--plynnie) both; --dx: 34px; }
+.got-main[data-kier="-1"] > * { --dx: -34px; }
+.got-main[data-kier] > *:nth-child(2) { animation-delay: 60ms; } .got-main[data-kier] > *:nth-child(3) { animation-delay: 120ms; } .got-main[data-kier] > *:nth-child(n+4) { animation-delay: 170ms; }
+@keyframes gotWej { from { opacity: 0; transform: translateX(var(--dx)) scale(.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.got-et { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--zielony) 13%, transparent); margin: 8px 0 12px; }
+.got-et::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--zielony2); box-shadow: 0 0 10px var(--zielony2); animation: puls 1.8s ease-in-out infinite; }
+@keyframes puls { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .55; } }
+.got-tekst { font-size: 26px; line-height: 1.36; font-weight: 600; }
+.got-tekst mark { background: linear-gradient(180deg, color-mix(in srgb, var(--zielony2) 24%, transparent), color-mix(in srgb, var(--zielony) 14%, transparent)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--zielony) 22%, transparent) inset; }
+.got-tm .btn { min-height: 58px; border-radius: 20px; }
+.got-sk-krok, .got-lista, .got-panel, .got-t { background: var(--szklo); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--szklo-brzeg); box-shadow: var(--szklo-cien); }
+.got-t { border-radius: 20px; }
+.got-t b { background: linear-gradient(100deg, var(--ink), var(--zielony2)); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-size: 26px; }
+.got-t.koniec b { background: none; -webkit-text-fill-color: var(--ostrz); }
+.got-sk input:checked + .zk-ptak { animation: pyk .45s var(--sprez); }
+.got-dol { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 85%, transparent) 40%); }
+.got-dol .btn { border-radius: 22px; }
+.got-dol .btn.glowny { min-height: 62px; box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--zielony) 65%, transparent), 0 1px 0 rgba(255, 255, 255, .4) inset; }
+.got-koniec .intro-ik { position: relative; animation: pop .7s var(--sprez) both; }
+.got-koniec .intro-ik::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--zielony2); animation: fala 1.6s ease-out .3s infinite; opacity: 0; }
+.got-koniec .intro-ik svg path { stroke-dasharray: 30; stroke-dashoffset: 30; animation: rysuj .7s ease-out .35s forwards; }
+@keyframes pop { from { transform: scale(.3) rotate(-20deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fala { 0% { transform: scale(.9); opacity: .7; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes rysuj { to { stroke-dashoffset: 0; } }
+.got-koniec h2 { background: linear-gradient(100deg, var(--ink) 30%, var(--zielony2)); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+@media (max-width: 359px) { .got-tekst { font-size: 21px; } }
+@media (prefers-reduced-motion: reduce) { .got-main[data-kier] > *, .got-et::before, .got-koniec .intro-ik, .got-koniec .intro-ik::after, .got-koniec .intro-ik svg path { animation: none !important; } .got-koniec .intro-ik svg path { stroke-dashoffset: 0; } }
+
+/* v55: puste stany, skaner, karta ostrzeżenia */
+.pusty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 34px 20px; margin: 14px 0; border-radius: 24px; border: 1.5px dashed color-mix(in srgb, var(--mute) 35%, transparent); background: color-mix(in srgb, var(--szklo) 70%, transparent); }
+.pusty::before { content: ''; width: 54px; height: 54px; border-radius: 18px; margin-bottom: 4px; background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--zielony2) 35%, transparent), color-mix(in srgb, var(--zielony) 8%, transparent)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--zielony) 22%, transparent) inset; animation: unos 5s ease-in-out infinite; }
+.pusty b { color: var(--ink); font-size: 17px; } .pusty .btn { margin-top: 8px; }
+.pusta-karta { border: 1.5px dashed color-mix(in srgb, var(--mute) 35%, transparent); }
+.skan-ramka { background: radial-gradient(circle at 50% 40%, #12231b, #060d0a); box-shadow: 0 0 0 1px var(--szklo-brzeg) inset; }
+.skan-celownik { border: 0; border-radius: 18px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .42); background:
+  linear-gradient(#fff, #fff) left top / 26px 3px no-repeat, linear-gradient(#fff, #fff) left top / 3px 26px no-repeat,
+  linear-gradient(#fff, #fff) right top / 26px 3px no-repeat, linear-gradient(#fff, #fff) right top / 3px 26px no-repeat,
+  linear-gradient(#fff, #fff) left bottom / 26px 3px no-repeat, linear-gradient(#fff, #fff) left bottom / 3px 26px no-repeat,
+  linear-gradient(#fff, #fff) right bottom / 26px 3px no-repeat, linear-gradient(#fff, #fff) right bottom / 3px 26px no-repeat; }
+.skan-celownik::after { content: ''; position: absolute; left: 6%; right: 6%; top: 8%; height: 3px; border-radius: 3px; background: linear-gradient(90deg, transparent, #5af0a8, transparent); box-shadow: 0 0 14px 2px rgba(90, 240, 168, .8); animation: laser 2.2s ease-in-out infinite; }
+@keyframes laser { 0%, 100% { top: 8%; } 50% { top: calc(92% - 3px); } }
+.ostrz-karta { background: linear-gradient(140deg, color-mix(in srgb, var(--ostrz) 14%, var(--szklo)), var(--szklo) 70%); }
+@media (prefers-reduced-motion: reduce) { .skan-celownik::after, .pusty::before { animation: none !important; } }

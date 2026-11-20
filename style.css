@@ -1226,3 +1226,34 @@ button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
 .wykres-dni rect.sl { transform-box: fill-box; transform-origin: 50% 100%; animation: slRosnij .8s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 70ms); }
 @keyframes slRosnij { from { transform: scaleY(0); } }
 @media (prefers-reduced-motion: reduce) { .wykres-dni rect.sl, .ps-kr i.zj { animation: none; } }
+/* v87: pasek synchronizacji, wersja */
+.sync-pasek { position: fixed; z-index: 60; top: env(safe-area-inset-top); left: 0; right: 0; display: flex; gap: 10px; align-items: center; justify-content: center; padding: 8px 14px; font-size: 13px; line-height: 1.3; background: var(--ostrz-tlo); color: var(--ostrz); border-bottom: 1px solid color-mix(in srgb, var(--ostrz) 35%, transparent); }
+.sync-pasek .btn { min-height: 36px; flex: none; }
+body.ma-sync-pasek #view { padding-top: calc(var(--sync-h, 46px) + 8px); }
+.wersja-stopka { text-align: center; font-size: 12px; margin: 22px 0 8px; }
+/* v87: cele dotyku min. 44 px (wygląd bez zmian, powiększony obszar klikalny) */
+.pos-ptak { width: 44px; height: 44px; margin: -7px; display: grid; place-items: center; }
+.pos-ptak input { z-index: 1; }
+.zuzyj { min-height: 44px; }
+.pk-akcje .zuzyj { padding-right: 6px; }
+.btn.maly { min-width: 44px; }
+.zk-poz, .got-sk, .dz-wiersz, .lod-poz { min-height: 44px; }
+/* v91: szybkie akcje wracają do przesuwanego paska (suwaczek); brzeg zanika, żeby było widać, że jest ich więcej */
+.szybkie { -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%); scroll-snap-type: x proximity; padding-right: 36px; }
+.szybka { scroll-snap-align: start; }
+.hist-w .btn.maly, .btn.maly.hist-x { min-width: 44px; }
+.wieczor .link { min-height: 44px; display: inline-flex; align-items: center; }
+.miesc-tipy summary { min-height: 44px; display: flex; align-items: center; }
+/* v88: własne okna zamiast systemowych confirm/alert */
+.pytanie { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px; }
+.pytanie-tlo { position: absolute; inset: 0; background: rgba(10, 20, 15, .5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: pytTlo .2s ease both; }
+.pytanie-box { position: relative; width: 100%; max-width: 380px; background: var(--card); border-radius: 22px; padding: 22px 20px 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); animation: pytBox .28s cubic-bezier(.2, .9, .3, 1.2) both; }
+.pytanie-box h2 { margin: 0 0 6px; font-size: 18px; line-height: 1.25; }
+.pytanie-box p { margin: 0 0 14px; font-size: 14.5px; line-height: 1.45; }
+.pytanie-ak { display: flex; gap: 10px; margin-top: 8px; }
+.pytanie-ak .btn { flex: 1; min-height: 48px; }
+.btn.grozne { background: linear-gradient(180deg, #d1493f, #b3322a); border-color: transparent; color: #fff; box-shadow: 0 6px 16px rgba(179, 50, 42, .3); }
+.pytanie-tx { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--bg); color: var(--ink); resize: none; margin: 4px 0 8px; }
+@keyframes pytTlo { from { opacity: 0; } }
+@keyframes pytBox { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@media (prefers-reduced-motion: reduce) { .pytanie-tlo, .pytanie-box { animation: none; } }

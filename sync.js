@@ -11,7 +11,7 @@ const LSx = {
 };
 
 let cfg = null, F = null, db = null, ref = null, unsub = null, kolejka = [];
-const S = { stan: 'start', kod: LSx.get('dom'), blad: null, dostepny: false };
+const S = { stan: 'start', kod: LSx.get('dom'), blad: null, dostepny: false, ostatni: 0, oczekuje: 0 };
 
 const powiadom = () => { if (window.App) window.App.syncZmiana(); };
 function nowyKod() {
@@ -58,6 +58,7 @@ async function polacz(kod, noweDane) {
       }
       if (snap.metadata.hasPendingWrites) return;          // własna zmiana, jeszcze niepotwierdzona
       S.stan = snap.metadata.fromCache ? 'offline' : 'polaczony';
+      if (!snap.metadata.fromCache) S.ostatni = Date.now();
       window.App.zdalny(snap.data());
       powiadom();
     }, e => { S.stan = 'blad'; S.blad = opisBledu(e); powiadom(); });
@@ -74,7 +75,9 @@ function wyslij(zm) {
   if (!ref) { kolejka.push(zm); return; }
   const args = [];
   for (const [sciezka, v] of zm) args.push(new F.FieldPath(...sciezka.map(String)), v === undefined ? F.deleteField() : (v && v.__inc !== undefined ? F.increment(v.__inc) : v));
-  F.updateDoc(ref, ...args).catch(e => { S.stan = 'blad'; S.blad = opisBledu(e); powiadom(); });
+  S.oczekuje++; powiadom();
+  F.updateDoc(ref, ...args).then(() => { S.oczekuje = Math.max(0, S.oczekuje - 1); S.ostatni = Date.now(); powiadom(); })
+    .catch(e => { S.oczekuje = Math.max(0, S.oczekuje - 1); S.stan = 'blad'; S.blad = opisBledu(e); powiadom(); });
 }
 
 function odlacz() {
@@ -90,6 +93,9 @@ window.Sync = {
   get stan() { return S.stan; },
   get blad() { return S.blad; },
   get dostepny() { return S.dostepny; },
+  get ostatni() { return S.ostatni; },
+  get oczekuje() { return S.oczekuje; },
+  ponow() { return S.kod ? polacz(S.kod) : Promise.resolve(false); },
   zapisz: wyslij,
   odlacz,
   link() { return S.kod ? location.origin + location.pathname + '?dom=' + S.kod : null; },
@@ -113,7 +119,8 @@ window.Sync = {
   if (!S.dostepny) { S.stan = 'brak'; powiadom(); return; }
   if (zLinku && wyluskaj(zLinku) !== S.kod) {
     const maPlan = !!LSx.get('plan');
-    if (!maPlan || confirm('Dołączyć do wspólnego planu? Plan zapisany na tym telefonie zostanie zastąpiony wspólnym.')) {
+    const ok = !maPlan || (window.pytaj ? await window.pytaj('Dołączyć do wspólnego planu?', 'Plan zapisany na tym telefonie zostanie zastąpiony wspólnym.', 'Dołącz') : confirm('Dołączyć do wspólnego planu? Plan zapisany na tym telefonie zostanie zastąpiony wspólnym.'));
+    if (ok) {
       await window.Sync.dolacz(zLinku);
       return;
     }

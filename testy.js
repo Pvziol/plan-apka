@@ -159,6 +159,30 @@
     const kod = (await tekst('app.js')); prawda(/zablokowane dania zostają przy losowaniu/.test(kod), 'brak logiki w ulozTydzien'); rowne(k.dni[1].sn, stary);
   });
 
+  await test('Kroki', 'łyżki i łyżeczki znanych produktów w krokach są w gramach', async () => {
+    rowne(krokiNaGramy('Dodaj 1 łyżeczkę chrzanu i pieprz'), 'Dodaj 5 g chrzanu (≈ 1 łyżeczka) i pieprz');
+    rowne(krokiNaGramy('rozgrzej 1 łyżkę oliwy i 3 łyżeczki masła'), 'rozgrzej 10 g oliwy (≈ 1 łyżka) i 15 g masła (≈ 3 łyżeczki)');
+    rowne(krokiNaGramy('2 łyżki posiekanego szczypiorku'), '2 łyżki posiekanego szczypiorku', 'nieznany produkt zostaje');
+    const lewe = []; for (const d of DB.dania.values()) for (const k of d.kroki || []) if (/(?<!≈ )\d\s?łyż[a-ząćęłńóśźż]*\s+(masła|chrzanu|dżemu|musztardy|miodu|ketchupu|oliwy|octu)/i.test(k)) lewe.push(d.nazwa); rowne(lewe, [], 'zostały łyżki w krokach');
+  });
+  await test('Wieczorem', 'kroki wieczorne mają odnośnik do dania i przeliczone gramy', async () => {
+    const w = oblicz(plan, cele()); let n = 0;
+    for (let d = 0; d < 6; d++) for (const it of wieczorem(w, d)) { if (it.t === 'kroki') { n++; prawda(it.g && it.g.dish && it.kroki.length > 0 && !/^WIECZOREM/i.test(it.kroki[0]), 'brak g albo kroków'); } else prawda(it.tekst && it.g, 'zamrażarka bez opisu'); }
+    prawda(typeof kartaWieczor === 'function');
+  });
+  await test('Cel dnia', 'danie spoza planu nie zwiększa celu kcal dnia', async () => {
+    const c = cele(), d = 0, p0 = 'ona', bez = oblicz(plan, c).dni[d][p0].kcal, dd = plan.dni[d], star = dd.poza;
+    try { dd.poza = { ona: [{ n: 't', k: 500, sl: [] }], on: [] }; rowne(celDnia(plan, c, d, p0), bez, 'cel dnia zmienił się po poza planem'); } finally { dd.poza = star; }
+  });
+  await test('Okna', 'własne okno pytania zwraca tak / nie i znika', async () => {
+    let pr = pytaj('t', 'o'); prawda(!!document.getElementById('pytanie')); document.querySelector('[data-pyt="1"]').click(); rowne(await pr, true);
+    pr = pytaj('t'); document.querySelector('[data-pyt="0"].btn').click(); rowne(await pr, false); prawda(!document.getElementById('pytanie'));
+    const kod = await tekst('app.js'); prawda(!/[^a-zA-Z_.]confirm\(|[^a-zA-Z_.]alert\(/.test(kod.replace(/\/\/.*$/gm, '').replace(/confirm\(' \+ txt/g, '')), 'w kodzie został confirm() albo alert()');
+  });
+  await test('Mięso', 'podział mięsa liczony od dziś, niezależnie od zaznaczonych dni', async () => {
+    const d = miesoPodzial(isoDzis(), 14); for (const [pr, w] of Object.entries(d)) for (const x of w) prawda(x.dt >= isoDzis() && x.g > 0, pr + ' ma woreczek z przeszłości');
+    prawda(/id="sync-pasek"|sync-pasek/.test(await tekst('app.js')));
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

@@ -1478,10 +1478,10 @@ function listaProduktowPar(i, q) {
       return (podobne.length ? `<h3>Najbardziej podobne</h3>${podobne.map(wiersz).join('')}<h3>Wszystkie produkty</h3>` : '') + lista.map(wiersz).join('');
     })();
 }
-function zapiszParagon() {
+async function zapiszParagon() {
   const { w, wiersze } = parag, sklep = ($('#par-sklep') || {}).value || parag.sklep, data = ($('#par-data') || {}).value || parag.data;
   if (!sklep) { pokazToast('Wybierz sklep'); return; }
-  if (parag.dubel && !confirm('Ten paragon wygląda na już dodany. Dodać jeszcze raz?')) return;
+  if (parag.dubel && !(await pytaj('Ten paragon wygląda na już dodany', 'Dodać go jeszcze raz?', 'Dodaj jeszcze raz', false))) return;
   const lod = !!($('#par-lod') || {}).checked, poz = []; let nCen = 0, nLod = 0;
   for (const r of wiersze) {
     const x = w.poz[r.i], k = kluczPar(x.raw);
@@ -2221,8 +2221,7 @@ function kartaPrepDzis(dzis) {
   if (zaplan) return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś meal prep</b><small>zaplanowana sesja · ${zaplan.komp.map(k => esc(k.nazwa.toLowerCase())).join(', ')}</small></div></div><div class="rzad"><button class="btn glowny" data-prep-dzis="${esc(zaplan.id)}">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Szczegóły</button></div>${zapasHtml}</div>`;
   if (dz.min >= 20) { const pl = planPrepu(dzis, prepH); return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś dobry dzień na meal prep</b><small>oszczędzisz ok. ${dz.min} min przy kuchni w następnych dniach</small></div></div><p class="mute" style="margin:8px 0 10px">Ugotuj raz: ${esc(pl.komp.map(c => c.nazwa.toLowerCase()).join(', '))}.</p><div class="rzad"><button class="btn glowny" data-prep-dzis="">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Zobacz plan</button></div>${zapasHtml}</div>`; }
   if (zapas.length) return `<div class="karta prep-radar"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Masz jedzenie na zapas</b><small>dziś nie trzeba gotować tych składników</small></div></div>${zapasHtml}</div>`;
-  if (naj.min >= 15) return `<button class="karta prep-radar nie" data-prep-otworz="${naj.od}"><span class="prep-r-ik">${ik}</span><span class="prep-r-tx"><b>Dziś bez meal prepu</b><small>Lepszy dzień: ${dzienKrotki(naj.od)} (−${naj.min} min)</small></span><span class="kafel-str">›</span></button>`;
-  return `<div class="karta prep-radar nie"><span class="prep-r-ik">${ik}</span><span class="prep-r-tx"><b>Dziś bez meal prepu</b><small>w najbliższych dniach nie ma czego gotować na zapas</small></span></div>`;
+  return '';   // meal prep dziś niedostępny: karta się chowa (kafel „Meal prep” jest w Więcej)
 }
 function widokPrep() {
   const ok = okazjePrepu(), naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
@@ -2340,7 +2339,7 @@ function otworzGotowanie(g, spont) {
   blokujEkran(); rysujGot(); const m = $('#gotuj .got-main'); if (m) m.scrollTop = 0;
 }
 function zamknijGotowanie(bezPytania) {
-  if (!bezPytania && timery.some(t => !t.zrobiony) && !confirm('Timery jeszcze działają. Zamknąć tryb gotowania i je wyłączyć?')) return;
+  if (!bezPytania && timery.some(t => !t.zrobiony)) { pytaj('Timery jeszcze działają', 'Zamknąć tryb gotowania i je wyłączyć?', 'Zamknij i wyłącz').then(ok => { if (ok) zamknijGotowanie(true); }); return; }
   got = null; timery = []; clearInterval(timeryInt); timeryInt = null;
   try { wakeLock && wakeLock.release(); } catch (e) { /* nic */ }
   wakeLock = null; $('#gotuj').hidden = true; document.body.classList.remove('got-otwarte');
@@ -2717,12 +2716,14 @@ function widokUstawienia(pierwszy) {
     ${pierwszy ? '' : kartaUkryte() + kartaWspolny() + `<h2>Baza dań</h2><div class="karta"><p>${DB.dania.size} dań w bazie (w tym ${[...DB.dania.values()].filter(d => d.dodane).length} dodanych poza planem z PDF-ów).</p><p class="mute">Nowe dania pojawiają się po odświeżeniu aplikacji.</p>
     <div class="rzad"><button class="btn" id="odswiez">Odśwież bazę</button><button class="btn" id="wyczysc">Wyczyść dane</button></div></div><h2>Aplikacja</h2><div class="karta"><p class="mute">Nowa wersja pobiera się sama, gdy wracasz do aplikacji. Jeśli mimo to widzisz starą, wymuś aktualizację — plan i dane zostają.</p><button class="btn szeroki" id="aktualizuj">Zaktualizuj aplikację</button><p class="mute" id="wersja"></p></div>`}`;
   const zbierz = () => { const o = { ona: {}, on: {} }; document.querySelectorAll('[data-p]').forEach(el => { const v = el.value.trim().replace(',', '.'); o[el.dataset.p][el.dataset.k] = el.tagName === 'SELECT' ? v : (v === '' ? null : +v); }); return o; };
-  const podglad = () => { const o = zbierz(); OS.forEach(p => { const z = zapotrzebowanie(o[p]); $(`[data-wynik="${p}"]`).innerHTML = z ? `<b>${z.kcal} kcal / dzień</b> · białko ${z.bMin}–${z.bMax} g<br><span class="mute">podstawowa przemiana ${z.bmr} kcal · z aktywnością ${z.cpm} kcal</span>` : '<span class="mute">Podaj wiek, wagę i wzrost.</span>'; }); };
+  const podglad = () => { const o = zbierz(); OS.forEach(p => { const z = zapotrzebowanie(o[p]); $(`[data-wynik="${p}"]`).innerHTML = z ? `<b>${z.kcal} kcal / dzień</b> · białko ${z.bMin}–${z.bMax} g<br><span class="mute">podstawowa przemiana ${z.bmr} kcal · z aktywnością ${z.cpm} kcal</span>${z.kcal < z.bmr ? `<br><span class="ostrz-txt">Uwaga: cel jest poniżej podstawowej przemiany (${z.bmr} kcal), czyli tego, co ciało zużywa w spoczynku. Na dłużej bywa to powodem osłabienia.</span>` : ''}` : '<span class="mute">Podaj wiek, wagę i wzrost.</span>'; }); };
   $('#view').oninput = podglad; podglad();
   formStart = JSON.parse(JSON.stringify(p0));
-  $('#zapisz').onclick = () => {
+  $('#zapisz').onclick = async () => {
     const o = zbierz();
-    if (!zapotrzebowanie(o.ona) || !zapotrzebowanie(o.on)) { alert('Uzupełnij wiek, wagę i wzrost dla obojga.'); return; }
+    if (!zapotrzebowanie(o.ona) || !zapotrzebowanie(o.on)) { pokazToast('Uzupełnij wiek, wagę i wzrost dla obojga.'); return; }
+    const nisko = OS.filter(pp => { const z = zapotrzebowanie(o[pp]); return z && z.kcal < z.bmr; });
+    if (nisko.length && !(await pytaj('Cel poniżej podstawowej przemiany', `${nisko.map(pp => ETY[pp]).join(' i ')}: ustawione kalorie są niższe niż to, co ciało zużywa w spoczynku. Na dłużej może to powodować osłabienie. Zapisać mimo to?`, 'Zapisz mimo to'))) return;
     // zapisuję tylko osobę, której dane ktoś tu zmienił — nie nadpiszę zmian zrobionych w tym czasie na drugim telefonie
     const zmienione = OS.filter(p => !profil || stabilny(o[p]) !== stabilny(formStart[p]));
     OS.forEach(pp => { if (profil && o[pp].waga && o[pp].waga !== formStart[pp].waga) { waga[pp] = waga[pp] || {}; waga[pp][isoDzis()] = o[pp].waga; LS.set('waga', waga); Z([[['waga', pp, isoDzis()], o[pp].waga]]); } });   // zmiana wagi w ustawieniach = nowy pomiar z dzisiaj
@@ -2737,8 +2738,8 @@ function widokUstawienia(pierwszy) {
   if (!pierwszy) {
     $('#odswiez').onclick = async () => { await wczytajBaze(); rysuj(); };
     if (window.caches) caches.keys().then(ks => { const e = $('#wersja'); if (e) e.textContent = 'Wersja: ' + (ks.find(k => k.startsWith('plan-')) || 'brak'); }).catch(() => {});
-    $('#wyczysc').onclick = () => {
-      if (!confirm('Usunąć zapisane dane, plan i odhaczone zakupy z tego telefonu?' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu — u drugiej osoby plan zostaje.' : ''))) return;
+    $('#wyczysc').onclick = async () => {
+      if (!(await pytaj('Usunąć dane z tego telefonu?', 'Zniknie zapisany plan, odhaczone zakupy i lodówka.' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu, u drugiej osoby plan zostaje.' : ''), 'Usuń dane'))) return;
       if (window.Sync && window.Sync.kod) window.Sync.odlacz();
       ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'lodowka', 'zuzyte', 'inny', 'tury', 'zakWlasne', 'zakDni'].forEach(LS.del); profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
     };
@@ -2754,8 +2755,28 @@ function opisSync() {
     laczenie: 'Łączę ze wspólnym planem…', polaczony: '✓ Wspólny plan — zmiany widać na obu telefonach na bieżąco.',
     offline: 'Wspólny plan — brak sieci, zmiany wyślę, gdy wróci.', blad: 'Problem z połączeniem.'
   }[S.stan] || '';
-  return esc(t) + (S.blad ? ` <span class="ostrz-txt">${esc(S.blad)}</span>` : '');
+  const kiedy = S.kod && S.ostatni ? ` Ostatnia synchronizacja: ${new Date(S.ostatni).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}.` : '';
+  return esc(t + (S.kod ? kiedy : '')) + (S.blad ? ` <span class="ostrz-txt">${esc(S.blad)}</span>` : '');
 }
+// Pasek na górze ekranu, gdy synchronizacja nie działa albo zmiany czekają: widać to na każdym ekranie, nie tylko w Ustawieniach.
+let syncOdMs = 0;
+function pasekSync() {
+  const S = window.Sync; let el = $('#sync-pasek');
+  let tx = '', ponow = false;
+  if (S && S.kod) {
+    if (S.stan === 'blad') { tx = 'Brak synchronizacji. Zmiany zostają na tym telefonie.'; ponow = true; }
+    else if (S.stan === 'offline' || navigator.onLine === false) tx = 'Brak sieci. Zmiany wyślę, gdy wróci.';
+    else if (S.oczekuje > 0) { syncOdMs = syncOdMs || Date.now(); if (Date.now() - syncOdMs > 8000) tx = `Zmiany czekają na wysłanie (${S.oczekuje}).`; }
+    if (!(S.oczekuje > 0)) syncOdMs = 0;
+  }
+  if (!tx) { if (el) el.remove(); document.body.classList.remove('ma-sync-pasek'); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'sync-pasek'; el.className = 'sync-pasek'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.innerHTML = `<span>${esc(tx)}</span>${ponow ? '<button class="btn maly" id="sync-ponow">Ponów</button>' : ''}`;
+  el.title = S && S.blad ? S.blad : '';
+  document.body.classList.add('ma-sync-pasek');
+  document.body.style.setProperty('--sync-h', el.offsetHeight + 'px');
+}
+setInterval(pasekSync, 4000);
 function kartaDolacz() {
   const S = window.Sync;
   if (!S || !S.dostepny) return '';
@@ -2780,8 +2801,8 @@ function wyslijZaproszenie() {
   const S = window.Sync, link = S.link();
   const tekst = `Dołącz do naszego wspólnego planu w apce Plan.\nOtwórz link: ${link}\nAlbo w apce wklej kod w polu „Dołącz”: ${S.kod}`;
   if (navigator.share) navigator.share({ title: 'Wspólny plan', text: tekst }).catch(() => {});
-  else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => alert('Zaproszenie skopiowane — wyślij je SMS-em albo komunikatorem.'), () => alert(tekst));
-  else alert(tekst);
+  else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => pokazToast('Zaproszenie skopiowane. Wyślij je SMS-em albo komunikatorem.'), () => pokazTekst('Zaproszenie do planu', tekst));
+  else pokazTekst('Zaproszenie do planu', tekst);
 }
 function zamknijOkno() {
   zatrzymajSkan(true);
@@ -2947,9 +2968,10 @@ function widokWiecej() {
     ${q('Jak zmienić jedzenie na inne?', 'W „Planie” rozwiń dzień i kliknij „zmień” przy posiłku. Możesz szukać po nazwie lub składniku. Gramatury nowego dania dopasują się do tych samych kalorii.')}
     ${q('Kogoś nie ma w danym dniu', 'W „Planie” rozwiń dzień i wybierz „Bez niego” albo „Bez niej”. Posiłki tej osoby znikną, a obiad i zakupy policzą się na jedną osobę.')}
     ${q('Jak ułożyć następny tydzień?', 'W „Planie” na dole jest karta „Ułóż następny tydzień”. Oba tygodnie są potem w jednym widoku, jeden pod drugim.')}
-    ${q('Jak podzielić mięso po zakupach?', 'Na liście zakupów jest karta „Mięso i ryby”: kolejność woreczków, co zostaje w lodówce, co do zamrażarki i co wpisać na etykiecie.')}
+    ${q('Jak podzielić mięso po zakupach?', 'W „Zakupach”, pod wyborem dni, jest karta „Mięso i ryby”, liczona od dziś: kolejność woreczków, co zostaje w lodówce, co do zamrażarki i co wpisać na etykiecie.')}
     ${q('Co zrobić z resztkami po zakupach?', 'Przy produktach z resztą opakowania lista pisze, w których daniach w planie ich użyjesz, i podpowiada pomysły. W „Lodówce” działa też „Spontaniczne gotowanie”.')}
-    ${q('Telefon drugiej osoby', 'W „Ustawieniach” utwórz wspólny plan i wyślij zaproszenie. Plan, lodówka i zakupy synchronizują się między telefonami.')}`;
+    ${q('Telefon drugiej osoby', 'W „Ustawieniach” utwórz wspólny plan i wyślij zaproszenie. Plan, lodówka i zakupy synchronizują się między telefonami.')}
+    <p class="mute wersja-stopka">Wersja aplikacji: ${esc((window._wersja || '').replace('plan-', '') || '—')}${window.Sync && window.Sync.kod && window.Sync.ostatni ? ` · synchronizacja ${new Date(window.Sync.ostatni).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>`;
 }
 
 // Ciekła plama pod aktywną zakładką: przesuwa się sprężyście i na chwilę rozciąga.
@@ -3136,7 +3158,7 @@ function widokWaga() {
 }
 function zapiszWage(p) {
   const v = parseFloat(String(($('#wk-' + p) || {}).value).replace(',', '.')), d = ($('#wd-' + p) || {}).value || isoDzis();
-  if (!(v >= 25 && v <= 300)) { alert('Wpisz wagę w kilogramach, np. 62,4.'); return; }
+  if (!(v >= 25 && v <= 300)) { pokazToast('Wpisz wagę w kilogramach, np. 62,4.'); return; }
   const w = Math.round(v * 10) / 10;
   const przed = cele()[p];
   waga[p] = waga[p] || {}; waga[p][d] = w;
@@ -3425,7 +3447,7 @@ function przygotujTydzien(e) {
   otwartyTyg = plan.start; if (dEl) otwartyDzien = +dEl.dataset.d;
   if (window._wBy && window._wBy[plan.start]) window._w = window._wBy[plan.start];
 }
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const t = e.target.closest('button, summary');
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
@@ -3459,7 +3481,7 @@ document.addEventListener('click', e => {
   if (t.dataset.wlasneWstecz) { const tt = $('#wd-kroki'); if (tt) wd.kroki = tt.value; oknoWlasne(); return; }
   if (t.dataset.wlasneZapisz) { zapiszWlasneDanie(); return; }
   if (t.dataset.wdUsun) { wd.skl.splice(+t.dataset.wdUsun, 1); wd.nazwa = (($('#wd-nazwa') || {}).value || wd.nazwa); wd.kroki = (($('#wd-kroki') || {}).value || wd.kroki); oknoWlasne(2); return; }
-  if (t.dataset.wlasneUsun) { if (!confirm('Usunąć to danie? Z planu zniknie, jeśli było użyte.')) return; const id = t.dataset.wlasneUsun; wlasneDania = wlasneDania.filter(x => x.id !== id); LS.set('wlasneDania', wlasneDania); Z([[['wlasneDania'], wlasneDania]]); usunZBazy(id); naprawBrakujace(); rysuj(); pokazToast('Danie usunięte'); return; }
+  if (t.dataset.wlasneUsun) { if (!(await pytaj('Usunąć to danie?', 'Z planu zniknie, jeśli było użyte.', 'Usuń danie'))) return; const id = t.dataset.wlasneUsun; wlasneDania = wlasneDania.filter(x => x.id !== id); LS.set('wlasneDania', wlasneDania); Z([[['wlasneDania'], wlasneDania]]); usunZBazy(id); naprawBrakujace(); rysuj(); pokazToast('Danie usunięte'); return; }
   if (t.dataset.motyw) { motyw = t.dataset.motyw; LS.set('motyw', motyw); zastosujMotyw(); rysuj(); return; }
   if (t.dataset.sklepzak) { sklepZak = t.dataset.sklepzak; LS.set('sklepZak', sklepZak); rysuj(); return; }
   if (t.dataset.trasaTryb) { trasaTryb = t.dataset.trasaTryb; LS.set('trasaTryb', trasaTryb); rysuj(); return; }
@@ -3501,10 +3523,11 @@ document.addEventListener('click', e => {
   else if ('zamknij' in t.dataset) zamknijOkno();
   else if (t.id === 'udostepnijPlan') { t.disabled = true; window.Sync.utworz().then(ok => { rysuj(); if (ok) wyslijZaproszenie(); }); }
   else if (t.id === 'wyslijLink') wyslijZaproszenie();
-  else if (t.id === 'odlacz') { if (confirm('Odłączyć ten telefon od wspólnego planu? Plan zostanie tu jako kopia, a u drugiej osoby nic się nie zmieni.')) { window.Sync.odlacz(); rysuj(); } }
+  else if (t.id === 'sync-ponow') { t.disabled = true; window.Sync.ponow().then(() => { pasekSync(); pokazToast('Próbuję połączyć ponownie…'); }); }
+  else if (t.id === 'odlacz') { if (await pytaj('Odłączyć ten telefon od wspólnego planu?', 'Plan zostanie tu jako kopia, a u drugiej osoby nic się nie zmieni.', 'Odłącz')) { window.Sync.odlacz(); rysuj(); } }
   else if (t.id === 'dolacz') {
     const v = ($('#kodDom') || {}).value || '';
-    if (plan && profil && !confirm('Dołączyć do wspólnego planu? Plan zapisany na tym telefonie zostanie zastąpiony wspólnym.')) return;
+    if (plan && profil && !(await pytaj('Dołączyć do wspólnego planu?', 'Plan zapisany na tym telefonie zostanie zastąpiony wspólnym.', 'Dołącz'))) return;
     t.disabled = true;
     window.Sync.dolacz(v).then(() => rysuj());
   }
@@ -3536,7 +3559,7 @@ document.addEventListener('click', e => {
   else if (t.dataset.parPominPoz) { const r = parag.wiersze[+t.dataset.parPominPoz]; Object.assign(r, { pomin: true, wlacz: false, powod: 'pomijasz tę pozycję', zmieniony: true }); oknoParagon(); }
   else if (t.id === 'parZapisz') zapiszParagon()
   else if (t.dataset.cenyTryb) { cenyTryb = t.dataset.cenyTryb; LS.set('cenyTryb', cenyTryb); rysuj(); }
-  else if (t.dataset.parUsun) { if (confirm('Usunąć ten paragon z historii? Zapamiętane ceny zostaną.')) { paragony = paragony.filter(x => x.id !== t.dataset.parUsun); LS.set('paragony', paragony); Z([[['paragony'], paragony]]); rysuj(); } }
+  else if (t.dataset.parUsun) { if (await pytaj('Usunąć ten paragon z historii?', 'Zapamiętane ceny zostaną.', 'Usuń paragon')) { paragony = paragony.filter(x => x.id !== t.dataset.parUsun); LS.set('paragony', paragony); Z([[['paragony'], paragony]]); rysuj(); } }
   else if (t.dataset.smakUkryj) { oceny[t.dataset.smakUkryj] = -1; LS.set('oceny', oceny); Z([[['oceny', t.dataset.smakUkryj], -1]]); rysuj(); pokazToast('Danie ukryte'); }
   else if (t.dataset.smakCzysc) { delete smaki[t.dataset.smakCzysc]; LS.set('smaki', smaki); Z([[['smaki', t.dataset.smakCzysc], undefined]]); rysuj(); }
   else if (t.dataset.wosoba2) { wyklOsoba = t.dataset.wosoba2; rysuj(); }
@@ -3553,14 +3576,14 @@ document.addEventListener('click', e => {
     dniT.forEach(x => wsz ? s.delete(x) : s.add(x)); zakDni = [...s].sort(); LS.set('zakDni', zakDni); rysuj();
   }
   else if (t.dataset.zakpreset) { zakDni = t.dataset.zakpreset === 'auto' ? null : []; if (zakDni) LS.set('zakDni', zakDni); else LS.del('zakDni'); rysuj(); }
-  else if ('nowy' in t.dataset) { if (confirm('Ułożyć ten tydzień od nowa? Twoje zamiany w nim przepadną.')) { const sn = snapStanu(); ulozTydzien(plan.start); rysuj(); toastCofnij('Tydzień ułożony od nowa', sn); } }
+  else if ('nowy' in t.dataset) { if (await pytaj('Ułożyć ten tydzień od nowa?', 'Twoje zamiany w nim przepadną.', 'Ułóż od nowa')) { const sn = snapStanu(); ulozTydzien(plan.start); rysuj(); toastCofnij('Tydzień ułożony od nowa', sn); } }
   else if (t.id === 'doZakupowDzis') { zakDni = null; LS.del('zakDni'); zakOtw = false; zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }   // z przypomnienia: od razu najbliższa wyprawa (pon: wt–pt, pt: sob–pon)
   else if (t.id === 'doZakupow') { zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }
   else if (t.id === 'udostepnij') {
     const tekst = tekstListy();
     if (navigator.share) navigator.share({ title: 'Zakupy', text: tekst }).catch(() => {});
-    else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => alert('Lista skopiowana — wklej ją do notatek albo SMS-a.'), () => alert(tekst));
-    else alert(tekst);
+    else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => pokazToast('Lista skopiowana. Wklej ją do notatek albo SMS-a.'), () => pokazTekst('Lista zakupów', tekst));
+    else pokazTekst('Lista zakupów', tekst);
   }
   else if ('pokazZakazane' in t.dataset && zmienCtx) { zmienCtx.pokazZakazane = !zmienCtx.pokazZakazane; listaWyboru(($('#szukaj') || {}).value || ''); }
   else if (t.dataset.tryb && zmienCtx) {
@@ -3576,7 +3599,7 @@ document.addEventListener('click', e => {
     LS.set('odhaczone', odhaczone); rysuj(); toastCofnij('Wszystko kupione, lodówka uzupełniona', sn);
   }
   else if (t.id === 'odznaczWszystko') {
-    if (!confirm('Odznaczyć wszystkie zakupy i odjąć kupione ilości z lodówki?')) return;
+    if (!(await pytaj('Odznaczyć wszystkie zakupy?', 'Kupione ilości zostaną odjęte z lodówki.', 'Odznacz wszystko'))) return;
     const sn = snapStanu();
     for (const k of Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).filter(x => x.startsWith('zak|'))) odhaczKup(k, false);
     LS.set('odhaczone', odhaczone); rysuj(); toastCofnij('Zakupy odznaczone', sn);
@@ -3711,12 +3734,33 @@ window.App = {
   syncZmiana() {
     const el = $('#sync-status');
     if (el) el.innerHTML = opisSync();
+    pasekSync();
     if (ekranCzekania) return rysuj();
     const S = window.Sync;
     if (ekranStartowy && S && ((S.dostepny && !$('#dolacz')) || S.kod)) rysuj();
   }
 };
 
+// ---------- własne okna zamiast confirm() i alert() ----------
+function oknoDialogu(html, ok) {
+  const pop = document.activeElement; let el = $('#pytanie'); if (el) el.remove();
+  el = document.createElement('div'); el.id = 'pytanie'; el.className = 'pytanie'; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'pyt-t');
+  el.innerHTML = `<div class="pytanie-tlo" data-pyt="0"></div><div class="pytanie-box">${html}</div>`;
+  const koniec = v => { document.removeEventListener('keydown', klaw, true); el.remove(); try { pop && pop.focus && pop.focus(); } catch (e) { /* nic */ } ok(v); };
+  const klaw = e => { if (e.key === 'Escape') { e.stopPropagation(); koniec(false); } };
+  el.addEventListener('click', e => { const b = e.target.closest('[data-pyt]'); if (b) { e.stopPropagation(); koniec(b.dataset.pyt === '1'); } });
+  document.addEventListener('keydown', klaw, true);
+  document.body.appendChild(el);
+  const f = el.querySelector('[data-pyt="0"].btn') || el.querySelector('button'); if (f) f.focus();
+}
+function pytaj(tytul, tekst, et = 'Tak', grozne = true) {
+  return new Promise(res => oknoDialogu(`<h2 id="pyt-t">${esc(tytul)}</h2>${tekst ? `<p class="mute">${esc(tekst)}</p>` : ''}<div class="pytanie-ak"><button class="btn" data-pyt="0">Anuluj</button><button class="btn ${grozne ? 'grozne' : 'glowny'}" data-pyt="1">${esc(et)}</button></div>`, res));
+}
+function pokazTekst(tytul, tekst) {   // gdy nie da się skopiować do schowka: tekst do ręcznego zaznaczenia
+  oknoDialogu(`<h2 id="pyt-t">${esc(tytul)}</h2><textarea class="pytanie-tx" readonly rows="6">${esc(tekst)}</textarea><div class="pytanie-ak"><button class="btn glowny" data-pyt="0">Zamknij</button></div>`, () => {});
+  const ta = $('#pytanie .pytanie-tx'); if (ta) { ta.focus(); ta.select(); }
+}
+window.pytaj = pytaj;
 // ---------- aktualizacje aplikacji ----------
 let swReg = null;
 function pokazNowaWersja() {
@@ -3739,6 +3783,10 @@ async function aktualizujApke() {
   try { await wczytajBaze(); }
   catch (e) { $('#view').innerHTML = '<p class="pusty">Nie udało się wczytać bazy dań. Sprawdź połączenie i odśwież.</p>'; return; }
   rysuj();
+  try {
+    const ks = window.caches ? (await caches.keys()).filter(k => /^plan-v\d+$/.test(k)).sort((a, b) => parseInt(a.slice(6)) - parseInt(b.slice(6))) : [], w = ks.pop() || '', st = LS.get('wersja', '');
+    window._wersja = w; if (w) { if (st && st !== w) pokazToast('Zaktualizowano aplikację do wersji ' + w.replace('plan-', '') + '.'); LS.set('wersja', w); }
+  } catch (e) { /* nic */ }
   if (/[?&]udostepnione\b/.test(location.search)) wczytajUdostepnione();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // Aplikacja z ekranu głównego jest tylko wznawiana, nie ładowana od nowa — dlatego sama sprawdzam aktualizacje przy powrocie do niej.

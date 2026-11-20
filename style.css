@@ -1,6 +1,6 @@
 /* ───────── Plan — wygląd ───────── */
 :root {
-  --bg: #f4f2ec; --bg2: #e8f1e9; --card: #ffffff; --ink: #18211c; --mute: #65726a; --line: #e4e6df;
+  --bg: #f4f2ec; --bg2: #e8f1e9; --card: #ffffff; --ink: #18211c; --mute: #58655d; --line: #e4e6df;
   --zielony: #1b7f55; --zielony2: #2a9a69; --zielony-tlo: #e3f2e9;
   --ona: #bf3a5c; --ona-tlo: #fcecf0; --on: #1d62a8; --on-tlo: #e8f1fb;
   --ostrz: #a8590b; --ostrz-tlo: #fdf1df;
@@ -1066,3 +1066,52 @@ select { -webkit-appearance: none; appearance: none; padding-right: 38px; backgr
 .trasa-wiersz { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
 .trasa-wiersz > span.mute { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .trasa-wiersz small { line-height: 1.4; }
+
+/* v67: jedzenie poza planem */
+.poza-osoby { display: flex; flex-direction: column; gap: 8px; }
+.poza-os { display: flex; align-items: center; gap: 10px; }
+.poza-et { display: flex; align-items: center; gap: 8px; min-width: 84px; font-weight: 800; letter-spacing: .06em; font-size: 13px; }
+.poza-os.ona .poza-et { color: var(--ona); } .poza-os.on .poza-et { color: var(--on); }
+.poza-et input { width: 22px; height: 22px; accent-color: var(--zielony); }
+.poza-os > input[type=text] { flex: 1; min-width: 0; }
+.poza-ik { flex: none; display: inline-grid; place-items: center; min-width: 44px; padding: 4px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; background: var(--zielony-tlo); }
+.poza-ik.ona { color: var(--ona); background: var(--ona-tlo); } .poza-ik.on { color: var(--on); background: var(--on-tlo); }
+.poza-wiersz .pos-tx b { display: block; font-size: 16px; font-weight: 650; }
+.poza-nota { display: block; color: var(--ostrz) !important; font-weight: 700; }
+
+/* v68: dostępność (cele dotyku, kontrast) i wybór wyglądu */
+.stp, .gosc-ster .stp { min-width: 44px; min-height: 44px; }
+.stan-ster .stp { width: 44px; height: 44px; }
+button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
+.btn.maly { min-height: 40px; }
+.chip { min-height: 44px; }
+.mute, small { font-size: max(12px, 1em); }
+.motyw-wiersz { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 14px; }
+.motyw-wiersz .seg { margin: 0; flex: 1; max-width: 300px; } .motyw-wiersz .mute { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+#modal-box:focus { outline: none; }
+
+/* v70: własne dania */
+.wd-skl { padding: 4px 12px; }
+.wd-w { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.wd-w:last-child { border-bottom: 0; }
+.wd-n b { display: block; font-size: 15px; } .wd-n small { color: var(--mute); }
+.wd-w.nowe .wd-n small { color: var(--ostrz); font-weight: 650; }
+.wd-pole { display: flex; flex-direction: column; align-items: stretch; gap: 2px; } .wd-pole input { width: 64px; padding: 8px 6px; text-align: right; } .wd-pole span { font-size: 10.5px; color: var(--mute); text-align: right; }
+.wd-suma { margin: 10px 0; padding: 10px 12px; border-radius: 14px; background: var(--zielony-tlo); font-size: 14px; }
+@media (max-width: 400px) { .wd-w { grid-template-columns: 1fr auto auto; } .wd-w .pos-pomin { grid-column: 1 / -1; justify-self: end; } }
+
+/* v71: Co lubicie? (przesuwanie dań) i sezonowość */
+#sw-stos { margin-top: 12px; text-align: center; }
+.sw-licznik { margin: 4px 0 8px; }
+.sw-karta { position: relative; touch-action: pan-y; user-select: none; padding: 22px 18px 18px; border-radius: 28px; background: var(--szklo); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); border: 1px solid var(--szklo-brzeg); box-shadow: var(--szklo-cien), 0 24px 40px -18px rgba(0, 0, 0, .35); cursor: grab; }
+.sw-karta h2 { margin: 12px 0 10px; font-size: 22px; line-height: 1.2; }
+.sw-obr .obr.duzy { width: 150px; height: 150px; border-radius: 34px; display: inline-block; }
+.sw-znak { position: absolute; top: 18px; padding: 6px 14px; border-radius: 12px; font-weight: 900; letter-spacing: .08em; opacity: 0; border: 3px solid; transition: opacity .15s; }
+.sw-nie { left: 16px; color: #e0556b; transform: rotate(-12deg); } .sw-tak { right: 16px; color: var(--zielony); transform: rotate(12deg); }
+.sw-karta.sw-prawo .sw-tak, .sw-karta.sw-lewo .sw-nie { opacity: 1; }
+.sw-przyciski { display: flex; justify-content: center; align-items: center; gap: 18px; margin-top: 18px; }
+.sw-btn { width: 72px; height: 72px; border-radius: 50%; border: 0; font-size: 30px; font-weight: 800; box-shadow: var(--szklo-cien), 0 14px 28px -10px rgba(0, 0, 0, .35); background: var(--szklo); transition: transform .3s var(--sprez); }
+.sw-btn.nie { color: #e0556b; } .sw-btn.tak { color: #fff; background: linear-gradient(135deg, var(--zielony), var(--zielony2)); }
+.sezon-chipy { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; } .chip.sezon-tak { color: var(--zielony); border-color: color-mix(in srgb, var(--zielony) 40%, transparent); }
+.sezon-lisc { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--zielony); background: var(--zielony-tlo); padding: 2px 7px; border-radius: 999px; vertical-align: middle; margin-left: 4px; }
+@media (prefers-reduced-motion: reduce) { .sw-karta { transition: none !important; } }

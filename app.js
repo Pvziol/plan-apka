@@ -48,6 +48,8 @@ let wlasneProd = LS.get('wlasneProd', {});                   // produkty dodane 
 let pakiety = LS.get('pakiety', {});                       // pakiety[produkt] = { r, u, et, w: [rozmiary], t }: standardowe opakowania poznane z paragonów; wspólne
 let trasa = LS.get('trasa', {});                          // trasa[sklep][produkt] = 0..1: gdzie w kolejności zakupów zwykle trafia ten produkt (uczone z odhaczania), wspólne
 let sklepZak = LS.get('sklepZak', ''), trasaTryb = LS.get('trasaTryb', 'moja'), sesjaKup = LS.get('sesjaKup', null);
+let motyw = LS.get('motyw', 'auto');                        // wygląd: auto (jak system), jasny, ciemny — tylko na tym telefonie
+let wlasneDania = LS.get('wlasneDania', []);                // dania dodane przez Was w aplikacji (ten sam format co baza), wspólne
 let historia = LS.get('historia', []);                     // zapisane podsumowania minionych tygodni (patrz zbierzTydzien), wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
 let prepOd = null, prepH = 3;
@@ -278,7 +280,7 @@ async function wczytajBaze() {
     wczytaj('dania.json'), wczytaj('dania-dodane.json', []), wczytaj('shake.json'), wczytaj('opakowania.json', {})
   ]);
   DB.dania.clear();
-  for (const d of dania.concat(dodane)) { normalizujPomidory(d); normalizujScalone(d); normalizujOwoce(d); normalizujLyzki(d); normalizujPuszki(d); DB.dania.set(d.id, d); }
+  for (const d of dania.concat(dodane, wlasneDania.map(x => JSON.parse(JSON.stringify(x))))) { normalizujPomidory(d); normalizujScalone(d); normalizujOwoce(d); normalizujLyzki(d); normalizujPuszki(d); DB.dania.set(d.id, d); }
   const wsz = [...DB.dania.values()];
   const typ = (...t) => wsz.filter(d => t.includes(d.typ));
   DB.pula = {
@@ -343,6 +345,7 @@ const skala = (g, i) => (stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b)) + 
 // ---------- silnik: cały tydzień ----------
 // Pominięty posiłek (day.pom[osoba][slot]): znika z dnia tej osoby. Jego kalorie nie przepadają:
 // 40% (max +25%) rozkładam na pozostałe posiłki tego samego dnia, reszta idzie na następny dzień (max +15% jego celu).
+const pozaKcal = (day, p) => sum((day && day.poza && day.poza[p]) || [], x => x.k || 0);
 const pomija = (day, p, slot) => !!(day && day.pom && day.pom[p] && day.pom[p][slot]);
 const shakeAkt = (day, p) => !!(day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake'));
 function oblicz(pl, c) {
@@ -365,7 +368,9 @@ function oblicz(pl, c) {
       wchodzi = (rem > 0 ? 0 : wchodzi) + skp - same;
     });
   });
-  const bud = (p, d, slot) => bud0(p, d, slot) * mnoz[d][p];
+  // Jedzenie poza planem (day.poza[osoba] = [{ n, k, sl: [posiłki, które zostały do zjedzenia w chwili wpisu] }]): te posiłki dostają mniej, żeby dzień zgadzał się z celem (nie mniej niż 50%).
+  const fPz = pl.dni.map((day, d) => { const o = { ona: {}, on: {} }; OS.forEach(p => ((day.poza && day.poza[p]) || []).forEach(e => { const E = (e.sl || []).filter(x => slotyOsoby(d, p).includes(x) && !pomija(day, p, x)), S = sum(E, x => bud0(p, d, x) * mnoz[d][p]); if (!S) return; const f = Math.max(0.5, (S - (e.k || 0)) / S); E.forEach(x => { o[p][x] = (o[p][x] || 1) * f; }); })); return o; });
+  const bud = (p, d, slot) => bud0(p, d, slot) * mnoz[d][p] * (fPz[d][p][slot] || 1);
   const obecni = d => OS.filter(p => !nieob(pl.dni[d], p));
   const obecniSlot = (d, slot) => OS.filter(p => !nieob(pl.dni[d], p) && !pomija(pl.dni[d], p, slot));
   function garnek(id, slot, d, porcje, ratio) {
@@ -513,7 +518,7 @@ function ocena(pl, c) {
   kara += 20 * Math.max(0, tunczyk - 1);
   pl.dni.flatMap(day => [day.sn, day.k18, day.ob, day.m13.wsp, day.m13.ona, day.m13.on]).filter(Boolean).forEach(id => { if (oceny[id] === 1) kara -= 6; else if (ukryte(id)) kara += 200; });
   w.garnki.forEach(g => { if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) kara += 10; });
-  kara += 300 * naruszeniaPlanu(pl).length + smakKara(pl);                       // dania z wykluczonymi składnikami to ostateczność
+  kara += 300 * naruszeniaPlanu(pl).length + smakKara(pl) + sezonKara(pl);                       // dania z wykluczonymi składnikami to ostateczność
   // zero waste: świeże produkty sprzedawane w opakowaniach (np. łosoś wędzony 100 g) — im mniej zostaje po zakupie, tym lepiej
   const potrz = {};
   w.garnki.forEach(g => g.dish.skladniki.forEach(i => { const o = i.produkt && DB.opak[i.produkt]; if (o && i.jednostka === o.jednostka && i.kategoria === 'świeże') potrz[i.produkt] = (potrz[i.produkt] || 0) + i.ilosc * skala(g, i); }));
@@ -766,7 +771,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
   h += `<div class="dnia-gora"><button class="strz" data-pdzien="${nawig.prev || ''}" ${nawig.prev ? '' : 'disabled'} aria-label="Poprzedni dzień">‹</button>
     <div class="dnia-tyt"><h2>${DNI[d]}${jestDzis ? '<span class="dzis-znacz">dziś</span>' : ''}</h2><small>${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${stanKto(day) !== 'oboje' ? ` · tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}` : ''}</small></div>
     <button class="strz" data-pdzien="${nawig.next || ''}" ${nawig.next ? '' : 'disabled'} aria-label="Następny dzień">›</button></div>
-    <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small>${x.przenos[p].przyj > 1 ? `<small class="przen">w tym +${r0(x.przenos[p].przyj)} kcal z poprzedniego dnia</small>` : ''}${x.przenos[p].skp > 1 ? `<small class="przen">pominięte ${r0(x.przenos[p].skp)} kcal: +${r0(x.przenos[p].same)} dziś, reszta jutro</small>${x[p].b < c[p].bMin - 3 ? `<small class="ostrz-txt">brakuje ${r0(c[p].bMin - x[p].b)} g białka do celu — dopij np. skyr lub odżywkę</small>` : ''}` : ''}</div>`).join('')}</div>
+    <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small>${pozaKcal(day, p) ? `<small class="poza-nota">+${r0(pozaKcal(day, p))} kcal poza planem</small>` : ''}${x.przenos[p].przyj > 1 ? `<small class="przen">w tym +${r0(x.przenos[p].przyj)} kcal z poprzedniego dnia</small>` : ''}${x.przenos[p].skp > 1 ? `<small class="przen">pominięte ${r0(x.przenos[p].skp)} kcal: +${r0(x.przenos[p].same)} dziś, reszta jutro</small>${x[p].b < c[p].bMin - 3 ? `<small class="ostrz-txt">brakuje ${r0(c[p].bMin - x[p].b)} g białka do celu — dopij np. skyr lub odżywkę</small>` : ''}` : ''}</div>`).join('')}</div>
     <div class="dnia-ust"><div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
       <div class="kto-dnia"><span class="mute">Kto je w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>
       <div class="dop-dnia"><span class="mute">Dopasuj dzień:</span><div class="chips">${[['szybko', 'Szybko'], ['bezMiesa', 'Bez mięsa'], ['zimno', 'Bez gotowania'], ['lekko', 'Lekko']].map(([k, et]) => `<button class="chip" data-dop="${d}:${k}">${et}</button>`).join('')}</div></div>
@@ -808,7 +813,7 @@ function widokTydzien() {
   if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
   const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
-  h += paskAkcji(['prep', 'podsum', 'wykl', 'zakupy']);
+  h += paskAkcji(['swipe', 'prep', 'podsum', 'wykl', 'zakupy']);
   h += kartaOpisTygodnia();
   { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${nar.length === 1 ? 'posiłek zawiera' : 'posiłków zawiera'} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
@@ -889,7 +894,7 @@ function pokazPrzepis(g, spont) {
   }).join('');
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>${esc((dish.kod ? dish.kod + ' ' : '') + dish.nazwa)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <div class="przepis-gora">${Obr.html(dish, 'duzy')}<div class="oceny">${przyciskiOceny(dish.id)}</div></div>
-    ${notaPrepu(g)}${wskazPrepuPrzepis(g)}
+    ${sezonChipy(g.dish)}${notaPrepu(g)}${wskazPrepuPrzepis(g)}
     ${dish.kroki && dish.kroki.length ? `<button class="btn glowny szeroki" data-gotuj="1" style="margin-bottom:6px">Gotuj krok po kroku</button>` : ''}
     <h3 style="margin-top:6px">Jak smakuje?</h3><div class="smak-blok" data-dish="${esc(dish.id)}">${smakWiersze(dish.id, OS)}</div>
     <p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) : ''}${dish.sprzet ? ' · Sprzęt: ' + esc(dish.sprzet) : ''}</p>
@@ -1081,14 +1086,17 @@ const AKCJE = {
   wykl: ['Czego nie jecie', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12'],
   dodaj: ['Dodaj ręcznie', 'M12 5v14M5 12h14'],
   czas: ['Nie mam czasu', 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'],
+  swipe: ['Co lubicie?', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'],
+  poza: ['Zjadłem coś innego', 'M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 2-3 4-3 7h3v11'],
   podsum: ['Podsumowanie tygodnia', 'M5 20V10M12 20V4M19 20v-7'],
   zakupy: ['Zakupy', 'M5 8.5h14l-1.2 11.5H6.2zM9 8.5a3 3 0 0 1 6 0']
 };
 const paskAkcji = lista => `<div class="szybkie" role="group" aria-label="Szybkie akcje">${lista.map(k => `<button class="szybka" data-szybka="${k}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE[k][1]}"/></svg><span>${AKCJE[k][0]}</span></button>`).join('')}</div>`;
 function szybkaAkcja(k) {
+  if (k === 'poza') { oknoPoza(); return; }
   if (k === 'czas') { const dz = isoDzis(), t = tygodnieZapisane().find(x => dz >= x.start && dz <= dodajDni(x.start, 6)); if (!t) { pokazToast('Na dziś nie ma planu'); return; } oknoDopasuj([{ start: t.start, d: Math.round((new Date(dz + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5), iso: dz, tryby: { szybko: true } }]); return; }
   if (k === 'skan') oknoSkaner(); else if (k === 'paragon') oknoParagonWklej(); else if (k === 'spont') oknoSpont(); else if (k === 'dodaj') oknoDodaj('jeden');
-  else { zakladka = { prep: 'prep', waga: 'waga', wykl: 'wykluczone', zakupy: 'zakupy', podsum: 'podsum' }[k]; rysuj(); window.scrollTo(0, 0); }
+  else { zakladka = { prep: 'prep', waga: 'waga', wykl: 'wykluczone', zakupy: 'zakupy', podsum: 'podsum', swipe: 'swipe' }[k]; rysuj(); window.scrollTo(0, 0); }
 }
 // ---------- skaner kodów kreskowych (aparat + Open Food Facts) ----------
 let skan = null, skanWynik = null;
@@ -1677,6 +1685,201 @@ function otworzSesje(pl, se) {
   otworzGotowanie(g, false); got.prep = true; got.sesja = se; rysujGot();
 }
 
+// ---------- jedzenie poza planem ----------
+const POZA_GOTOWE = [['Kawa z mlekiem', 80], ['Batonik', 250], ['Ciastko / drożdżówka', 300], ['Lody', 200], ['Piwo', 200], ['Kieliszek wina', 130], ['Burger z frytkami', 900], ['Pizza (pół)', 700], ['Kebab', 800], ['Obiad w restauracji', 900]];
+function oknoPoza() {
+  const dz = isoDzis(), d = Math.round((new Date(dz + 'T12:00:00') - new Date(plan.start + 'T12:00:00')) / 864e5);
+  if (d < 0 || d > 6) { pokazToast('Na dziś nie ma planu'); return; }
+  const day = plan.dni[d], kto = OS.filter(p => !nieob(day, p));
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zjadłem coś spoza planu</h2><button class="btn maly" data-zamknij>Anuluj</button></div>
+    <p class="mute">Wpisz, co to było i ile miało kalorii. Pomniejszę kolejne dzisiejsze posiłki, żeby dzień się zgadzał.</p>
+    <label class="pole"><span>Co to było? (opcjonalnie)</span><input id="poza-n" type="text" autocomplete="off" placeholder="np. pizza z kolegami"></label>
+    <div class="chips">${POZA_GOTOWE.map(([n, k]) => `<button class="chip" data-poza-gotowe="${esc(n)}|${k}">${esc(n)} · ${k}</button>`).join('')}</div>
+    <h3>Kto zjadł?</h3><div class="poza-osoby">${kto.map(p => `<div class="poza-os ${p}"><label class="poza-et"><input type="checkbox" data-poza-os="${p}" ${kto.length === 1 ? 'checked' : ''}><span>${ETY[p]}</span></label><input id="poza-k-${p}" type="text" inputmode="decimal" placeholder="kcal" aria-label="Kalorie ${ETY[p]}"></div>`).join('')}</div>
+    <button class="btn glowny szeroki" data-poza-zapisz="${d}" style="margin-top:14px">Zapisz</button>`;
+  $('#modal').hidden = false;
+}
+function zapiszPoza(d) {
+  const day = plan.dni[d], nazwa = (($('#poza-n') || {}).value || '').trim() || 'Poza planem', w = oblicz(plan, cele()); let n = 0; const sn = snapStanu();
+  for (const p of OS) {
+    const k = liczbaZ((($('#poza-k-' + p) || {}).value || '0')); if (!(k > 0)) continue;
+    const sl = w.dni[d].sloty.filter(({ g, odgrzewane }) => !odgrzewane && !zuzyte[kluczZ(d, g.slot)] && g.porcje.some(q => q.d === d && q.p === p)).map(({ g }) => g.slot);
+    day.poza = day.poza || {}; (day.poza[p] = day.poza[p] || []).push({ n: nazwa, k: Math.round(k), sl, t: Date.now() }); n++;
+  }
+  if (!n) { pokazToast('Wpisz kalorie'); return; }
+  LS.set('plan', plan); Z([[['dni', d, 'poza'], day.poza]]); zamknijOkno(); otwartyDzien = d; rysuj();
+  const w2 = oblicz(plan, cele()), braki = OS.filter(p => (day.poza && day.poza[p]) && w.dni[d][p].kcal - w2.dni[d][p].kcal < 0.9 * (day.poza[p][day.poza[p].length - 1].k)).length;
+  toastCofnij(braki ? 'Zapisane. Część kalorii zostaje, bo nie wszystkie dzisiejsze dania da się jeszcze pomniejszyć' : 'Zapisane. Kolejne posiłki dziś są mniejsze', sn);
+}
+function pozaLista(day, d) {
+  const wp = OS.flatMap(p => ((day.poza && day.poza[p]) || []).map((e, i) => ({ p, e, i }))); if (!wp.length) return '';
+  return `<h2>Poza planem</h2><div class="karta posilki-dnia">${wp.map(({ p, e, i }) => `<div class="pos-wiersz poza-wiersz"><span class="poza-ik ${p}">${ETY[p]}</span><div class="pos-tx"><b>${esc(e.n)}</b><span class="mute">${r0(e.k)} kcal${(e.sl || []).length ? ' · reszta dnia pomniejszona' : ' · dzień był już zjedzony'}</span></div><button class="pos-pomin" data-poza-usun="${d}|${p}|${i}" aria-label="Usuń wpis">Usuń</button></div>`).join('')}</div>`;
+}
+// ---------- dostępność okien ----------
+(function () {
+  const m = document.getElementById('modal'), box = document.getElementById('modal-box'); if (!m || !box || !window.MutationObserver) return;
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Okno'); box.tabIndex = -1;
+  let poprz = null;
+  new MutationObserver(() => {
+    if (!m.hidden) { poprz = document.activeElement; setTimeout(() => { if (!m.hidden && !box.contains(document.activeElement)) box.focus({ preventScroll: true }); }, 60); }
+    else if (poprz && document.contains(poprz)) { try { poprz.focus({ preventScroll: true }); } catch (e) { /* element zniknął */ } poprz = null; }
+  }).observe(m, { attributes: true, attributeFilter: ['hidden'] });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !m.hidden && !got) zamknijOkno(); });
+})();
+// ---------- „Co lubicie?”: przesuwanie dań (uczy plan, co Wam smakuje) ----------
+let sw = null;
+const SW_TYPY = { ob: ['Obiady', () => DB.pula.ob1.concat(DB.pula.ob2)], sn: ['Śniadania', () => DB.pula.sn], m13: ['Drugie śniadanie', () => DB.pula.m13on] };
+function swBudujTalie() {
+  const os = sw.kto === 'oboje' ? OS : [sw.kto];
+  sw.talia = tasuj(SW_TYPY[sw.typ][1]().filter(d => !ukryte(d.id) && dopuszcza(d, os) && os.some(p => !(smaki[d.id] && smaki[d.id][p]))).slice()).slice(0, 25); sw.i = 0;
+}
+function widokSwipe() {
+  if (!sw) { sw = { typ: 'ob', kto: 'oboje', licz: 0 }; swBudujTalie(); }
+  $('#view').innerHTML = `<h1>Co lubicie?</h1><p class="mute">Przesuń w prawo, co Wam smakuje, w lewo, czego nie chcecie. Plan będzie z tego korzystał.</p>
+    <div class="seg mini" role="group" aria-label="Dla kogo">${[['oboje', 'Oboje'], ['ona', 'ONA'], ['on', 'ON']].map(([k, et]) => `<button data-sw-kto="${k}" class="${sw.kto === k ? 'akt' : ''}">${et}</button>`).join('')}</div>
+    <div class="seg mini" style="margin-top:8px" role="group" aria-label="Rodzaj dań">${Object.entries(SW_TYPY).map(([k, [et]]) => `<button data-sw-typ="${k}" class="${sw.typ === k ? 'akt' : ''}">${et}</button>`).join('')}</div>
+    <div id="sw-stos"></div>`;
+  swKarta();
+}
+function swKarta() {
+  const el = $('#sw-stos'); if (!el) return; const d = sw.talia[sw.i];
+  if (!d) { el.innerHTML = `<div class="pusty"><b>${sw.talia.length ? 'To wszystko na teraz' : 'Wszystko już ocenione'}</b><span>${sw.licz ? `Zapamiętałem ${sw.licz} ${mn(sw.licz, 'ocenę', 'oceny', 'ocen')}.` : 'Zmień osobę albo rodzaj dań, żeby zobaczyć kolejne.'}</span></div>`; return; }
+  const m = minDania(d), top = d.skladniki.filter(i => i.produkt && i.ilosc).slice(0, 4).map(i => i.produkt.replace(/ \(.*\)/, ''));
+  el.innerHTML = `<div class="sw-licznik mute">${sw.i + 1} z ${sw.talia.length}</div>
+    <div class="sw-karta" id="sw-karta"><div class="sw-obr">${Obr.html(d, 'duzy')}</div><h2>${esc(d.nazwa)}</h2>
+      <div class="chips" style="justify-content:center">${m ? `<span class="chip stat">${m} min</span>` : ''}<span class="chip stat">${d.na_porcje.kcal} kcal</span><span class="chip stat">${d.na_porcje.bialko} g białka</span></div>
+      <p class="mute">${esc(top.join(', '))}</p><div class="sw-znak sw-nie">NIE</div><div class="sw-znak sw-tak">CHĘTNIE</div></div>
+    <div class="sw-przyciski"><button class="sw-btn nie" data-sw="nie" aria-label="Nie dla nas">✕</button><button class="btn" data-sw="pomin">Pomiń</button><button class="sw-btn tak" data-sw="tak" aria-label="Chętnie">♥</button></div>`;
+  swPrzesuwanie($('#sw-karta'));
+}
+function swDecyduj(co) {
+  const d = sw.talia[sw.i]; if (!d) return;
+  if (co !== 'pomin') (sw.kto === 'oboje' ? OS : [sw.kto]).forEach(p => { if (!(smaki[d.id] && smaki[d.id][p])) ocenSmak(d.id, p, co === 'tak' ? 2 : 0); }), sw.licz++;
+  sw.i++; swKarta();
+}
+function swPrzesuwanie(k) {
+  if (!k) return; let x0 = null, dx = 0;
+  const ustaw = () => { k.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`; k.classList.toggle('sw-prawo', dx > 30); k.classList.toggle('sw-lewo', dx < -30); };
+  k.addEventListener('pointerdown', e => { x0 = e.clientX; dx = 0; k.setPointerCapture(e.pointerId); k.style.transition = 'none'; });
+  k.addEventListener('pointermove', e => { if (x0 === null) return; dx = e.clientX - x0; ustaw(); });
+  const koniec = () => { if (x0 === null) return; x0 = null; k.style.transition = 'transform .28s ease, opacity .28s'; if (Math.abs(dx) > 90) { const tak = dx > 0; k.style.transform = `translateX(${tak ? 420 : -420}px) rotate(${tak ? 22 : -22}deg)`; k.style.opacity = '0'; setTimeout(() => swDecyduj(tak ? 'tak' : 'nie'), 240); } else { dx = 0; k.style.transform = ''; k.classList.remove('sw-prawo', 'sw-lewo'); } };
+  k.addEventListener('pointerup', koniec); k.addEventListener('pointercancel', koniec);
+}
+// ---------- sezonowość ----------
+// Świeże warzywa i owoce z krajowej uprawy: w których miesiącach (1–12) są w sezonie. Produkty bez wpisu (marchew, ziemniaki, cebula, banany…) są neutralne.
+const SEZON = { 'pomidorki koktajlowe': [6, 7, 8, 9, 10], 'ogórek świeży': [5, 6, 7, 8, 9], papryka: [7, 8, 9, 10], cukinia: [6, 7, 8, 9, 10], 'brokuł': [6, 7, 8, 9, 10], kalafior: [6, 7, 8, 9, 10], 'szpinak świeży': [4, 5, 6, 9, 10], 'rzodkiewka (pęczek)': [4, 5, 6, 9], 'dynia piżmowa': [9, 10, 11, 12], 'sałata': [5, 6, 7, 8, 9], 'jabłko': [8, 9, 10, 11, 12, 1, 2, 3] };
+const miesiac = () => new Date().getMonth() + 1;
+function sezonDania(d) {
+  const m = miesiac(), w = [], poza = [];
+  for (const i of d.skladniki || []) { const z = SEZON[i.produkt]; if (!z) continue; (z.includes(m) ? w : poza).push(i.produkt.replace(/ \(.*\)/, '')); }
+  return { w: [...new Set(w)], poza: [...new Set(poza)] };
+}
+function sezonKara(pl) {
+  let k = 0;
+  for (const day of pl.dni) for (const id of [day.sn, day.k18, day.ob, day.m13 && day.m13.wsp, day.m13 && day.m13.ona, day.m13 && day.m13.on]) { const d = id && DB.dania.get(id); if (!d) continue; const z = sezonDania(d); k += 1.2 * z.poza.length - 1.0 * Math.min(2, z.w.length); }
+  return k;
+}
+const sezonChipy = d => { const z = sezonDania(d); return (z.w.length || z.poza.length) ? `<div class="sezon-chipy">${z.w.length ? `<span class="chip stat sezon-tak">W sezonie: ${esc(z.w.join(', '))}</span>` : ''}${z.poza.length ? `<span class="chip stat">Poza sezonem: ${esc(z.poza.join(', '))}</span>` : ''}</div>` : ''; };
+// ---------- własne dania ----------
+const TYPY_WLASNE = { sniadanie: ['Śniadanie (na dwoje)', 2], obiad: ['Obiad na 1 dzień (na dwoje)', 2], obiad_zupa: ['Obiad na 2 dni (duży garnek)', 4], drugie_on: ['Drugie śniadanie 13:00 (dla niego)', 1] };
+let _nutri = null;
+function tabelaOdzywcza() {
+  if (_nutri) return _nutri; const t = {};
+  for (const d of DB.dania.values()) for (const i of d.skladniki) if (i.produkt && i.ilosc && i.kcal != null) (t[i.produkt + '|' + i.jednostka] = t[i.produkt + '|' + i.jednostka] || []).push([i.kcal / i.ilosc, (i.bialko || 0) / i.ilosc]);
+  for (const k of Object.keys(t)) { const a = t[k].map(x => x[0]).sort((x, y) => x - y), b = t[k].map(x => x[1]).sort((x, y) => x - y); t[k] = [a[Math.floor(a.length / 2)], b[Math.floor(b.length / 2)]]; }
+  return (_nutri = t);
+}
+function dodajDoBazy(d) {
+  DB.dania.set(d.id, d); const P = DB.pula;
+  ({ sniadanie: [P.sn], drugie_on: [P.m13on, P.m13dania], obiad: [P.ob1], obiad_zupa: [P.ob2] }[d.typ] || []).forEach(a => { if (!a.some(x => x.id === d.id)) a.push(d); });
+  for (const i of d.skladniki) if (i.produkt && i.ilosc && !DB.produkty.has(i.produkt)) DB.produkty.set(i.produkt, { kat: i.kategoria || 'zapas', u: i.jednostka });
+  _nutri = null;
+}
+function usunZBazy(id) { DB.dania.delete(id); for (const a of Object.values(DB.pula)) { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); } }
+function zastosujWlasneDania() { for (const d of wlasneDania) if (!DB.dania.has(d.id) && DB.pula) { const k = JSON.parse(JSON.stringify(d)); normalizujPomidory(k); normalizujScalone(k); dodajDoBazy(k); } for (const id of [...DB.dania.keys()]) if (id.startsWith('wlasne-') && !wlasneDania.some(x => x.id === id)) usunZBazy(id); }
+// Czyta wklejony przepis: pierwsza linia to nazwa, linie typu „kurczak 300 g” albo „300 g kurczaka” to składniki, reszta to kroki.
+function czytajPrzepis(tekst) {
+  const linie = String(tekst || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean), skl = [], kroki = [];
+  const JED = '(kg|g|ml|l|szt\\.?|sztuk[a-z]*|łyż[a-z.]*|lyz[a-z.]*|krom[a-z.]*|puszk[a-z]*)';
+  const reA = new RegExp('^[-•*]?\\s*(.+?)[\\s:–-]+([0-9]+(?:[.,][0-9]+)?)\\s*' + JED + '?\\s*$', 'i'), reB = new RegExp('^[-•*]?\\s*([0-9]+(?:[.,][0-9]+)?)\\s*' + JED + '\\s+(.+)$', 'i');
+  let nazwa = '';
+  linie.forEach((l, idx) => {
+    if (/^(składniki|skladniki|wykonanie|przygotowanie|sposób przygotowania|sposob przygotowania|kroki)[: ]*$/i.test(l)) return;
+    if (!nazwa && idx === 0 && !reA.test(l) && !reB.test(l)) { nazwa = l; return; }
+    let m = l.match(reB), n, q, j;
+    if (m) { q = m[1]; j = m[2]; n = m[3]; } else { m = l.match(reA); if (m && m[1].length < 45 && !/[.!?]$/.test(m[1])) { n = m[1]; q = m[2]; j = m[3]; } }
+    if (n) skl.push({ nazwa: n.replace(/[,;]+$/, '').trim(), ilosc: parseFloat(String(q).replace(',', '.')), jed: (j || '').toLowerCase() });
+    else kroki.push(l.replace(/^[0-9]+[.)]\s*/, ''));
+  });
+  return { nazwa, skl, kroki };
+}
+function wierszSkladnika(x) {
+  const dp = dopasujProdukt(x.nazwa), produkt = dp && dp.produkt && !dp.pomin ? dp.produkt : x.nazwa.toLowerCase();
+  const natywna = (DB.produkty.get(produkt) || {}).u || 'g'; let q = x.ilosc, u = x.jed;
+  if (u === 'kg') { q *= 1000; u = 'g'; } else if (u === 'l') { q *= 1000; u = 'ml'; } else if (/^lyz|^łyż/.test(u)) { q *= (G_LYZKA[produkt] || 10); u = natywna === 'ml' ? 'ml' : 'g'; } else if (/^szt/.test(u)) u = 'szt.'; else if (/^krom/.test(u)) u = 'krom.'; else if (/^puszk/.test(u)) { q *= 400; u = 'g'; } else if (!u) u = natywna;
+  const t = tabelaOdzywcza()[produkt + '|' + u], zna = !!t;
+  return { nazwa: x.nazwa, produkt, ilosc: Math.round(q * 10) / 10, jednostka: u, kcal: zna ? Math.round(t[0] * q) : 0, bialko: zna ? Math.round(t[1] * q) : 0, znane: zna, kategoria: (DB.produkty.get(produkt) || {}).kat || 'zapas' };
+}
+let wd = null;
+function oknoWlasne(krok) {
+  if (!wd) wd = { tekst: '', typ: 'obiad', czas: '', skl: [], kroki: '', nazwa: '' };
+  if (krok === 2) {
+    const por = TYPY_WLASNE[wd.typ][1];
+    $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Sprawdź danie</h2><button class="btn maly" data-wlasne-wstecz="1">Wróć</button></div>
+      <label class="pole"><span>Nazwa</span><input id="wd-nazwa" type="text" value="${esc(wd.nazwa)}"></label>
+      <div class="dwa"><label class="pole"><span>Rodzaj</span><select id="wd-typ">${Object.entries(TYPY_WLASNE).map(([k, [et]]) => `<option value="${k}" ${wd.typ === k ? 'selected' : ''}>${et}</option>`).join('')}</select></label>
+      <label class="pole"><span>Czas (min)</span><input id="wd-czas" type="text" inputmode="numeric" value="${esc(wd.czas)}" placeholder="np. 30"></label></div>
+      <h3>Składniki — kalorie i białko policzyłem z bazy, popraw jeśli trzeba</h3>
+      <div class="karta wd-skl">${wd.skl.map((x, i) => `<div class="wd-w ${x.znane ? '' : 'nowe'}"><div class="wd-n"><b>${esc(x.nazwa)}</b><small>${x.ilosc} ${esc(x.jednostka)}${x.znane ? '' : ' · nie znam tego produktu, wpisz kalorie'}</small></div><label class="wd-pole"><input data-wd-k="${i}" type="text" inputmode="decimal" value="${x.kcal}" aria-label="Kalorie ${esc(x.nazwa)}"><span>kcal</span></label><label class="wd-pole"><input data-wd-b="${i}" type="text" inputmode="decimal" value="${x.bialko}" aria-label="Białko ${esc(x.nazwa)}"><span>g białka</span></label><button class="pos-pomin" data-wd-usun="${i}" aria-label="Usuń składnik">✕</button></div>`).join('') || '<p class="mute">Nie rozpoznałem składników. Wróć i wpisz je w liniach typu „kurczak 300 g”.</p>'}</div>
+      <p class="wd-suma" id="wd-suma"></p>
+      <label class="pole"><span>Kroki (po jednym w linii)</span><textarea id="wd-kroki" rows="6">${esc(wd.kroki)}</textarea></label>
+      <button class="btn glowny szeroki" data-wlasne-zapisz="1" style="margin-top:12px">Zapisz danie</button>`;
+    wdSuma(); return;
+  }
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Własne danie</h2><button class="btn maly" data-zamknij>Anuluj</button></div>
+    <p class="mute">Wklej przepis albo wpisz po swojemu: w pierwszej linii nazwa, potem składniki (np. „kurczak 300 g”, „jajka 4”), a na końcu kroki. Resztę policzę sam.</p>
+    <label class="pole"><span>Przepis</span><textarea id="wd-tekst" rows="10" placeholder="Makaron z tuńczykiem&#10;makaron 200 g&#10;tuńczyk w sosie własnym 160 g&#10;pomidorki koktajlowe 10 szt.&#10;oliwa 1 łyżka&#10;&#10;Ugotuj makaron. Wymieszaj z tuńczykiem i pomidorkami.">${esc(wd.tekst)}</textarea></label>
+    <button class="btn glowny szeroki" data-wlasne-dalej="1">Dalej</button>`;
+  $('#modal').hidden = false;
+}
+function wdSuma() {
+  const k = sum(wd.skl, x => x.kcal), b = sum(wd.skl, x => x.bialko), por = TYPY_WLASNE[wd.typ][1], el = $('#wd-suma');
+  if (el) el.innerHTML = `Razem <b>${r0(k)}</b> kcal i <b>${r0(b)}</b> g białka · na porcję (${por}) <b>${r0(k / por)}</b> kcal, <b>${r0(b / por)}</b> g białka`;
+}
+function zapiszWlasneDanie() {
+  const nazwa = (($('#wd-nazwa') || {}).value || '').trim(); if (!nazwa) { pokazToast('Wpisz nazwę dania'); return; }
+  wd.nazwa = nazwa; wd.czas = (($('#wd-czas') || {}).value || '').trim(); wd.kroki = (($('#wd-kroki') || {}).value || '');
+  const kroki = wd.kroki.split(/\r?\n/).map(x => x.trim()).filter(Boolean), skl = wd.skl.filter(x => x.ilosc > 0);
+  if (!skl.length) { pokazToast('Dodaj choć jeden składnik'); return; }
+  if (!kroki.length) kroki.push('Przygotuj składniki i połącz je według własnego pomysłu.');
+  const por = TYPY_WLASNE[wd.typ][1], k = sum(skl, x => x.kcal), b = sum(skl, x => x.bialko), id = 'wlasne-' + znorm(nazwa).replace(/[^a-z0-9]+/g, '-').slice(0, 40) + '-' + (Date.now() % 100000);
+  const d = { id, typ: wd.typ, porcje: por, kod: null, nazwa, dodane: true, wlasne: true, czas: wd.czas ? wd.czas + ' min' : '', sprzet: '', skladniki: skl.map(x => ({ nazwa: x.nazwa, produkt: x.produkt, ilosc: x.ilosc, jednostka: x.jednostka, kcal: x.kcal, bialko: x.bialko, grupa: null, uwaga: null, kategoria: x.kategoria })), przyprawy: [], razem: { kcal: k, bialko: b }, na_porcje: { kcal: Math.round(k / por), bialko: Math.round(b / por) }, tytul_kcal: Math.round(k / por), tytul_bialko: Math.round(b / por), tylko_wybor: false, weekend: false, warianty: [], kroki, odgrzewanie: null, uwaga: null, wieczorem: [], podzial: wd.typ === 'drugie_on' ? { ona: '—', on: `całość · ${Math.round(k)} kcal`, ona_kcal: null, ona_bialko: null, on_kcal: Math.round(k), on_bialko: Math.round(b) } : {}, zrodlo: ['własne'], wystapienia: [] };
+  wlasneDania.push(d); LS.set('wlasneDania', wlasneDania); Z([[['wlasneDania'], wlasneDania]]);
+  const kopia = JSON.parse(JSON.stringify(d)); normalizujPomidory(kopia); normalizujScalone(kopia); dodajDoBazy(kopia);
+  wd = null; zamknijOkno(); rysuj(); pokazToast('Danie dodane. Znajdziesz je przy zmianie dania');
+}
+function widokWlasne() {
+  $('#view').innerHTML = `<h1>Własne dania</h1><p class="mute">Dania, które dodaliście sami. Pojawiają się w planie i przy zmianie dania tak jak reszta.</p>
+    <button class="btn glowny szeroki" data-wlasne-nowe="1">＋ Dodaj własne danie</button>
+    ${wlasneDania.length ? wlasneDania.map(d => `<div class="karta wd-kart"><div class="rzad-nag"><div><b>${esc(d.nazwa)}</b><br><span class="mute">${esc(TYPY_WLASNE[d.typ] ? TYPY_WLASNE[d.typ][0] : d.typ)} · ${d.na_porcje.kcal} kcal, ${d.na_porcje.bialko} g białka na porcję${d.czas ? ' · ' + esc(d.czas) : ''}</span></div><button class="btn maly" data-wlasne-usun="${esc(d.id)}">Usuń</button></div></div>`).join('') : '<div class="pusty"><b>Brak własnych dań</b><span>Dodaj pierwsze: wklej przepis, a policzę kalorie i białko.</span></div>'}`;
+}
+// ---------- wygląd: auto / jasny / ciemny ----------
+// Style ciemne są w regułach @media (prefers-color-scheme: dark): wymuszam motyw, przestawiając warunek tych reguł (zawsze / nigdy / jak system).
+function zastosujMotyw() {
+  try {
+    for (const arkusz of document.styleSheets) {
+      if (!arkusz.href || !/style\.css/.test(arkusz.href)) continue;
+      for (const r of arkusz.cssRules) {
+        if (!r.media) continue;
+        const mt = r.media.mediaText;
+        if ((/prefers-color-scheme: *dark/.test(mt) && !/reduced/.test(mt)) || mt === 'all' || mt === 'not all') r.media.mediaText = motyw === 'ciemny' ? 'all' : motyw === 'jasny' ? 'not all' : '(prefers-color-scheme: dark)';
+      }
+    }
+    document.documentElement.style.colorScheme = motyw === 'ciemny' ? 'dark' : motyw === 'jasny' ? 'light' : '';
+    document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = motyw === 'ciemny' ? '#0f1311' : motyw === 'jasny' ? '#f3f7f2' : (matchMedia('(prefers-color-scheme: dark)').matches ? '#0f1311' : '#f3f7f2'); });
+  } catch (e) { /* motyw nie może blokować aplikacji */ }
+}
+zastosujMotyw();
 // ---------- trasa po sklepie ----------
 // Apka uczy się kolejności, w jakiej odhaczacie produkty w sklepie (osobno dla każdego sklepu), i układa następną listę w tej kolejności. Bez gazetek i bez usług zewnętrznych.
 function sklepAktywny() {
@@ -1806,6 +2009,7 @@ function oknoDopasuj(akcje) {
 }
 function zastosujDopasowanie() {
   const prop = window._dop || []; if (!prop.length) return;
+  const sn = snapStanu();
   const orig = plan.start, wg = {}; let n = 0;
   prop.forEach(a => { (wg[a.start] = wg[a.start] || []).push(a); });
   for (const [start, lista] of Object.entries(wg)) {
@@ -1820,7 +2024,7 @@ function zastosujDopasowanie() {
   }
   if (plan.start !== orig && inny && inny.start === orig) przelaczTydzien();
   window._dop = null; zamknijOkno(); otwartyDzien = null; rysuj();
-  pokazToast(n ? `Zmieniono ${n} ${mn(n, 'posiłek', 'posiłki', 'posiłków')}` : 'Zapisano ustawienia dnia');
+  toastCofnij(n ? `Zmieniono ${n} ${mn(n, 'posiłek', 'posiłki', 'posiłków')}` : 'Zapisano ustawienia dnia', sn);
 }
 let dopOtw = false;
 function kartaOpisTygodnia() {
@@ -1839,13 +2043,14 @@ function zbierzTydzien(t) {
   w.dni.forEach((x, d) => {
     const jedz = x.sloty.filter(({ g }) => zj(d, g));
     o.posilkow += x.sloty.length; o.zjedzone += jedz.length;
-    if (!jedz.length) return; o.dniZ++;
+    const pozaD = OS.some(p => pozaKcal(t.dni[d], p) > 0);
+    if (!jedz.length && !pozaD) return; o.dniZ++;
     for (const p of OS) {
       if (nieob(t.dni[d], p)) continue;
       const dos = g => (g.dosypka && p === 'on' ? g.dosypka : { kcal: 0, b: 0 });
-      o.kcal[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)));
+      o.kcal[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)) + pozaKcal(t.dni[d], p));
       o.b[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + dos(g).b)));
-      o.cel[p].push(x[p].kcal); o.bCel[p].push(x[p].b);
+      o.cel[p].push(x[p].kcal + pozaKcal(t.dni[d], p)); o.bCel[p].push(x[p].b);
     }
   });
   const sr = a => a.length ? sum(a, v => v) / a.length : null;
@@ -2068,6 +2273,7 @@ function oknoZmien(d, slot) {
     <p class="mute">${DNI[d]}. Kalorie zostają takie same, a gramatury nowego dania dobiorę tak, żeby białko też się zgadzało.</p>
     ${slot === 'm13' ? `<p class="mute" style="margin-bottom:6px">Na 13:00 pijecie koktajl czy jecie drugie danie?</p><div class="seg"><button data-tryb="kokt" class="${tryb === 'kokt' ? 'akt' : ''}">Koktajl</button><button data-tryb="dania" class="${tryb === 'dania' ? 'akt' : ''}">Drugie danie</button></div>` : ''}
     <label class="pole"><span>Szukaj po słowach (nazwa lub składnik, np. „kurczak ryż”)</span><input id="szukaj" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. kuskus"></label>
+    <button class="btn szeroki" data-wlasne-nowe="1" style="margin:4px 0 8px">＋ Dodaj własne danie</button>
     <div id="lista-wyboru"></div>`;
   listaWyboru('');
   $('#modal').hidden = false;
@@ -2292,7 +2498,7 @@ function widokZakupy() {
         const ci = cmp.info[p.produkt], cenyTxt = ci && Object.keys(ci.c).length > 1 ? Object.entries(ceny[p.produkt] || {}).filter(([sk]) => ci.c[sk] != null).sort((a, b) => cenaX(a[1]) - cenaX(b[1])).map(([sk, v]) => `${sk} ${zl(cenaX(v))}/${jednCeny(v.u)}`).join(' · ') : '';
         const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', cenyTxt ? `taniej: ${cenyTxt}` : ''].filter(Boolean).join(' · ');
         const zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zużyj resztkę (${p.reszta.q} ${p.reszta.u}) ›</button>` : '';
-        return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
+        return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}${SEZON[p.produkt] && SEZON[p.produkt].includes(miesiac()) ? ' <i class="sezon-lisc" title="w sezonie" aria-label="w sezonie">sezon</i>' : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
       }).join('') + `</div></section>`;
   }
   h += kartaMiesa(z);
@@ -2484,8 +2690,8 @@ function widokDzis() {
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
-    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
-    o += paskAkcji(['czas', 'skan', 'paragon', 'spont', 'waga']);
+    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal + pozaKcal(day, p), z = zjed(p) + pozaKcal(day, p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
+    o += paskAkcji(['czas', 'poza', 'skan', 'paragon', 'spont', 'waga']);
     o += kartaPrepDzis(dzis);
     // lista posiłków
     o += `<h2>Dzisiejsze posiłki</h2><div class="karta posilki-dnia">` + sloty.map(({ g, odgrzewane }) => {
@@ -2493,6 +2699,7 @@ function widokDzis() {
       return `<div class="pos-wiersz ${ez ? 'zjedzone' : ''} ${nast && nast.g === g ? 'nast' : ''}"><label class="pos-ptak"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''} aria-label="zjedzone"><span></span></label>
         <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
+    o += pozaLista(day, d);
     const sh = OS.filter(p => shakeAkt(day, p));
     if (sh.length) o += `<div class="karta"><b>Po treningu · shake</b><p class="mute">${sh.map(p => `${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml`).join(' · ')}</p></div>`;
     // co dalej
@@ -2503,6 +2710,7 @@ function widokDzis() {
     { const brak = prognoza(w).filter(x => x.pilne); if (brak.length) kar.push(`<div class="karta zad ostrz-karta"><b>Zaraz zabraknie w lodówce</b><p class="mute">${brak.slice(0, 4).map(x => `${esc(x.produkt)} (${DNI_KR[x.d]})`).join(', ')}${brak.length > 4 ? ' i inne' : ''}.</p><div class="rzad"><button class="btn glowny" data-tab="zakupy">Lista zakupów</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
     if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
     const idx = dzienTyg();
+    if (Object.keys(smaki).length < 12 && LS.get('swipeP', '') !== isoDzis().slice(0, 7)) kar.push(`<div class="karta zad"><b>Poznajmy Wasz smak</b><p class="mute">Przesuń kilka dań: te, które lubicie, będą wracać częściej, a te, których nie chcecie, zostaną w tle.</p><div class="rzad"><button class="btn glowny" data-szybka="swipe">Co lubicie?</button><button class="btn" data-swipe-pozniej="1">Później</button></div></div>`);
     if ((idx === 6 || idx === 0) && (historia.length || sum(Object.keys(zuzyte), () => 1) > 4)) kar.push(`<div class="karta zad"><b>${idx === 6 ? 'Koniec tygodnia' : 'Nowy tydzień'}</b><p class="mute">${idx === 6 ? 'Zobacz, jak Wam poszło w tym tygodniu.' : 'Zobacz podsumowanie poprzedniego tygodnia.'}</p><button class="btn szeroki" data-szybka="podsum">Podsumowanie tygodnia</button></div>`);
     if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista jest gotowa na: <b>${zakresDni(new Set(domyslneDni(dniDostepne())))}</b>.</p><button class="btn glowny szeroki" id="doZakupowDzis">Otwórz listę zakupów</button></div>`);
     const lastW = p => Object.keys(waga[p] || {}).sort().pop();
@@ -2520,6 +2728,7 @@ const naruszeniaDwochTygodni = () => tygodnieZapisane().flatMap(t => naruszeniaP
 function puleDlaSlotu(day, slot) { return slot === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : slot === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : DB.pula[slot]; }
 // Zamienia w obecnym i następnym tygodniu (od dziś, bez zjedzonych) dania z wykluczonymi składnikami na podobne: ten sam rodzaj, najbliższe białko na kcal.
 function zamienNiepasujace() {
+  const sn = snapStanu();
   const orig = plan.start, dzis = isoDzis(); let zmieniono = 0, brak = 0;
   for (const t of tygodnieZapisane()) {
     if (t.start !== plan.start) { if (inny && inny.start === t.start) przelaczTydzien(); else continue; }
@@ -2537,7 +2746,7 @@ function zamienNiepasujace() {
   }
   if (plan.start !== orig && inny && inny.start === orig) przelaczTydzien();
   otwartyDzien = null; rysuj();
-  pokazToast(zmieniono ? `Zamieniono ${zmieniono} ${zmieniono === 1 ? 'danie' : zmieniono < 5 ? 'dania' : 'dań'}${brak ? `, ${brak} bez zamiennika` : ''}` : (brak ? `Brak zamienników dla ${brak} posiłków — poluzuj wykluczenia` : 'Plan jest zgodny z listą'));
+  if (zmieniono) toastCofnij(`Zamieniono ${zmieniono} ${zmieniono === 1 ? 'danie' : zmieniono < 5 ? 'dania' : 'dań'}${brak ? `, ${brak} bez zamiennika` : ''}`, sn); else pokazToast( (brak ? `Brak zamienników dla ${brak} posiłków — poluzuj wykluczenia` : 'Plan jest zgodny z listą'));
 }
 function widokWykluczone() {
   const p = wyklOsoba, l = wyklucz[p] || [], wlasne = l.filter(w => !w.startsWith('g:'));
@@ -2559,13 +2768,18 @@ function zmienWykl(fn) {
   const n = naruszeniaDwochTygodni().length;
   if (n) pokazToast(`${n} ${n === 1 ? 'posiłek' : 'posiłków'} w planie do zamiany`, 'Zamień', zamienNiepasujace);
 }
+function motywWiersz() {
+  return `<div class="motyw-wiersz"><span class="mute">Wygląd</span><div class="seg mini" role="group" aria-label="Wygląd aplikacji">${[['auto', 'Jak system'], ['jasny', 'Jasny'], ['ciemny', 'Ciemny']].map(([k, et]) => `<button data-motyw="${k}" class="${motyw === k ? 'akt' : ''}" aria-pressed="${motyw === k}">${et}</button>`).join('')}</div></div>`;
+}
 function widokWiecej() {
   const kafel = (tab, tytul, opis, ik) => `<button class="kafel" data-tab="${tab}"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ik}"/></svg></span><span class="kafel-tx"><b>${tytul}</b><small>${opis}</small></span><span class="kafel-str">›</span></button>`;
   const q = (pyt, odp) => `<details class="faq"><summary>${pyt}</summary><p>${odp}</p></details>`;
-  $('#view').innerHTML = `<h1>Więcej</h1>
+  $('#view').innerHTML = `<h1>Więcej</h1>${motywWiersz()}
     ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
     <button class="kafel" data-szybka="skan"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE.skan[1]}"/></svg></span><span class="kafel-tx"><b>Skanuj kod produktu</b><small>Dodaj do lodówki z aparatu</small></span><span class="kafel-str">›</span></button>
     ${kafel('podsum', 'Podsumowanie tygodnia', 'Jak Wam poszło: posiłki, kalorie, białko, waga, wydatki', 'M5 20V10M12 20V4M19 20v-7')}
+    ${kafel('swipe', 'Co lubicie?', Object.keys(smaki).length ? 'Ocenionych dań: ' + Object.keys(smaki).length + '. Przesuwaj kolejne' : 'Przesuwaj dania i ucz plan Waszego smaku', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z')}
+    ${kafel('wlasne', 'Własne dania', wlasneDania.length ? wlasneDania.length + ' ' + mn(wlasneDania.length, 'danie', 'dania', 'dań') + ' dodanych przez Was' : 'Dodaj własny przepis', 'M12 5v14M5 12h14')}
     ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
     ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} ${paragony.length === 1 ? 'paragon' : [2, 3, 4].includes(paragony.length % 10) && (paragony.length % 100 < 10 || paragony.length % 100 >= 20) ? 'paragony' : 'paragonów'} · ceny ${Object.keys(ceny).length} ${Object.keys(ceny).length === 1 ? 'produktu' : 'produktów'}` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
@@ -2616,10 +2830,11 @@ function rysuj() {
     ulozTydzien();
   }
   $('#tabs').hidden = false;
-  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony', 'prep', 'podsum'].includes(zakladka);
+  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony', 'prep', 'podsum', 'wlasne', 'swipe'].includes(zakladka);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('akt', b.dataset.tab === (pod ? 'wiecej' : zakladka)));
+  document.querySelectorAll('#tabs button').forEach(b => { if (b.classList.contains('akt')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   ustawPlame(); if (window._ostZakl !== zakladka) { setTimeout(animujLiczby, 150); window._ostZakl = zakladka; const v = $('#view'); v.classList.remove('wejscie'); void v.offsetWidth; v.classList.add('wejscie'); clearTimeout(window._wejT); window._wejT = setTimeout(() => v.classList.remove('wejscie'), 900); }
-  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else if (zakladka === 'podsum') widokPodsumowanie(); else if (zakladka === 'prep') widokPrep(); else widokWiecej();
+  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else if (zakladka === 'podsum') widokPodsumowanie(); else if (zakladka === 'wlasne') widokWlasne(); else if (zakladka === 'swipe') widokSwipe(); else if (zakladka === 'prep') widokPrep(); else widokWiecej();
   if (pod) $('#view').insertAdjacentHTML('afterbegin', `<button class="wstecz" data-tab="wiecej">‹ Więcej</button>`);
   if (!LS.get('intro', false) && profil && plan) { LS.set('intro', true); pokazIntro(0); }
 }
@@ -2833,13 +3048,22 @@ function animujLiczby() {
     const f = t => { const x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 3); el.firstChild.nodeValue = Math.round(cel * e); if (x < 1) requestAnimationFrame(f); }; requestAnimationFrame(f);
   });
 }
-function pokazToast(tekst, et, fn) {
+function pokazToast(tekst, et, fn, ms) {
   const el = $('#toast'); if (!el) return;
   toastFn = fn || null;
   el.innerHTML = `<span>${esc(tekst)}</span>${et ? `<button data-toast>${esc(et)}</button>` : ''}`;
   el.hidden = false;
-  clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastFn = null; }, 5000);
+  clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastFn = null; }, ms || 5000);
 }
+// Cofanie akcji zbiorczych: migawka planu, odhaczeń, zjedzonych i lodówki przed zmianą; „Cofnij” w komunikacie przywraca ją (i wysyła do wspólnego planu).
+function snapStanu() { return JSON.stringify({ plan, inny, odhaczone, zuzyte, lodowka }); }
+function przywrocSnap(sn) {
+  const o = JSON.parse(sn); plan = o.plan; inny = o.inny; odhaczone = o.odhaczone || {}; zuzyte = o.zuzyte || {}; lodowka = o.lodowka || {};
+  LS.set('plan', plan); LS.set('inny', inny); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte); LS.set('lodowka', lodowka);
+  Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], odhaczone], [['zuzyte'], zuzyte], [['lodowka'], lodowka], [['inny'], paczkaDoChmury(inny)]]);
+  otwartyDzien = null; zamknijOkno(); rysuj(); pokazToast('Cofnięto');
+}
+const toastCofnij = (tekst, sn) => pokazToast(tekst, 'Cofnij', () => przywrocSnap(sn), 9000);
 function filtrujLodowke() {
   const q = znorm(lodSzukaj.trim());
   document.querySelectorAll('.stan2').forEach(r => { r.hidden = !!q && !r.dataset.nm.includes(q); });
@@ -3058,6 +3282,20 @@ document.addEventListener('click', e => {
   if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
+  if (t.dataset.pozaGotowe) { const [n, k] = t.dataset.pozaGotowe.split('|'); const i = $('#poza-n'); if (i) i.value = n; const zazn = [...document.querySelectorAll('[data-poza-os]')].filter(c => c.checked); (zazn.length ? zazn : [...document.querySelectorAll('[data-poza-os]')]).forEach(c => { c.checked = true; const kk = $('#poza-k-' + c.dataset.pozaOs); if (kk) kk.value = k; }); return; }
+  if (t.dataset.pozaZapisz) { zapiszPoza(+t.dataset.pozaZapisz); return; }
+  if (t.dataset.pozaUsun) { const [dd, pp, ii] = t.dataset.pozaUsun.split('|'), day = plan.dni[+dd], sn = snapStanu(); (day.poza[pp] || []).splice(+ii, 1); if (!day.poza[pp].length) delete day.poza[pp]; LS.set('plan', plan); Z([[['dni', +dd, 'poza'], Object.keys(day.poza).length ? day.poza : undefined]]); rysuj(); toastCofnij('Wpis usunięty', sn); return; }
+  if (t.dataset.swipePozniej) { LS.set('swipeP', isoDzis().slice(0, 7)); rysuj(); return; }
+  if (t.dataset.swKto) { sw.kto = t.dataset.swKto; swBudujTalie(); widokSwipe(); return; }
+  if (t.dataset.swTyp) { sw.typ = t.dataset.swTyp; swBudujTalie(); widokSwipe(); return; }
+  if (t.dataset.sw) { swDecyduj(t.dataset.sw); return; }
+  if (t.dataset.wlasneNowe) { wd = null; oknoWlasne(); return; }
+  if (t.dataset.wlasneDalej) { const tx = (($('#wd-tekst') || {}).value || ''); wd = wd || { typ: 'obiad' }; wd.tekst = tx; const o = czytajPrzepis(tx); if (!o.skl.length) { pokazToast('Nie widzę składników. Wpisz je w liniach typu „kurczak 300 g”'); return; } wd.nazwa = o.nazwa; wd.skl = o.skl.map(wierszSkladnika); wd.kroki = o.kroki.join('\n'); wd.czas = wd.czas || ''; oknoWlasne(2); return; }
+  if (t.dataset.wlasneWstecz) { const tt = $('#wd-kroki'); if (tt) wd.kroki = tt.value; oknoWlasne(); return; }
+  if (t.dataset.wlasneZapisz) { zapiszWlasneDanie(); return; }
+  if (t.dataset.wdUsun) { wd.skl.splice(+t.dataset.wdUsun, 1); wd.nazwa = (($('#wd-nazwa') || {}).value || wd.nazwa); wd.kroki = (($('#wd-kroki') || {}).value || wd.kroki); oknoWlasne(2); return; }
+  if (t.dataset.wlasneUsun) { if (!confirm('Usunąć to danie? Z planu zniknie, jeśli było użyte.')) return; const id = t.dataset.wlasneUsun; wlasneDania = wlasneDania.filter(x => x.id !== id); LS.set('wlasneDania', wlasneDania); Z([[['wlasneDania'], wlasneDania]]); usunZBazy(id); naprawBrakujace(); rysuj(); pokazToast('Danie usunięte'); return; }
+  if (t.dataset.motyw) { motyw = t.dataset.motyw; LS.set('motyw', motyw); zastosujMotyw(); rysuj(); return; }
   if (t.dataset.sklepzak) { sklepZak = t.dataset.sklepzak; LS.set('sklepZak', sklepZak); rysuj(); return; }
   if (t.dataset.trasaTryb) { trasaTryb = t.dataset.trasaTryb; LS.set('trasaTryb', trasaTryb); rysuj(); return; }
   if (t.dataset.dopPokaz) { dopOtw = true; rysuj(); setTimeout(() => { const i = $('#dop-tekst'); if (i) i.focus(); }, 80); return; }
@@ -3150,7 +3388,7 @@ document.addEventListener('click', e => {
     dniT.forEach(x => wsz ? s.delete(x) : s.add(x)); zakDni = [...s].sort(); LS.set('zakDni', zakDni); rysuj();
   }
   else if (t.dataset.zakpreset) { zakDni = t.dataset.zakpreset === 'auto' ? null : []; if (zakDni) LS.set('zakDni', zakDni); else LS.del('zakDni'); rysuj(); }
-  else if ('nowy' in t.dataset) { if (confirm('Ułożyć ten tydzień od nowa? Twoje zamiany w nim przepadną.')) { ulozTydzien(plan.start); rysuj(); } }
+  else if ('nowy' in t.dataset) { if (confirm('Ułożyć ten tydzień od nowa? Twoje zamiany w nim przepadną.')) { const sn = snapStanu(); ulozTydzien(plan.start); rysuj(); toastCofnij('Tydzień ułożony od nowa', sn); } }
   else if (t.id === 'doZakupowDzis') { zakDni = null; LS.del('zakDni'); zakOtw = false; zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }   // z przypomnienia: od razu najbliższa wyprawa (pon: wt–pt, pt: sob–pon)
   else if (t.id === 'doZakupow') { zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }
   else if (t.id === 'udostepnij') {
@@ -3168,17 +3406,19 @@ document.addEventListener('click', e => {
   else if (t.id === 'przeladuj') location.reload();
   else if (t.id === 'aktualizuj') aktualizujApke();
   else if (t.id === 'kupWszystko') {
+    const sn = snapStanu();
     for (const kat of ['świeże', 'zamrażarka', 'zapas']) for (const pp of window._z.wynik[kat]) odhaczKup(kluczKup(pp.produkt), true);
-    LS.set('odhaczone', odhaczone); rysuj();
+    LS.set('odhaczone', odhaczone); rysuj(); toastCofnij('Wszystko kupione, lodówka uzupełniona', sn);
   }
   else if (t.id === 'odznaczWszystko') {
     if (!confirm('Odznaczyć wszystkie zakupy i odjąć kupione ilości z lodówki?')) return;
+    const sn = snapStanu();
     for (const k of Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).filter(x => x.startsWith('zak|'))) odhaczKup(k, false);
-    LS.set('odhaczone', odhaczone); rysuj();
+    LS.set('odhaczone', odhaczone); rysuj(); toastCofnij('Zakupy odznaczone', sn);
   }
   else if (t.dataset.sugestie) oknoSugestie(t.dataset.sugestie);
   else if (t.dataset.sug) { const [d, sl, id, r] = t.dataset.sug.split('|'); ustawDanie(+d, sl, id, +r); rysuj(); oknoSugestie(sugOsoba); }
-  else if (t.dataset.autoPopraw) { const n = autoPopraw(t.dataset.autoPopraw); rysuj(); oknoSugestie(sugOsoba, n); }
+  else if (t.dataset.autoPopraw) { const sn = snapStanu(), n = autoPopraw(t.dataset.autoPopraw); rysuj(); oknoSugestie(sugOsoba, n); toastCofnij('Poprawiono białko w planie', sn); }
   else if (t.dataset.nudge) {
     const [d, sl, kier] = t.dataset.nudge.split(':'), g = window._w.garnki.find(x => x.d === +d && x.slot === sl);
     if (g) {
@@ -3236,6 +3476,9 @@ document.addEventListener('change', e => {
   przygotujTydzien(e);
   if (t.dataset.parWl !== undefined && parag) { parag.wiersze[+t.dataset.parWl].wlacz = t.checked; const w = t.closest('.par-w'); if (w) w.classList.toggle('wyl', !t.checked); return; }
   if (t.dataset.parCena !== undefined && parag) { const v = liczbaZ(t.value); if (v >= 0) { const x = parag.w.poz[+t.dataset.parCena]; x.netto = Math.round(v * 100) / 100; parag.w.sumaPoz = Math.round(sum(parag.w.poz, q => q.netto) * 100) / 100; const e = $('#par-sumapoz'); if (e) e.textContent = zl(parag.w.sumaPoz); } return; }
+  if (t.dataset.wdK !== undefined) { wd.skl[+t.dataset.wdK].kcal = liczbaZ(t.value) || 0; wd.skl[+t.dataset.wdK].znane = true; wdSuma(); return; }
+  if (t.dataset.wdB !== undefined) { wd.skl[+t.dataset.wdB].bialko = liczbaZ(t.value) || 0; wdSuma(); return; }
+  if (t.id === 'wd-typ') { wd.typ = t.value; wdSuma(); return; }
   if (t.id === 'par-plik' && t.files && t.files[0]) { const f = t.files[0]; t.value = ''; wczytajPlik(f); return; }
   if (t.dataset.parQ !== undefined && parag) { const v = liczbaZ(t.value), r = parag.wiersze[+t.dataset.parQ]; r.q = v > 0 ? v : null; if (r.q && r.produkt) { r.wlacz = true; r.pew = 1; r.zmieniony = true; } const w = t.closest('.par-w'); if (w) { w.classList.toggle('wyl', !r.wlacz); const c = w.querySelector('[data-par-wl]'); if (c) c.checked = r.wlacz; } return; }
   if (t.dataset.parU !== undefined && parag) { parag.wiersze[+t.dataset.parU].u = t.value; return; }
@@ -3275,7 +3518,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa, wlasneDania }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -3288,12 +3531,12 @@ window.App = {
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
-    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; trasa = data.trasa || {}; wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; trasa = data.trasa || {}; wlasneDania = data.wlasneDania || []; zastosujWlasneDania(); wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
-    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneDania', wlasneDania); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza

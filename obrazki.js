@@ -88,6 +88,9 @@ const Obr = (() => {
       <path d="M17 40q6-5 11 0q-1 7-8 6q-4-1-3-6z" fill="#6fae4f"/>${dots([[25, 43]], '#e0462f', 2.6)}`);
   };
 
+  const KOL = [[/pomidor|passata|ketchup|salsa/, '#e0462f'], [/papryk/, '#f0b02c'], [/ogork|cukini|salat|szpinak|brokul|rukol|natk|szczypior|koper|por/, '#6fae4f'], [/jaj/, '#f5d56b'], [/(^| )ser |feta|parmez|mozzar|serek|twarog/, '#f3e3a0'],
+    [/kurczak|indyk|drob/, '#e0b07c'], [/wolowin|wieprz|mielon|kielbas|szynk|boczek/, '#b9604a'], [/losos|dorsz|ryb|tunczyk/, '#f08a5d'], [/ryz|kasz|kuskus|makaron|ziemniak|chleb|bulk|tortill|platki/, '#efe2c0'], [/awokado/, '#9bbf4a'],
+    [/cebul/, '#c79ad0'], [/kukury/, '#f4cf3a'], [/ciecierz|fasol|soczewic/, '#c98f52'], [/pieczark/, '#b79a82'], [/jablk|banan|mango|ananas/, '#f4dc7c'], [/malin|truskaw|jagod|owoce/, '#d8466e'], [/jogurt|skyr|mleko|smietan/, '#f7f4ec'], [/orzech|granol/, '#c98a3a']];
   function rysuj(d) {
     const n = norm(d.nazwa), typ = d.typ || '';
     let t;
@@ -104,8 +107,15 @@ const Obr = (() => {
     else if (/losos|dorsz|ryb|paluszki/.test(n)) t = ryba(n);
     else if (/miska z/.test(n)) t = miska('#fdfdf6', dots([[25, 29], [33, 28], [40, 30]], '#f08a5d', 3) + dots([[30, 31]], '#8ab84a', 2.6), false);
     else t = danie(n);
-    const tlo = `hsl(${hash(d.id || d.nazwa) % 360} 55% 62% / .28)`;
-    return `<svg viewBox="0 0 64 64" role="img" aria-label="${(d.nazwa || '').replace(/"/g, '')}" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="${tlo}"/>${t}</svg>`;
+    // Tło zależy od głównego składnika (ryba — chłodne, drób — ciepłe, jajka — żółte, warzywa — zielone, słodkie — różowe), a pasek kropek na dole to kolory składników dania.
+    const tx = norm(d.nazwa + ' ' + (d.skladniki || []).map(i => (i.produkt || '') + ' ' + (i.nazwa || '')).join(' ')), h0 = hash(d.id || d.nazwa);
+    const odc = /losos|dorsz|ryb|tunczyk|krewet/.test(tx) ? 205 : /kurczak|indyk|drob/.test(tx) ? 28 : /wolowin|wieprz|kielbas|mielon/.test(tx) ? 8 : /jaj|jajecz/.test(tx) ? 48 : /owsian|skyr|banan|granol|pudding|malin|truskaw|jagod|kakao/.test(n) ? 335 : /ryz|kasza|makaron|ciecierz|fasol|soczewic|warzyw/.test(tx) ? 120 : h0 % 360;
+    const tlo = `hsl(${odc} ${52 + h0 % 14}% ${60 + h0 % 9}% / .30)`;
+    const kol = []; for (const i of d.skladniki || []) { const nn = norm((i.produkt || '') + ' ' + (i.nazwa || '')); for (const [re, c] of KOL) if (re.test(nn)) { if (!kol.includes(c)) kol.push(c); break; } if (kol.length >= 4) break; }
+    // Kilka kawałków składników rozrzuconych po talerzu w miejscach zależnych od dania — nawet podobne dania wyglądają trochę inaczej.
+    const posyp = (typ === 'koktajl' || typ === 'koktajl_maly') ? '' : kol.slice(0, 4).map((c, i) => { const ang = ((h0 >> (i * 3)) % 360) * Math.PI / 180, r = 7 + ((h0 >> (i * 5 + 2)) % 11), x = (32 + r * Math.cos(ang)).toFixed(1), y = (33 + r * Math.sin(ang) * 0.8).toFixed(1); return (h0 >> i) & 1 ? `<ellipse cx="${x}" cy="${y}" rx="3" ry="2" fill="${c}" stroke="${OBR}" stroke-width=".5" transform="rotate(${(h0 >> i) % 90} ${x} ${y})"/>` : `<circle cx="${x}" cy="${y}" r="2.4" fill="${c}" stroke="${OBR}" stroke-width=".5"/>`; }).join('');
+    const pasek = kol.map((c, i) => `<circle cx="${32 + (i - (kol.length - 1) / 2) * 7}" cy="59.4" r="2.1" fill="${c}" stroke="${OBR}" stroke-width=".6"/>`).join('');
+    return `<svg viewBox="0 0 64 64" role="img" aria-label="${(d.nazwa || '').replace(/"/g, '')}" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="${tlo}"/><g transform="rotate(${(h0 % 9) - 4} 32 34)">${t}</g>${posyp}${pasek}</svg>`;
   }
   const cache = new Map();
   return {

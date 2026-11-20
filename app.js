@@ -2626,6 +2626,8 @@ function widokUstawienia(pierwszy) {
     profil = { ona: zmienione.includes('ona') ? o.ona : profil.ona, on: zmienione.includes('on') ? o.on : profil.on };
     LS.set('profil', profil);
     Z(zmienione.map(p => [['profil', p], o[p]]));
+    // zmiana celu, aktywności albo własnych kcal unieważnia dotychczasową korektę z wagi (była dobrana do starego celu), więc zaczynam od zera
+    zmienione.forEach(p => { const st = formStart[p] || {}, nw = o[p]; if (profil && (st.cel !== nw.cel || st.akt !== nw.akt || st.wlasne !== nw.wlasne) && korekta[p] && korekta[p].kcal) { korekta[p] = Object.assign({}, korekta[p], { kcal: 0, od: isoDzis() }); LS.set('korekta', korekta); Z([[['korekta', p], korekta[p]]]); } });
     if (!planAktualny()) ulozTydzien();
     zakladka = pierwszy ? 'dzis' : 'tydzien'; rysuj(); window.scrollTo(0, 0);
   };

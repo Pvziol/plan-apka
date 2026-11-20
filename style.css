@@ -1135,3 +1135,4 @@ button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
 .dnia-ust > .seg.mini + .btn { margin-top: 8px; }
 @media (min-width: 361px) { .pk-akcje { flex-wrap: nowrap; gap: 6px; } .pk-akcje .btn.maly { padding: 0 11px; } }
 .dop-panel[hidden] { display: none; }
+.prep-info { margin: 6px 0 14px; font-size: 13px; line-height: 1.45; }

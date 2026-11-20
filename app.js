@@ -53,7 +53,7 @@ let wlasneDania = LS.get('wlasneDania', []);                // dania dodane prze
 let lodData = LS.get('lodData', {});                          // lodData[produkt] = data ostatniego dokupienia (dla ostrzeżeń „zużyj”), wspólne
 let historia = LS.get('historia', []);                     // zapisane podsumowania minionych tygodni (patrz zbierzTydzien), wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
-let prepOd = null, prepH = 3;
+let prepOd = null; const prepH = 5;   // okno planowania; każdy składnik i tak jest ucinany do swojego terminu przydatności
 let otwartyDzien = null, otwartyTyg = null;   // który dzień którego tygodnia jest rozwinięty
 let odroczone = false, ekranStartowy = false, ekranCzekania = false, formStart = null;
 // wspólny plan: wysyła tylko zmienione pola, np. [[['dni', 3, 'sn'], 'id-dania']]; undefined = usuń pole
@@ -2180,11 +2180,11 @@ function widokPrep() {
   const pl = planPrepu(prepOd, prepH), sesjaZapisana = sesje.find(x => x.id === prepOd + '_' + prepH);
   let h = `<h1>Meal prep</h1>` + wskazowka('prep', 'Ugotuj raz, jedz kilka razy: apka znajduje w planie ryż, makaron, kaszę, ziemniaki i jajka gotowane osobno, liczy ile ugotować, jak podzielić do pojemników i dopilnuje, ile dni wytrzymają w lodówce.');
   h += `<h3>Kiedy gotujesz?</h3><div class="prep-dni">${ok.map(x => `<button class="prep-dz ${x.od === prepOd ? 'akt' : ''}" data-prep-dzien="${x.od}"><small>${dzienKrotki(x.od).split(' ')[0]}</small><b>${new Date(x.od + 'T12:00:00').getDate()}</b>${x.min > 0 ? `<em>−${x.min}′</em>` : '<em>&nbsp;</em>'}${x.od === naj.od && naj.min > 0 ? '<i class="prep-naj">najlepszy</i>' : ''}</button>`).join('')}</div>
-    <h3>Na ile dni naprzód?</h3><div class="seg mini">${[2, 3, 4].map(n => `<button data-prep-h="${n}" class="${prepH === n ? 'akt' : ''}">${n} dni</button>`).join('')}</div>`;
+    <p class="mute prep-info">Wybierz dzień gotowania. Każdy składnik ugotuję tylko na tyle dni, ile wytrzyma w lodówce: ryż 2 dni, kasze, makaron i ziemniaki 3, jajka 5. Resztę dni apka pominie albo oznaczy jako „ugotuj świeże”.</p>`;
   if (!pl.komp.length) {
     h += `<div class="karta pusta-karta"><b>W tym oknie nie ma czego gotować na zapas</b><p class="mute">${pl.pojedyncze.length ? 'Znalazłem ' + pl.pojedyncze.map(x => esc(x.nazwa)).join(', ') + ', ale tylko w jednym posiłku, więc gotuj na bieżąco.' : 'W planie na te dni nie ma dań z osobno gotowanym ryżem, makaronem, kaszą, ziemniakami ani jajkami na twardo.'} Spróbuj innego dnia albo dłuższego okna.</p></div>`;
   } else {
-    h += `<div class="hero prep-hero"><span class="hero-et">${dzienKrotki(pl.od)} · okno ${pl.h} dni</span><div class="hero-dan"><div><b>Ugotuj raz: ${pl.komp.map(c => esc(c.nazwa.toLowerCase())).join(', ')}</b><small>${sum(pl.komp, c => c.uzycia.length)} posiłków z jednego gotowania</small></div></div>
+    h += `<div class="hero prep-hero"><span class="hero-et">${dzienKrotki(pl.od)}</span><div class="hero-dan"><div><b>Ugotuj raz: ${pl.komp.map(c => esc(c.nazwa.toLowerCase())).join(', ')}</b><small>${sum(pl.komp, c => c.uzycia.length)} posiłków z jednego gotowania</small></div></div>
       <div class="hero-liczby"><span>ok. ${pl.oszczMin} min mniej przy kuchni</span><span>${pl.oszczGar} ${pl.oszczGar === 1 ? 'garnek' : pl.oszczGar < 5 ? 'garnki' : 'garnków'} mniej</span><span>sesja ok. ${pl.czas} min</span></div>
       <div class="rzad"><button class="btn hero-btn" data-prep-start="1">Zacznij sesję</button><button class="btn hero-btn jasny" data-prep-zapisz="1">${sesjaZapisana ? 'Zapisane ✓' : 'Zapisz plan'}</button></div></div>`;
     h += pl.komp.map(c => {
@@ -3336,7 +3336,6 @@ document.addEventListener('click', e => {
   if ('skDalej' in t.dataset) { oknoSkaner(); return; }
   if (t.dataset.skOdhacz) { const pr = t.dataset.skOdhacz; odhaczKup(kluczKup(pr), true); LS.set('odhaczone', odhaczone); rysuj(); oknoSkaner(`Odhaczono na liście: ${pr}. Zeskanuj następny.`); return; }
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
-  if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
   if (t.dataset.dalejWiecej !== undefined) { dalejWiecej = t.dataset.dalejWiecej === '1'; rysuj(); return; }
@@ -3363,7 +3362,7 @@ document.addEventListener('click', e => {
   if (t.dataset.dopPrzyklad) { const i = $('#dop-tekst'); if (i) { i.value = t.dataset.dopPrzyklad; i.focus(); } return; }
   if (t.dataset.dopOk) { zastosujDopasowanie(); return; }
   if (t.dataset.podsum) { podsumStart = t.dataset.podsum; rysuj(); return; }
-  if (t.dataset.prepDzis !== undefined) { prepOd = isoDzis(); const se = sesje.find(x => x.id === t.dataset.prepDzis); prepH = se ? se.h : prepH; const pl = planPrepu(prepOd, prepH); otworzSesje(pl, zapiszSesje(pl)); return; }
+  if (t.dataset.prepDzis !== undefined) { prepOd = isoDzis(); const se = sesje.find(x => x.id === t.dataset.prepDzis); const pl = planPrepu(prepOd, se ? se.h : prepH); otworzSesje(pl, zapiszSesje(pl)); return; }
   if (t.dataset.prepOtworz) { prepOd = t.dataset.prepOtworz; zakladka = 'prep'; rysuj(); window.scrollTo(0, 0); return; }
   if (t.dataset.prepStart) { const pl = planPrepu(prepOd, prepH), se = zapiszSesje(pl); otworzSesje(pl, se); return; }
   if (t.dataset.prepZapisz) { zapiszSesje(planPrepu(prepOd, prepH)); rysuj(); pokazToast('Plan sesji zapisany. Przy daniach pokażę, co już ugotowane.'); return; }

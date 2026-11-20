@@ -2536,7 +2536,7 @@ function prognoza(w) {
   }
   return Object.entries(pierwszy).map(([k, x]) => { const [p, u] = k.split('|'); return { produkt: p, u, brakuje: -stan[k], d: x.d, dish: x.dish, pilne: x.d <= od0 + 1 }; }).sort((a, b) => a.d - b.d);
 }
-let lodKat = 'wszystko', lodSzukaj = '', dodU = 'g', toastFn = null, toastT = null;
+let lodKat = 'wszystko', lodSzukaj = '', dodU = 'g', dodAuto = '', toastFn = null, toastT = null;
 const KROK_LOD = u => (u === 'g' || u === 'ml') ? 50 : 1;
 const ILOSCI_LOD = u => u === 'g' || u === 'ml' ? [100, 250, 500, 1000] : u === 'szt.' ? [1, 2, 4, 6, 10] : u === 'krom.' ? [4, 8, 16] : [1, 2, 3];
 // Krótki komunikat nad paskiem zakładek, opcjonalnie z przyciskiem (np. „Cofnij”).
@@ -2600,7 +2600,7 @@ function widokLodowka() {
 }
 // Okno dodawania: podpowiedzi produktów, wybór jednostki, szybkie ilości; zostaje otwarte, żeby dodać kilka rzeczy pod rząd.
 function oknoDodaj(tryb) {
-  tryb = tryb || 'jeden';
+  tryb = tryb || 'jeden'; dodAuto = '';
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Dodaj do lodówki</h2><button class="btn maly" data-zamknij>Gotowe</button></div>
     <div class="seg"><button data-dodtryb="jeden" class="${tryb === 'jeden' ? 'akt' : ''}">Jeden produkt</button><button data-dodtryb="wiele" class="${tryb === 'wiele' ? 'akt' : ''}">Wiele naraz</button></div>` + (tryb === 'jeden' ? `
     <label class="pole"><span>Produkt</span><input id="dod-p" autocomplete="off" autocapitalize="off" placeholder="np. kurczak, ryż, jajka"></label>
@@ -2640,6 +2640,7 @@ function odswiezDodawanie() {
   const sug = zn ? [...DB.produkty.keys()].filter(k => znorm(k).includes(zn) && znorm(k) !== zn).sort((a, b) => a.length - b.length).slice(0, 6) : [];
   if ($('#dod-sug')) $('#dod-sug').innerHTML = sug.map(k => `<button class="chip" data-dodp="${esc(k)}">${esc(k)}</button>`).join('');
   const pk = pakProd(nazwa);
+  { let kp = DB.produkty.get(nazwa); if (!kp && zn.length >= 3) { const dp = dopasujProdukt(wpis.trim()); if (dp && dp.produkt && !dp.pomin) kp = DB.produkty.get(dp.produkt); } if (kp && nazwa !== dodAuto && ['g', 'ml', 'szt.', 'krom.'].includes(kp.u)) { dodU = kp.u; dodAuto = nazwa; } }   // wpisany znany produkt: od razu jego jednostka (mleko → ml)
   if (dodU === 'opak.' && !pk) dodU = 'g';
   const il = dodU === 'opak.' ? [1, 2, 3, 4, 6].map(x => [x, '']) : ILOSCI_LOD(dodU).map(x => [x, '']);
   if (dodU !== 'opak.' && pk && pk.u === dodU && !il.some(x => x[0] === pk.r)) il.push([pk.r, ' (opak.)']);

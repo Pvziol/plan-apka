@@ -782,8 +782,8 @@ function kartaDnia(t, c, dzisIso, nawig) {
     <div class="dnia-liczby">${OS.filter(p => !nieob(day, p)).map(p => `<div class="${p}"><b>${ETY[p]}</b><span>${r0(x[p].kcal)} kcal</span><small>${r0(x[p].b)} g białka</small>${pozaKcal(day, p) ? `<small class="poza-nota">+${r0(pozaKcal(day, p))} kcal poza planem</small>` : ''}${x.przenos[p].przyj > 1 ? `<small class="przen">w tym +${r0(x.przenos[p].przyj)} kcal z poprzedniego dnia</small>` : ''}${x.przenos[p].skp > 1 ? `<small class="przen">pominięte ${r0(x.przenos[p].skp)} kcal: +${r0(x.przenos[p].same)} dziś, reszta jutro</small>${x[p].b < c[p].bMin - 3 ? `<small class="ostrz-txt">brakuje ${r0(c[p].bMin - x[p].b)} g białka do celu — dopij np. skyr lub odżywkę</small>` : ''}` : ''}</div>`).join('')}</div>
     <div class="dnia-ust"><div class="trening"><span class="mute">Trening:</span>${OS.map(p => `<label class="${p}"><input type="checkbox" data-tr="${d}:${p}" ${day.tr[p] ? 'checked' : ''}> ${ETY[p]}</label>`).join('')}</div>
       <div class="kto-dnia"><span class="mute">Kto je w tym dniu:</span><div class="seg mini">${[['oboje', 'Oboje'], ['bezon', 'Bez niego'], ['bezona', 'Bez niej']].map(([k, et]) => `<button data-kto="${d}:${k}" class="${stanKto(day) === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>
-      <div class="dop-dnia"><span class="mute">Dopasuj dzień:</span><div class="chips">${[['szybko', 'Szybko'], ['bezMiesa', 'Bez mięsa'], ['zimno', 'Bez gotowania'], ['lekko', 'Lekko']].map(([k, et]) => `<button class="chip" data-dop="${d}:${k}">${et}</button>`).join('')}</div></div>
-      <div class="gosc-dnia"><span class="mute">Goście na obiad:</span><div class="gosc-ster"><button class="stp" data-gosc="${d}:-1" aria-label="Mniej gości" ${day.gosc ? '' : 'disabled'}>−</button><b>${day.gosc || 0}</b><button class="stp" data-gosc="${d}:1" aria-label="Więcej gości">+</button></div></div></div>`;
+      <button class="btn maly dop-toggle" data-dop-toggle="1" aria-expanded="${dopDzien}">Dopasuj dzień i goście ${dopDzien ? '▴' : '▾'}${day.gosc ? ` · ${day.gosc} ${mn(day.gosc, 'gość', 'gości', 'gości')}` : ''}</button><div class="dop-panel" ${dopDzien ? '' : 'hidden'}><div class="dop-dnia"><span class="mute">Dopasuj dzień:</span><div class="chips">${[['szybko', 'Szybko'], ['bezMiesa', 'Bez mięsa'], ['zimno', 'Bez gotowania'], ['lekko', 'Lekko']].map(([k, et]) => `<button class="chip" data-dop="${d}:${k}">${et}</button>`).join('')}</div></div>
+      <div class="gosc-dnia"><span class="mute">Goście na obiad:</span><div class="gosc-ster"><button class="stp" data-gosc="${d}:-1" aria-label="Mniej gości" ${day.gosc ? '' : 'disabled'}>−</button><b>${day.gosc || 0}</b><button class="stp" data-gosc="${d}:1" aria-label="Więcej gości">+</button></div></div></div></div>`;
   x.sloty.forEach(({ g, odgrzewane }) => {
     const moje = g.porcje.filter(q => q.d === d), ez = !!zuzyte[kluczZ(d, g.slot)];
     const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join('');
@@ -797,7 +797,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
     h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
       <div class="pk-gora">${Obr.html(g.dish)}<div class="pk-tx"><button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button><div class="liczby">${liczby}</div></div></div>
       ${zn ? `<div class="pk-zn">${zn}</div>` : ''}
-      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button><button class="btn maly blok ${day.blok && day.blok[g.slot] ? 'akt' : ''}" data-blok="${d}:${g.slot}" aria-pressed="${!!(day.blok && day.blok[g.slot])}">${day.blok && day.blok[g.slot] ? 'Zablokowane' : 'Zablokuj'}</button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
+      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button><button class="btn maly blok blok-ik ${day.blok && day.blok[g.slot] ? 'akt' : ''}" data-blok="${d}:${g.slot}" aria-pressed="${!!(day.blok && day.blok[g.slot])}" aria-label="${day.blok && day.blok[g.slot] ? 'Odblokuj danie' : 'Zablokuj danie (zostanie przy losowaniu tygodnia)'}" title="Zablokuj danie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${day.blok && day.blok[g.slot] ? 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z' : 'M7 11V8a5 5 0 0 1 9.5-2M6 11h12v9H6z'}"/></svg></button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
   });
   if (day.tr.ona || day.tr.on) h += OS.filter(p => day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake')).map(p => `<button class="pomin-shake" data-pomin-shake="${d}:${p}">Pomiń shake (${ETY[p]})</button>`).join('');
   const pomL = []; OS.forEach(p => { const pm = !nieob(day, p) && day.pom && day.pom[p]; if (pm) Object.keys(pm).filter(k => pm[k]).forEach(k => pomL.push([p, k])); });
@@ -1517,6 +1517,7 @@ function porownajSklepy(z) {
 function kartaSklepy(c) {
   if (!c.poz.length || !sklepyZnane().length) return '';
   const kosztTxt = c.znane ? `<p class="mute" style="margin:0 0 8px">Szacowany koszt listy: <b>ok. ${zl(c.szac)}</b> <span class="mute">(ceny znane dla ${c.znane} z ${c.poz.length} pozycji, wg najtańszego znanego sklepu)</span></p>` : '';
+  if (!(c.uzyte.length >= 2 && c.wspolne.length >= 3)) return `${c.znane ? kosztTxt.replace('<p class="mute" style="margin:0 0 8px">', '<p class="mute sklepy-info">') : ''}<p class="mute sklepy-info">Gdzie taniej? Po kilku paragonach z tymi samymi produktami w dwóch sklepach podpowiem, gdzie wyjdzie taniej.</p>`;
   let h = `<details class="karta zk-zwin sklepy-karta" open><summary>Gdzie taniej? ${c.naj ? `<span class="licznik">${esc(c.naj)}</span>` : ''}</summary><div class="seg mini" style="margin:0 0 10px"><button data-ceny-tryb="polkowe" class="${cenyTryb === 'rabaty' ? '' : 'akt'}">Ceny półkowe</button><button data-ceny-tryb="rabaty" class="${cenyTryb === 'rabaty' ? 'akt' : ''}">Po rabatach</button></div>${kosztTxt}`;
   if (c.uzyte.length >= 2 && c.wspolne.length >= 3) {
     const max = Math.max(...Object.values(c.razem)), min = Math.min(...Object.values(c.razem));
@@ -2161,6 +2162,7 @@ function zapasPrepu(dzis) {
   const zapasHtml = zapas.length ? `<div class="prep-zapas"><b>Z zapasu w lodówce</b>${zapas.map(z => `<div><span>${esc(z.nazwa)}</span><span class="mute">${z.dzisiaj ? `dziś weź ${z.dzisiaj} ${z.u === 'szt.' ? 'szt.' : 'g'} · ` : ''}starczy do ${dzienKrotki(z.ost)}${z.ost > dodajDni(dzis, z.dni) ? ' (sprawdź świeżość)' : ''}</span></div>`).join('')}</div>` : '';
   return { zapas, html: zapasHtml };
 }
+let dalejWiecej = false, dopDzien = false;
 function kartaPrepDzis(dzis) {
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
   const ok = okazjePrepu(), dz = ok[0], naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
@@ -2530,7 +2532,7 @@ function widokZakupy() {
   const wDzial = {}; wszystkie.forEach(p => { (wDzial[dzialSklepu(p)] = wDzial[dzialSklepu(p)] || []).push(p); });
   const sk = sklepAktywny(), uk = trasaUklad(wDzial, sk), maTrase = !!(trasa[sk] && Object.keys(trasa[sk]).length >= 8);
   if (razemPoz) h += `<div class="trasa-wiersz"><span class="mute">Idę do:</span><div class="chips">${sklepyDoWyboru().map(x => `<button class="chip ${x === sk ? 'akt' : ''}" data-sklepzak="${esc(x)}">${esc(x)}</button>`).join('')}</div>
-    <small class="mute">${maTrase ? `Lista ułożona wg Waszej trasy w sklepie. <button class="link" data-trasa-tryb="${trasaTryb === 'moja' ? 'std' : 'moja'}">${trasaTryb === 'moja' ? 'Pokaż standardową kolejność' : 'Użyj mojej trasy'}</button>` : 'Odhaczajcie w sklepie po kolei, a zapamiętam waszą trasę i następnym razem ułożę listę tak, żeby nie wracać po coś.'}</small></div>`;
+    <small class="mute">${maTrase ? `Lista ułożona wg Waszej trasy w sklepie. <button class="link" data-trasa-tryb="${trasaTryb === 'moja' ? 'std' : 'moja'}">${trasaTryb === 'moja' ? 'Pokaż standardową kolejność' : 'Użyj mojej trasy'}</button>` : 'Odhaczajcie po kolei, a zapamiętam trasę w sklepie.'}</small></div>`;
   const dzialyKol = uk ? uk.dzialy.map(k => DZIALY.find(d => d[0] === k)) : DZIALY;
   for (const [kod, nazwa, ikona] of dzialyKol) {
     const l = wDzial[kod]; if (!l || !l.length) continue;
@@ -2761,7 +2763,10 @@ function widokDzis() {
     if (OS.some(p => !lastW(p) || (new Date(dzis) - new Date(lastW(p))) / 864e5 >= 7)) kar.push(`<div class="karta zad"><b>Czas na ważenie</b><p class="mute">Raz w tygodniu, rano. Wynik pomaga ocenić, czy kalorie są dobre.</p><button class="btn szeroki" data-tab="waga">Zapisz wagę</button></div>`);
     const prop = OS.filter(pp => propozycjaKorekty(pp).stan === 'propozycja'); if (prop.length) kar.push(`<div class="karta zad"><b>Propozycja korekty kalorii</b><p class="mute">Trend wagi sugeruje małą zmianę kalorii dla: ${prop.map(pp => ETY[pp]).join(', ')}.</p><button class="btn szeroki" data-tab="waga">Zobacz w Wadze</button></div>`);
     const pr = przypomnieniaDzis(w); if (pr) kar.push(pr);
-    return o + (kar.length ? `<h2>Co dalej</h2>${kar.join('')}` : '') + `<button class="btn szeroki" data-tab="tydzien" style="margin-top:12px">Cały plan</button></div></section>`;
+    const PRIO = [['Do zużycia', 1], ['Zaraz zabraknie', 1], ['zaczyna brakować', 2], ['Wieczorem przygotuj', 2], ['Masz paragon', 3], ['Lodówka jest pusta', 3], ['dzień zakupów', 3], ['Czas na ważenie', 4], ['Propozycja korekty', 4], ['Koniec tygodnia', 5], ['Nowy tydzień', 5], ['Poznajmy Wasz smak', 6]], prio = k => (PRIO.find(([tt]) => k.includes(tt)) || [0, 4])[1];
+    let kk = kar.slice(); if (kk.some(x => x.includes('Zaraz zabraknie'))) kk = kk.filter(x => !x.includes('W lodówce zaczyna brakować'));   // jedna informacja o brakach, nie dwie
+    kk.sort((a, b) => prio(a) - prio(b)); const pokaz = kk.slice(0, 3), reszta = kk.slice(3);
+    return o + (kk.length ? `<h2>Co dalej</h2>${pokaz.join('')}${reszta.length ? (dalejWiecej ? reszta.join('') + '<button class="btn szeroki" data-dalej-wiecej="0">Zwiń podpowiedzi</button>' : `<button class="btn szeroki" data-dalej-wiecej="1">Więcej podpowiedzi (${reszta.length})</button>`) : ''}` : '') + `<button class="btn szeroki" data-tab="tydzien" style="margin-top:12px">Cały plan</button></div></section>`;
   });
   $('#view').innerHTML = h;
   window._w = window._wBy[t.start];
@@ -2819,14 +2824,17 @@ function widokWiecej() {
   const kafel = (tab, tytul, opis, ik) => `<button class="kafel" data-tab="${tab}"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ik}"/></svg></span><span class="kafel-tx"><b>${tytul}</b><small>${opis}</small></span><span class="kafel-str">›</span></button>`;
   const q = (pyt, odp) => `<details class="faq"><summary>${pyt}</summary><p>${odp}</p></details>`;
   $('#view').innerHTML = `<h1>Więcej</h1>${motywWiersz()}
-    ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
-    <button class="kafel" data-szybka="skan"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE.skan[1]}"/></svg></span><span class="kafel-tx"><b>Skanuj kod produktu</b><small>Dodaj do lodówki z aparatu</small></span><span class="kafel-str">›</span></button>
+    <h3>Ty i plan</h3>
     ${kafel('podsum', 'Podsumowanie tygodnia', 'Jak Wam poszło: posiłki, kalorie, białko, waga, wydatki', 'M5 20V10M12 20V4M19 20v-7')}
+    ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
     ${kafel('swipe', 'Co lubicie?', Object.keys(smaki).length ? 'Ocenionych dań: ' + Object.keys(smaki).length + '. Przesuwaj kolejne' : 'Przesuwaj dania i ucz plan Waszego smaku', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z')}
     ${kafel('wlasne', 'Własne dania', wlasneDania.length ? wlasneDania.length + ' ' + mn(wlasneDania.length, 'danie', 'dania', 'dań') + ' dodanych przez Was' : 'Dodaj własny przepis', 'M12 5v14M5 12h14')}
-    ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
-    ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} ${paragony.length === 1 ? 'paragon' : [2, 3, 4].includes(paragony.length % 10) && (paragony.length % 100 < 10 || paragony.length % 100 >= 20) ? 'paragony' : 'paragonów'} · ceny ${Object.keys(ceny).length} ${Object.keys(ceny).length === 1 ? 'produktu' : 'produktów'}` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
+    <h3>Gotowanie i zakupy</h3>
+    ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
+    <button class="kafel" data-szybka="skan"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE.skan[1]}"/></svg></span><span class="kafel-tx"><b>Skanuj kod produktu</b><small>Dodaj do lodówki z aparatu</small></span><span class="kafel-str">›</span></button>
+    ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} ${paragony.length === 1 ? 'paragon' : [2, 3, 4].includes(paragony.length % 10) && (paragony.length % 100 < 10 || paragony.length % 100 >= 20) ? 'paragony' : 'paragonów'} · ceny ${Object.keys(ceny).length} ${Object.keys(ceny).length === 1 ? 'produktu' : 'produktów'}` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
+    <h3>Aplikacja</h3>
     ${kafel('ustawienia', 'Ustawienia', 'Profile, cele, wspólny plan, ulubione dania', 'M4 7h9M17 7h3M4 17h3M11 17h9')}
     <button class="kafel" data-intro="0"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span><span class="kafel-tx"><b>Jak to działa</b><small>Krótkie wprowadzenie krok po kroku</small></span><span class="kafel-str">›</span></button>
     <h2>Najczęstsze pytania</h2>
@@ -3329,6 +3337,8 @@ document.addEventListener('click', e => {
   if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
+  if (t.dataset.dalejWiecej !== undefined) { dalejWiecej = t.dataset.dalejWiecej === '1'; rysuj(); return; }
+  if (t.dataset.dopToggle) { dopDzien = !dopDzien; otwartyDzien = otwartyDzien; rysuj(); return; }
   if (t.dataset.blok) { const [dd, sl] = t.dataset.blok.split(':'), day = plan.dni[+dd]; day.blok = day.blok || {}; if (day.blok[sl]) delete day.blok[sl]; else day.blok[sl] = true; LS.set('plan', plan); Z([[['dni', +dd, 'blok'], Object.keys(day.blok).length ? day.blok : undefined]]); otwartyDzien = +dd; rysuj(); pokazToast(day.blok[sl] ? 'Zablokowane: zostanie przy ponownym losowaniu tygodnia' : 'Odblokowane'); return; }
   if (t.dataset.pozaGotowe) { const [n, k] = t.dataset.pozaGotowe.split('|'); const i = $('#poza-n'); if (i) i.value = n; const zazn = [...document.querySelectorAll('[data-poza-os]')].filter(c => c.checked); (zazn.length ? zazn : [...document.querySelectorAll('[data-poza-os]')]).forEach(c => { c.checked = true; const kk = $('#poza-k-' + c.dataset.pozaOs); if (kk) kk.value = k; }); return; }
   if (t.dataset.pozaZapisz) { zapiszPoza(+t.dataset.pozaZapisz); return; }

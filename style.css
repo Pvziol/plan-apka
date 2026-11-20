@@ -1122,3 +1122,16 @@ button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
 .wykres-leg { display: flex; gap: 12px; font-size: 11.5px; font-weight: 800; letter-spacing: .08em; margin-top: 4px; }
 .swiez { display: block; color: var(--mute); font-weight: 600; } .swiez.pilne { color: var(--ostrz); font-weight: 750; }
 .zad ul { margin: 6px 0 10px; padding-left: 18px; }
+
+/* v74: cele dotyku, panel dnia, ikona blokady */
+.chip, .chips .chip, .seg.mini button, .trening label { min-height: 40px; }
+.btn.maly, .pk-akcje .btn.maly, .stan-ster input { min-height: 44px; }
+.wstecz, .pos-pomin { min-height: 44px; display: inline-flex; align-items: center; }
+.btn.blok-ik { min-width: 44px; padding: 0; }
+.btn.blok-ik svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.dop-toggle { margin-top: 10px; width: 100%; justify-content: space-between; }
+.dop-panel { padding-top: 2px; }
+.sklepy-info { margin: 10px 2px; font-size: 13px; }
+.dnia-ust > .seg.mini + .btn { margin-top: 8px; }
+@media (min-width: 361px) { .pk-akcje { flex-wrap: nowrap; gap: 6px; } .pk-akcje .btn.maly { padding: 0 11px; } }
+.dop-panel[hidden] { display: none; }

@@ -1185,3 +1185,44 @@ button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
 .miesc-tipy ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
 .miesc-razem { font-weight: 800; font-size: 15px; }
 .miesc-razem small { font-weight: 500; color: var(--mute); font-size: 12.5px; }
+/* v84: przekroczony cel dnia */
+.kolo.ponad .w { stroke: var(--ostrz); }
+.kolo.ponad > span { color: var(--ostrz); }
+/* v85: kroki wieczorne wprost w karcie, z odnośnikami */
+.wiecz-w { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; cursor: default; }
+.wiecz-chk { appearance: none; background: none; border: 0; padding: 0; margin: 0; min-width: 44px; min-height: 44px; margin: -10px 0 -10px -10px; display: grid; place-items: center; cursor: pointer; color: inherit; }
+.wiecz-tx { min-width: 0; font-size: 15px; line-height: 1.4; }
+.wiecz-tx > b { display: block; margin-bottom: 2px; }
+.wiecz-kroki { margin: 2px 0 8px; padding-left: 18px; font-size: 14px; }
+.wiecz-kroki li { margin: 4px 0; }
+.wiecz-ak { display: flex; flex-wrap: wrap; gap: 8px; }
+.wiecz-w.zrobione .wiecz-tx { text-decoration: none; }
+.wiecz-w.zrobione .wiecz-kroki, .wiecz-w.zrobione > .wiecz-tx > span { text-decoration: line-through; }
+.krok-wiecz { background: var(--zielony-tlo); border-radius: 10px; padding: 6px 10px; margin-left: -10px; list-style-position: inside; }
+.wiecz-znak { background: color-mix(in srgb, var(--zielony) 18%, transparent); color: var(--zielony); margin-right: 4px; }
+.wiecz-uwaga { margin: 10px 0; }
+.wieczor .link { background: none; border: 0; padding: 4px 0; font: inherit; color: var(--zielony); font-weight: 700; text-decoration: underline; cursor: pointer; min-height: 32px; }
+/* v86: wykresy dzień po dniu w podsumowaniu tygodnia */
+.ps-dni { padding-bottom: 12px; }
+.ps-kolumny { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+.ps-dz { display: grid; justify-items: center; align-content: end; gap: 4px; padding: 8px 2px 6px; border-radius: 12px; background: color-mix(in srgb, currentColor 5%, transparent); }
+.ps-dz.pelny { background: color-mix(in srgb, var(--zielony) 14%, transparent); }
+.ps-kr { display: flex; flex-direction: column-reverse; gap: 4px; min-height: 52px; justify-content: flex-start; }
+.ps-kr i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, currentColor 28%, transparent); box-sizing: border-box; }
+.ps-kr i.zj { background: linear-gradient(180deg, var(--zielony2), var(--zielony)); border-color: transparent; animation: psKropka .5s cubic-bezier(.2, .9, .3, 1.3) both; animation-delay: calc(var(--k) * 70ms); }
+@keyframes psKropka { from { transform: scale(0); } }
+.ps-dz-et { font-size: 11px; font-weight: 700; opacity: .75; }
+.ps-dz small { font-size: 10.5px; color: var(--mute); }
+.ps-wyk { padding-bottom: 8px; }
+.ps-wyk-gora { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 4px; }
+.ps-wyk.ona > .ps-wyk-gora b { color: var(--ona); }
+.ps-wyk.on > .ps-wyk-gora b { color: var(--on); }
+.ps-wyk > small { display: block; margin-top: 6px; }
+.wykres-leg2 { font-size: 10.5px; color: var(--mute); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.wykres-leg2 i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.wykres-leg2 i + i, .wykres-leg2 i:not(:first-child) { margin-left: 6px; }
+.wykres-leg2 .zg { background: var(--zielony2); } .wykres-leg2 .am { background: var(--ostrz); } .wykres-leg2 .bl { background: var(--on); }
+.wykres-leg2 .kr { background: none; width: 12px; height: 0; border-top: 1.6px dashed currentColor; border-radius: 0; opacity: .6; }
+.wykres-dni rect.sl { transform-box: fill-box; transform-origin: 50% 100%; animation: slRosnij .8s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 70ms); }
+@keyframes slRosnij { from { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { .wykres-dni rect.sl, .ps-kr i.zj { animation: none; } }

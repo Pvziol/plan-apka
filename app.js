@@ -364,6 +364,13 @@ const skala = (g, i) => (stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b)) + 
 // Pominięty posiłek (day.pom[osoba][slot]): znika z dnia tej osoby. Jego kalorie nie przepadają:
 // 40% (max +25%) rozkładam na pozostałe posiłki tego samego dnia, reszta idzie na następny dzień (max +15% jego celu).
 const pozaKcal = (day, p) => sum((day && day.poza && day.poza[p]) || [], x => x.k || 0);
+// Sztywny cel kcal dnia: ile wynosiłby plan tego dnia BEZ posiłków spoza planu. Zjedzone poza planem zwiększają tylko „zjedzone”, nie cel.
+function celDnia(pl, c, d, p) {
+  const day = pl.dni[d];
+  if (!pozaKcal(day, p)) return null;
+  const kopia = Object.assign({}, pl, { dni: pl.dni.map((dd, i) => i === d ? Object.assign({}, dd, { poza: { ona: [], on: [] } }) : dd) });
+  return oblicz(kopia, c).dni[d][p].kcal;
+}
 const pomija = (day, p, slot) => !!(day && day.pom && day.pom[p] && day.pom[p][slot]);
 const shakeAkt = (day, p) => !!(day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake'));
 function oblicz(pl, c) {
@@ -823,7 +830,8 @@ function kartaDnia(t, c, dzisIso, nawig) {
   const sh = OS.filter(p => shakeAkt(day, p));
   if (sh.length) h += `<div class="pk"><div class="pk-pora">po treningu · shake</div><div class="liczby">${sh.map(p => `<span class="${p}">${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml · ${DB.shake[p].kcal} kcal · ${DB.shake[p].bialko} g</span>`).join('')}</div></div>`;
   const wi = wieczorem(w, d);
-  if (wi.length) h += `<div class="wieczor"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`;
+  window._wiecz = wi;
+  if (wi.length) h += `<div class="wieczor"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map((it, i) => it.t === 'kroki' ? `<li><b>${esc(it.dish)}</b>: ${esc(it.kroki.join(' '))} <button class="link" data-wiecz-przepis="${i}">Zobacz przepis</button></li>` : `<li>${esc(it.tekst)}</li>`).join('')}</ul></div>`;
   h += `</div>${tydzDzis ? przypomnieniaDzis(w) : ''}
     <details class="karta tyg-sum"><summary>Cały tydzień ${krotkaData(t.start)}–${krotkaData(dodajDni(t.start, 6))}${znacz ? ` <span class="znaczek">${znacz}</span>` : ''}</summary>
     <div class="cele">${OS.map(p => { const [tt, kl] = stan(sr(p), c[p]); return `<div class="cel ${p}"><b>${ETY[p]}</b><span class="duze">${r0(srK(p))} kcal</span>
@@ -888,9 +896,9 @@ function wieczorem(w, d) {
   const out = [];
   for (const { g, odgrzewane } of w.dni[d + 1].sloty) {
     if (odgrzewane) continue;
-    if (g.dish.wieczorem && g.dish.wieczorem.length) out.push(`${g.dish.nazwa}: zrób kroki oznaczone WIECZOREM`);
+    if (g.dish.wieczorem && g.dish.wieczorem.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: g.dish.wieczorem.map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')) });
     for (const i of g.dish.skladniki) {
-      if (i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)) out.push(`wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
+      if (i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)) { const tx = `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`; out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g }); }
     }
   }
   return out;
@@ -922,7 +930,7 @@ function pokazPrzepis(g, spont) {
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
     ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
     <h3>Kto ile bierze</h3><div class="podzial">${pod}</div>
-    ${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => { const zs = krokZSesji(g, k); return `<li class="${zs ? 'krok-prep' : ''}">${esc(krokPrzeliczony(g, k))}${zs ? `<small>${esc(zs)} — możesz pominąć</small>` : ''}</li>`; }).join('')}</ol>` : ''}
+    ${dish.wieczorem && dish.wieczorem.length ? `<div class="uwaga wiecz-uwaga"><b>Przygotuj dzień wcześniej wieczorem</b><br>W „Wykonaniu” poniżej oznaczone: ${dish.kroki.map((k, n) => /^WIECZOREM/i.test(k) ? n + 1 : 0).filter(Boolean).map(n => 'krok ' + n).join(', ')}.</div>` : ''}${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => { const zs = krokZSesji(g, k), wi = /^WIECZOREM/i.test(k); return `<li class="${zs ? 'krok-prep' : ''} ${wi ? 'krok-wiecz' : ''}">${wi ? '<span class="znaczek wiecz-znak">Dzień wcześniej, wieczorem</span> ' : ''}${esc(krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, ''))}${zs ? `<small>${esc(zs)} — możesz pominąć</small>` : ''}</li>`; }).join('')}</ol>` : ''}
     ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
     ${dish.uwaga ? `<div class="uwaga">${esc(dish.uwaga)}</div>` : ''}
     ${spont ? `<button class="btn glowny szeroki" data-spont-gotuj="1" style="margin-top:14px">Ugotowaliśmy — zdejmij z lodówki</button>` : ''}`;
@@ -2088,23 +2096,43 @@ function kartaTrendow(lista) {
     <div class="karta"><b>Kalorie względem celu (%)</b><div class="wykres-leg"><span class="ona">ONA</span><span class="on">ON</span></div>${wykresLinie([{ w: kc('ona'), kolor: 'var(--ona)' }, { w: kc('on'), kolor: 'var(--on)' }], et, v => v + '%')}</div>
     ${wyd.some(v => v > 0) ? `<div class="karta"><b>Wydatki z paragonów (zł)</b>${wykresSlupki(wyd, et, 'var(--on)', v => Math.round(v))}</div>` : ''}`;
 }
+// Słupki dzień po dniu: wysokość = zjedzone, kreska = cel dnia, kolor = czy w celu. klucz: 'kcal' albo 'b' (białko).
+function wykresTydzien(o, p, klucz) {
+  const ck = klucz === 'kcal' ? 'cel' : 'bc', dane = o.dni.map(x => ({ v: x[klucz][p], c: x[ck][p] })), ma = dane.filter(x => x.v != null && x.c);
+  if (!ma.length) return '';
+  const w = 300, h = 92, n = 7, krok = (w - 12) / n, sz = Math.min(26, krok - 8), mx = Math.max(...ma.map(x => Math.max(x.v, x.c * 1.15)), 1), y = v => h - v / mx * h + 14;
+  const kol = r => klucz === 'kcal' ? (r > 1.1 ? 'var(--ostrz)' : r < 0.85 ? 'var(--on)' : 'var(--zielony2)') : (r < 0.85 ? 'var(--on)' : 'var(--zielony2)');
+  return `<svg viewBox="0 0 ${w} ${h + 34}" class="wykres wykres-dni" role="img" aria-label="${klucz === 'kcal' ? 'Kalorie' : 'Białko'} dzień po dniu">${dane.map((x, i) => {
+    const x0 = 6 + i * krok + (krok - sz) / 2, et = `<text x="${(x0 + sz / 2).toFixed(1)}" y="${h + 30}" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">${esc(DNI_KR[i])}</text>`;
+    if (x.v == null || !x.c) return `<rect x="${x0.toFixed(1)}" y="${h + 12}" width="${sz.toFixed(1)}" height="2.5" rx="1.2" fill="currentColor" opacity=".18"/>${et}`;
+    const r = x.v / x.c, top = y(x.v), bh = Math.max(3, h + 14 - top);
+    return `<rect class="sl" style="--i:${i}" x="${x0.toFixed(1)}" y="${top.toFixed(1)}" width="${sz.toFixed(1)}" height="${bh.toFixed(1)}" rx="6" fill="${kol(r)}"><title>${DNI_KR[i]}: ${x.v} / ${x.c} ${klucz === 'kcal' ? 'kcal' : 'g'}</title></rect><line x1="${(x0 - 4).toFixed(1)}" x2="${(x0 + sz + 4).toFixed(1)}" y1="${y(x.c).toFixed(1)}" y2="${y(x.c).toFixed(1)}" stroke="currentColor" stroke-width="1.4" stroke-dasharray="3 2.5" opacity=".55"/><text x="${(x0 + sz / 2).toFixed(1)}" y="${(top - 3.5).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">${Math.round(r * 100)}%</text>${et}`;
+  }).join('')}</svg>`;
+}
+function kartyDni(o) {
+  if (!o.dni || !o.dni.some(x => x.z > 0 || OS.some(p => x.kcal[p] != null))) return '';
+  const pas = `<div class="karta ps-dni"><b>Posiłki dzień po dniu</b><div class="ps-kolumny">${o.dni.map((x, d) => `<div class="ps-dz ${x.n && x.z === x.n ? 'pelny' : ''}"><div class="ps-kr">${Array.from({ length: x.n }, (_, k) => `<i class="${k < x.z ? 'zj' : ''}" style="--k:${k}"></i>`).join('')}</div><span class="ps-dz-et">${DNI_KR[d]}</span><small>${x.z}/${x.n}</small></div>`).join('')}</div></div>`;
+  const osoby = OS.map(p => { const k = wykresTydzien(o, p, 'kcal'), b = wykresTydzien(o, p, 'b'); return k ? `<div class="karta ps-wyk ${p}"><div class="ps-wyk-gora"><b>${ETY[p]}</b><span class="wykres-leg2"><i class="zg"></i>w celu <i class="am"></i>ponad <i class="bl"></i>poniżej <i class="kr"></i>cel dnia</span></div><small class="mute">Kalorie dzień po dniu</small>${k}${b ? `<small class="mute">Białko dzień po dniu</small>${b}` : ''}</div>` : ''; }).join('');
+  return `<h2>Dzień po dniu</h2>${pas}${osoby}`;
+}
 // ---------- podsumowanie tygodnia ----------
 // Co się faktycznie stało w tygodniu: ile posiłków zjedzonych, średnio kcal i białka (tylko z dni z odhaczonym jedzeniem), zmiana wagi, wydatki z paragonów, ulubione danie.
 function zbierzTydzien(t) {
   const c = cele(), w = oblicz({ start: t.start, dni: t.dni }, c), zj = (d, g) => !!t.zuz[kluczZ(d, g.slot, t.start)];
   const koniec = dodajDni(t.start, 6), o = { start: t.start, posilkow: 0, zjedzone: 0, dniZ: 0, kcal: {}, b: {}, cel: {}, bCel: {}, waga: {}, wydatki: 0, nPar: 0, ulub: null };
   OS.forEach(p => { o.kcal[p] = []; o.b[p] = []; o.cel[p] = []; o.bCel[p] = []; });
+  o.dni = w.dni.map(x => ({ z: 0, n: x.sloty.length, kcal: {}, b: {}, cel: {}, bc: {} }));
   w.dni.forEach((x, d) => {
     const jedz = x.sloty.filter(({ g }) => zj(d, g));
-    o.posilkow += x.sloty.length; o.zjedzone += jedz.length;
+    o.posilkow += x.sloty.length; o.zjedzone += jedz.length; o.dni[d].z = jedz.length;
     const pozaD = OS.some(p => pozaKcal(t.dni[d], p) > 0);
     if (!jedz.length && !pozaD) return; o.dniZ++;
     for (const p of OS) {
       if (nieob(t.dni[d], p)) continue;
       const dos = g => (g.dosypka && p === 'on' ? g.dosypka : { kcal: 0, b: 0 });
-      o.kcal[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)) + pozaKcal(t.dni[d], p));
-      o.b[p].push(sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + dos(g).b)));
-      o.cel[p].push(x[p].kcal + pozaKcal(t.dni[d], p)); o.bCel[p].push(x[p].b);
+      const kv = sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + dos(g).kcal)) + pozaKcal(t.dni[d], p), bv = sum(jedz, ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + dos(g).b)), cv = celDnia({ start: t.start, dni: t.dni }, cele(), d, p) || x[p].kcal;
+      o.kcal[p].push(kv); o.b[p].push(bv); o.cel[p].push(cv); o.bCel[p].push(x[p].b);
+      Object.assign(o.dni[d], { kcal: Object.assign(o.dni[d].kcal, { [p]: Math.round(kv) }), b: Object.assign(o.dni[d].b, { [p]: Math.round(bv) }), cel: Object.assign(o.dni[d].cel, { [p]: Math.round(cv) }), bc: Object.assign(o.dni[d].bc, { [p]: Math.round(x[p].b) }) });
     }
   });
   const sr = a => a.length ? sum(a, v => v) / a.length : null;
@@ -2151,6 +2179,7 @@ function widokPodsumowanie() {
       <div><b class="ps-duze">${o.zjedzone} z ${o.posilkow}</b><small>posiłków zjedzonych</small></div></div>
       <p class="ps-ocena">${esc(ocena)}</p></div>
     ${os ? `<div class="ps-osoby">${os}</div>` : ''}
+    ${kartyDni(o)}
     <div class="lod-kafle"><div><b>${o.nPar ? zl(o.wydatki).replace(' zł', '') : '—'}</b><small>${o.nPar ? `zł z ${o.nPar} ${mn(o.nPar, 'paragonu', 'paragonów', 'paragonów')}` : 'brak paragonów'}</small></div><div><b>${o.dniZ}</b><small>${mn(o.dniZ, 'dzień', 'dni', 'dni')} z odhaczonym jedzeniem</small></div></div>
     ${kartaTrendow(lista)}
     ${o.ulub ? `<div class="karta"><b>Najlepiej smakowało</b><p class="mute" style="margin:4px 0 0">${esc(o.ulub)}</p></div>` : ''}
@@ -2178,9 +2207,11 @@ let dalejWiecej = false, dopDzien = false;
 function kartaWieczor(wi, dzis) {
   window._wiecz = wi;
   if (!wi.length) return '';
-  const ok = (LS.get('wieczOk', {}) || {})[dzis] || [], wieczor = new Date().getHours() >= 17, zrob = wi.filter(tt => !ok.includes(tt)).length;
+  const ok = (LS.get('wieczOk', {}) || {})[dzis] || [], wieczor = new Date().getHours() >= 17, zrob = wi.filter(x => !ok.includes(x.klucz)).length;
   return `<h2>Wieczorem na jutro</h2><div class="karta wiecz ${wieczor ? 'teraz' : ''} ${zrob ? '' : 'gotowe'}"><div class="wiecz-gora"><span class="wiecz-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg></span><div><b>${zrob ? (wieczor ? 'Zrób to dziś wieczorem' : 'Przygotuj wieczorem') : 'Wszystko gotowe na jutro'}</b><small>${zrob ? `${zrob} ${mn(zrob, 'rzecz', 'rzeczy', 'rzeczy')} do zrobienia, żeby jutro poszło szybciej` : 'Dobra robota, jutro będzie łatwiej'}</small></div></div>
-    ${wi.map((tt, i) => { const z = ok.includes(tt); return `<button class="wiecz-w ${z ? 'zrobione' : ''}" data-wiecz="${i}" role="checkbox" aria-checked="${z}"><span class="wiecz-ptak"></span><span class="wiecz-tx">${esc(tt.charAt(0).toUpperCase() + tt.slice(1))}</span></button>`; }).join('')}</div>`;
+    ${wi.map((it, i) => { const z = ok.includes(it.klucz); return `<div class="wiecz-w ${z ? 'zrobione' : ''}"><button class="wiecz-chk" data-wiecz="${i}" role="checkbox" aria-checked="${z}" aria-label="Zrobione"><span class="wiecz-ptak"></span></button>
+      <div class="wiecz-tx">${it.t === 'kroki' ? `<b>${esc(it.dish)}</b><ol class="wiecz-kroki">${it.kroki.map(k => `<li>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</li>`).join('')}</ol>
+        <div class="wiecz-ak"><button class="btn maly" data-wiecz-przepis="${i}">Cały przepis</button><button class="btn maly" data-wiecz-got="${i}">Gotuj krok po kroku</button></div>` : `<span>${esc(it.tekst)}</span>`}</div></div>`; }).join('')}</div>`;
 }
 function kartaPrepDzis(dzis) {
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
@@ -2809,7 +2840,7 @@ function widokDzis() {
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
-    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal + pozaKcal(day, p), z = zjed(p) + pozaKcal(day, p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
+    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = celDnia(plan, c, d, p) || x[p].kcal, z = zjed(p) + pozaKcal(day, p), pr = cel ? Math.round(z / cel * 100) : 0; return `<div class="${p}"><div class="kolo ${pr > 100 ? 'ponad' : ''}" style="--d:${(Math.min(100, pr) * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
     o += paskAkcji(['czas', 'poza', 'skan', 'paragon', 'spont', 'waga']);
     o += kartaPrepDzis(dzis);
     // lista posiłków
@@ -3410,7 +3441,9 @@ document.addEventListener('click', e => {
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
-  if (t.dataset.wiecz !== undefined) { const dz = isoDzis(), wi = window._wiecz || [], tt = wi[+t.dataset.wiecz]; if (tt) { const all = LS.get('wieczOk', {}) || {}, a = all[dz] || []; all[dz] = a.includes(tt) ? a.filter(x => x !== tt) : a.concat(tt); Object.keys(all).forEach(k => { if (k < dodajDni(dz, -3)) delete all[k]; }); LS.set('wieczOk', all); rysuj(); } return; }
+  if (t.dataset.wiecz !== undefined) { const dz = isoDzis(), it = (window._wiecz || [])[+t.dataset.wiecz]; if (it) { const all = LS.get('wieczOk', {}) || {}, a = all[dz] || []; all[dz] = a.includes(it.klucz) ? a.filter(x => x !== it.klucz) : a.concat(it.klucz); Object.keys(all).forEach(k => { if (k < dodajDni(dz, -3)) delete all[k]; }); LS.set('wieczOk', all); rysuj(); } return; }
+  if (t.dataset.wieczPrzepis !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczPrzepis]; if (it && it.g) pokazPrzepis(it.g, false); return; }
+  if (t.dataset.wieczGot !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczGot]; if (it && it.g) { otworzGotowanie(it.g, false); const k = got ? got.kroki.findIndex(x => /^WIECZOREM/i.test(x)) : -1; if (k >= 0) gotIdz(k + 1); } return; }
   if (t.dataset.dalejWiecej !== undefined) { dalejWiecej = t.dataset.dalejWiecej === '1'; rysuj(); return; }
   if (t.dataset.dopToggle) { dopDzien = !dopDzien; otwartyDzien = otwartyDzien; rysuj(); return; }
   if (t.dataset.blok) { const [dd, sl] = t.dataset.blok.split(':'), day = plan.dni[+dd]; day.blok = day.blok || {}; if (day.blok[sl]) delete day.blok[sl]; else day.blok[sl] = true; LS.set('plan', plan); Z([[['dni', +dd, 'blok'], Object.keys(day.blok).length ? day.blok : undefined]]); otwartyDzien = +dd; rysuj(); pokazToast(day.blok[sl] ? 'Zablokowane: zostanie przy ponownym losowaniu tygodnia' : 'Odblokowane'); return; }

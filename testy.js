@@ -234,6 +234,19 @@
     try { lodowka = { 'owoce mrożone (mieszanka)': { g: 300 }, 'mieszanka tropikalna mrożona (mango, ananas…)': { g: 200 }, 'owoce mrożone': { g: 100 } }; mapaPar = { 'MROZONE MALINY': 'owoce mrożone (mieszanka)' }; migrujOwoceMroz(); rowne(lodowka, { 'owoce mrożone': { g: 600 } }); rowne(mapaPar['MROZONE MALINY'], 'owoce mrożone'); }
     finally { lodowka = JSON.parse(sl); mapaPar = JSON.parse(sm); }
   });
+  await test('Wybór dania', 'dania w wyborze są grupowane (rozsuwane grupy), mało dań w „Inne”', async () => {
+    const pule = [['ob', DB.pula.ob1], ['ob', DB.pula.ob2], ['sn', DB.pula.sn], ['m13', DB.pula.m13dania], ['m13', DB.pula.m13kokt], ['k18', DB.pula.k18]];
+    for (const [slot, pula] of pule) {
+      const znane = new Set([...GRUPY_MIESO, ...GRUPY_SN, ...GRUPY_KOKT]); let inne = 0;
+      for (const x of pula) { const g = grupaDania(x, slot); prawda(znane.has(g), x.nazwa + ': nieznana grupa ' + g); if (g === 'Inne') inne++; }
+      prawda(inne <= Math.max(2, pula.length * 0.2), `za dużo dań w „Inne”: ${inne} z ${pula.length} (${slot})`);
+    }
+    const sv = zmienCtx; zmienCtx = { d: 0, slot: 'ob', teraz: DB.pula.ob1[0].id, pula: DB.pula.ob1 };
+    const box = document.createElement('div'); box.id = 'lista-wyboru'; document.body.appendChild(box);
+    try { listaWyboru(''); const gr = box.querySelectorAll('details.wyb-grp'); prawda(gr.length >= 3, 'za mało grup'); prawda(box.querySelectorAll('.wiersz').length === DB.pula.ob1.filter(x => dopuszcza(x, osobySlotu('ob'))).length, 'liczba dań w grupach różni się od puli');
+      listaWyboru('kurczak'); prawda([...box.querySelectorAll('details.wyb-grp')].every(g => g.open), 'przy szukaniu grupy powinny być rozsunięte'); }
+    finally { box.remove(); zmienCtx = sv; }
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

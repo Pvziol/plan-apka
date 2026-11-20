@@ -2468,15 +2468,50 @@ function oknoZmien(d, slot) {
   listaWyboru('');
   $('#modal').hidden = false;
 }
+// Grupy dań w wyborze: obiady i drugie dania wg mięsa (zupy, ryby, mielone, kurczak…), śniadania wg rodzaju, koktajle wg smaku.
+const GRUPY_MIESO = ['Zupy', 'Z kurczakiem', 'Z mielonym', 'Z indykiem', 'Z wołowiną i wieprzowiną', 'Ryby', 'Z wędliną', 'Skyr i słodkie', 'Bez mięsa', 'Inne'];
+const GRUPY_SN = ['Owsianki i kasze', 'Naleśniki, gofry i placki', 'Kanapki i tosty', 'Jajka', 'Skyr, jogurt i twaróg', 'Inne'];
+const GRUPY_KOKT = ['Owocowe', 'Kakaowe i czekoladowe', 'Z masłem orzechowym', 'Inne'];
+function grupaDania(x, slot) {
+  const n = znorm(x.nazwa), sk = znorm((x.skladniki || []).map(i => i.produkt || '').join(' | '));
+  if (/^koktajl/.test(x.typ || '')) return /kakao|czekolad/.test(n) ? GRUPY_KOKT[1] : /maslem orzech|maslo orzech/.test(n) ? GRUPY_KOKT[2] : /owoce mrozone|malin|jagod|truskaw|mango|brzoskw|wisni|jablk|banan/.test(n + ' ' + sk) ? GRUPY_KOKT[0] : GRUPY_KOKT[3];
+  if (slot === 'sn') return /owsiank|jaglank|platk|granol|kasza manna|kaszk|pudding|chia|musli|ryz na mleku|kuskus/.test(n) ? GRUPY_SN[0] : /nalesnik|gofr|placki|syrnik|tosty francusk|nalesn/.test(n) ? GRUPY_SN[1] : /kanapk|tost|chleb|wrap|tortill|bagiet|bulk|zapiek/.test(n) ? GRUPY_SN[2] : /jajk|jaja|szakszuk|omlet|jajecz|frittat/.test(n) ? GRUPY_SN[3] : /skyr|jogurt|twarog|serniczek|twarozk/.test(n) ? GRUPY_SN[4] : GRUPY_SN[5];
+  if (x.typ === 'obiad_zupa' || /^(zupa|krem|barszcz|zurek|rosol|chlodnik)/.test(n) || /\b(zupa|krem z)\b/.test(n)) return GRUPY_MIESO[0];
+  if (/dorsz|losos|tunczyk|ryb|makrel|sledz|mintaj|pstrag|sandacz/.test(sk + ' ' + n)) return GRUPY_MIESO[5];
+  if (/mielon/.test(sk + ' ' + n)) return GRUPY_MIESO[2];
+  if (/kurczak|piers z kurcz|udko|skrzydl/.test(sk + ' ' + n)) return GRUPY_MIESO[1];
+  if (/indyk/.test(sk + ' ' + n)) return GRUPY_MIESO[3];
+  if (/wolowin|wieprz|schab|karkowk|poledwic|boczek|zeberk|pregi|lopatk/.test(sk + ' ' + n)) return GRUPY_MIESO[4];
+  if (/szynk|kielbas|parowk|wedlin|salami|boczek/.test(sk + ' ' + n)) return GRUPY_MIESO[6];
+  if (/skyr|snickers|overnight|owsiank|granol|jogurt|pudding|chia|serniczek|twarozek slodk/.test(n)) return GRUPY_MIESO[7];
+  if (/jaj|ser |feta|twarog|tofu|ciecierzyc|fasol|soczewic|kuskus|kasza|ryz|makaron|ziemniak|warzyw|salatk|szpinak|kanapk|tost|wrap/.test(sk + ' ' + n)) return GRUPY_MIESO[8];
+  return GRUPY_MIESO[9];
+}
+function grupyDlaSlotu(x, slot) { return /^koktajl/.test(x.typ || '') ? GRUPY_KOKT : slot === 'sn' ? GRUPY_SN : GRUPY_MIESO; }
+document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.wyb-grp') && zmienCtx) { zmienCtx.otw = zmienCtx.otw || {}; zmienCtx.otw[d.dataset.grp] = d.open; } }, true);
+function wierszWyboru(x, teraz, d, slot) {
+  return `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${esc((x.kod ? x.kod + ' ' : '') + x.nazwa)}</b>
+      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${smakTagi(x.id)}${x.tylko_wybor && slot !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
+      <div class="oceny">${przyciskiOceny(x.id)}</div></div>`;
+}
 function listaWyboru(q) {
   const { d, slot, teraz, pula } = zmienCtx;
   const slowa = slowaZ(q);
   const rang = x => oceny[x.id] === 1 ? 0 : ukryte(x.id) ? 2 : 1;
   const kto = osobySlotu(slot), zakazane = pula.filter(x => !dopuszcza(x, kto)), pokaz = !!zmienCtx.pokazZakazane;
   const lista = pula.filter(x => (pokaz || dopuszcza(x, kto) || x.id === teraz) && slowa.every(w => szukany(x).includes(w))).sort((x, y) => rang(x) - rang(y) || x.nazwa.localeCompare(y.nazwa, 'pl'));
-  $('#lista-wyboru').innerHTML = (zakazane.length ? `<p class="mute" style="margin:4px 0">${pokaz ? 'Pokazuję też' : 'Ukryłem'} ${zakazane.length} ${zakazane.length === 1 ? 'danie' : 'dań'} z wykluczonymi składnikami. <button class="btn maly" data-pokaz-zakazane>${pokaz ? 'Ukryj je' : 'Pokaż mimo to'}</button></p>` : '') + (lista.length ? lista.map(x => `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${esc((x.kod ? x.kod + ' ' : '') + x.nazwa)}</b>
-      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${smakTagi(x.id)}${x.tylko_wybor && slot !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
-      <div class="oceny">${przyciskiOceny(x.id)}</div></div>`).join('') : '<p class="pusty">Nic nie pasuje do tych słów.</p>');
+  const info = zakazane.length ? `<p class="mute" style="margin:4px 0">${pokaz ? 'Pokazuję też' : 'Ukryłem'} ${zakazane.length} ${zakazane.length === 1 ? 'danie' : 'dań'} z wykluczonymi składnikami. <button class="btn maly" data-pokaz-zakazane>${pokaz ? 'Ukryj je' : 'Pokaż mimo to'}</button></p>` : '';
+  if (!lista.length) { $('#lista-wyboru').innerHTML = info + '<p class="pusty">Nic nie pasuje do tych słów.</p>'; return; }
+  // grupy rozsuwane: ulubione na górze, potem rodzaje dań; przy szukaniu wszystko rozsunięte, inaczej otwarta tylko grupa z obecnym daniem
+  const grupy = new Map(), ulub = lista.filter(x => oceny[x.id] === 1 && !ukryte(x.id));
+  if (ulub.length) grupy.set('★ Ulubione', ulub);
+  for (const x of lista) { if (oceny[x.id] === 1 && !ukryte(x.id)) continue; const g = ukryte(x.id) ? 'Ukryte' : grupaDania(x, slot); (grupy.get(g) || grupy.set(g, []).get(g)).push(x); }
+  const kolej = ['★ Ulubione', ...grupyDlaSlotu(lista[0], slot), 'Ukryte'], nazwy = [...grupy.keys()].sort((a, b) => (kolej.indexOf(a) < 0 ? 99 : kolej.indexOf(a)) - (kolej.indexOf(b) < 0 ? 99 : kolej.indexOf(b)));
+  const otw = zmienCtx.otw || {}, szuka = slowa.length > 0, gTeraz = (lista.find(x => x.id === teraz) || {}).id;
+  $('#lista-wyboru').innerHTML = info + `<p class="mute wyb-ile">${lista.length} ${mn(lista.length, 'danie', 'dania', 'dań')} w ${nazwy.length} ${mn(nazwy.length, 'grupie', 'grupach', 'grupach')}. Rozsuń grupę, żeby wybrać.</p>` + nazwy.map(g => {
+    const el = grupy.get(g), czyTeraz = el.some(x => x.id === gTeraz), jawnie = otw[g], dom = jawnie !== undefined ? jawnie : (szuka || czyTeraz || g === '★ Ulubione');
+    return `<details class="wyb-grp" data-grp="${esc(g)}" ${dom ? 'open' : ''}><summary><span class="wyb-nazwa">${esc(g)}</span><span class="licznik">${el.length}</span>${czyTeraz ? '<span class="znaczek">tu jest obecne</span>' : ''}</summary>${el.map(x => wierszWyboru(x, teraz, d, slot)).join('')}</details>`;
+  }).join('');
 }
 function ocen(id, v) {
   if (oceny[id] === v) delete oceny[id]; else oceny[id] = v;

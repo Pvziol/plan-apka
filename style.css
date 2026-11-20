@@ -1266,3 +1266,14 @@ body.ma-sync-pasek #view { padding-top: calc(var(--sync-h, 46px) + 8px); }
 .miesc-brak { background: var(--ostrz-tlo); color: var(--ostrz); }
 .miesc-zostaje { background: var(--on-tlo); color: var(--on); }
 .miesc-wynik .rzad { margin-top: 10px; }
+/* v105: grupy rozsuwane w wyborze dania */
+.wyb-ile { margin: 6px 0 8px; font-size: 13px; }
+details.wyb-grp { margin: 8px 0; border-radius: 16px; background: color-mix(in srgb, var(--card) 70%, transparent); border: 1px solid var(--line); overflow: hidden; }
+details.wyb-grp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 14px; font-weight: 700; font-size: 15px; }
+details.wyb-grp > summary::-webkit-details-marker { display: none; }
+details.wyb-grp > summary::after { content: ''; margin-left: auto; width: 9px; height: 9px; border-right: 2.5px solid var(--zielony); border-bottom: 2.5px solid var(--zielony); transform: rotate(45deg); transition: transform .2s; flex: none; }
+details.wyb-grp[open] > summary::after { transform: rotate(-135deg); }
+details.wyb-grp[open] > summary { border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--zielony) 7%, transparent); }
+details.wyb-grp .wiersz { padding: 0 8px; }
+.wyb-nazwa { min-width: 0; }
+@media (prefers-reduced-motion: reduce) { details.wyb-grp > summary::after { transition: none; } }

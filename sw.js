@@ -1,6 +1,6 @@
 // Sieć najpierw, pamięć jako zapas: odświeżenie zawsze bierze nową bazę, a bez sieci działa ostatnia pobrana.
 // Obsługuję tylko pliki aplikacji i biblioteki Firebase — samego ruchu bazy (firestore.googleapis.com) nie dotykam.
-const CACHE = 'plan-v57';
+const CACHE = 'plan-v58';
 const PLIKI = ['./', 'index.html', 'style.css', 'app.js', 'obrazki.js', 'sync.js', 'manifest.json',
   'data/dania.json', 'data/dania-dodane.json', 'data/shake.json', 'data/opakowania.json', 'data/firebase.json',
   'icons/icon-180.png', 'icons/icon-192.png'];
@@ -18,8 +18,7 @@ async function przyjmijUdostepnienie(req) {
     for (const k of await c.keys()) await c.delete(k);
     let i = 0;
     for (const f of fd.getAll('paragon')) if (f && f.size !== undefined && f.name !== undefined) { const klucz = './udostepnione/plik' + (i++); await c.put(klucz, new Response(f)); pliki.push({ klucz, nazwa: f.name, typ: f.type }); }
-    const tekst = [fd.get('text'), fd.get('title'), fd.get('url')].filter(x => typeof x === 'string' && x).join('
-');
+    const tekst = [fd.get('text'), fd.get('title'), fd.get('url')].filter(x => typeof x === 'string' && x).join('\n');
     await c.put('./udostepnione/meta', new Response(JSON.stringify({ pliki, tekst }), { headers: { 'Content-Type': 'application/json' } }));
   } catch (e) { /* aplikacja pokaże komunikat */ }
   return Response.redirect('./?udostepnione=1', 303);

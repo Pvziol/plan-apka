@@ -1236,15 +1236,15 @@
   "kod": null,
   "skladniki": [
    {
-    "nazwa": "pomidory świeże (PIECZONE) LUB 3 puszki krojonych (DUSZONE)",
-    "produkt": "pomidory świeże",
-    "ilosc": 1500.0,
+    "nazwa": "pomidory krojone z puszki",
+    "produkt": "pomidory krojone (puszka)",
+    "ilosc": 1200.0,
     "jednostka": "g",
     "kcal": 270,
     "bialko": 13,
     "grupa": null,
     "uwaga": null,
-    "kategoria": "świeże"
+    "kategoria": "zapas"
    },
    {
     "nazwa": "cebula (on) / por (ona)",
@@ -1325,7 +1325,7 @@
    }
   ],
   "przyprawy": [
-   "czosnek 4 ząbki, bazylia, bulion: 1 l przy pieczonych / 500 ml przy duszonych (1 kostka rosołowa lub warzywna na 1 l wody)"
+   "czosnek 4 ząbki, bazylia, bulion: 500 ml (1 kostka rosołowa lub warzywna na 1 l wody)"
   ],
   "razem": {
    "kcal": 2362,
@@ -1347,17 +1347,16 @@
    "on_kcal": null,
    "on_bialko": null
   },
-  "nazwa": "Krem pomidorowy (pieczony LUB duszony)",
+  "nazwa": "Krem pomidorowy (z pomidorów z puszki)",
   "tytul_kcal": 590,
   "tytul_bialko": 54,
-  "czas": "1 h (pieczony) / 45 min (duszony)",
-  "sprzet": "garnek, blender ręczny, blacha, airfryer",
+  "czas": "45 min",
+  "sprzet": "garnek, blender ręczny, airfryer",
   "wystapienia": [],
   "kroki": [
-   "PIECZONY: 1,5 kg pomidorów przekrój na pół. Ułóż na blasze z cebulą lub porem (w ćwiartkach) i 4 ząbkami czosnku w łupinach. Skrop 1 łyżką oliwy, posól. Piecz w 200°C 30 min, potem wyciśnij czosnek z łupin.",
-   "DUSZONY: w garnku rozgrzej 1 łyżkę oliwy. Smaż cebulę lub por 4 min, dodaj czosnek na 1 min. Wlej 3 puszki pomidorów (1,2 kg) i duś 20 min.",
+   "W garnku rozgrzej 1 łyżkę oliwy. Smaż cebulę lub por 4 min, dodaj 4 ząbki czosnku na 1 min. Wlej pomidory krojone z puszek (1,2 kg) i duś 20 min.",
    "KURCZAK: 720 g dopraw solą i pieprzem. Airfryer 200°C, 18–20 min. Pokrój w kostkę.",
-   "Do garnka z pomidorami dodaj 400 g ziemniaków w kostce i bulion: 1 l przy pieczonych, 500 ml przy duszonych. Gotuj 15 min.",
+   "Do garnka z pomidorami dodaj 400 g ziemniaków w kostce i bulion (500 ml). Gotuj 15 min.",
    "Zblenduj. Dopraw solą, pieprzem i szczyptą cukru. Dodaj HARTOWANIE ŚMIETANY: 200 g śmietany (całe opakowanie) wymieszaj w kubku z 3 łyżkami gorącej zupy, potem wlej do garnka, mieszając (inaczej się zwarzy).",
    "GRZANKI: 4 kromki w kostkę, wymieszane z pozostałą łyżką oliwy. Airfryer 180°C, 5–6 min."
   ],

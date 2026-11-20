@@ -61,6 +61,8 @@ function ulamek(x) {
   const z = { 0: '', 0.25: '¼', 0.5: '½', 0.75: '¾' }[r] ?? '';
   return (c ? c : '') + z || '0';
 }
+// Duże ilości scalonych produktów (np. 100 pomidorków) pokazuję w gramach: „1500 g”, a nie „100 szt.”.
+function fqS(i, q) { return (i.gSzt && i.jednostka === 'szt.' && q > 30) ? fq(q * i.gSzt, 'g') : fq(q, i.jednostka); }
 function fq(q, u) {
   if (q == null) return '';
   if (u === 'g' || u === 'ml') return (q < 20 ? Math.round(q) : Math.round(q / 5) * 5) + ' ' + u;
@@ -851,7 +853,7 @@ function wieczorem(w, d) {
     if (odgrzewane) continue;
     if (g.dish.wieczorem && g.dish.wieczorem.length) out.push(`${g.dish.nazwa}: zrób kroki oznaczone WIECZOREM`);
     for (const i of g.dish.skladniki) {
-      if (i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)) out.push(`wyjmij z zamrażarki do lodówki: ${i.produkt} ${fq(i.ilosc * skala(g, i), i.jednostka)} (${g.dish.nazwa})`);
+      if (i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)) out.push(`wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
     }
   }
   return out;
@@ -864,7 +866,7 @@ function pokazPrzepis(g, spont) {
   let wiersze = '', grupa = null;
   for (const i of dish.skladniki) {
     if (i.grupa && i.grupa !== grupa) { grupa = i.grupa; wiersze += `<tr class="grupa"><td colspan="2">${esc(grupa)}</td></tr>`; }
-    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${i.gSzt && i.ilosc ? `<br><span class="mute">≈ ${Math.max(5, Math.round(i.ilosc * skala(g, i) * i.gSzt / 5) * 5)} g</span>` : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
+    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fqS(i, i.ilosc * skala(g, i)) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${i.gSzt && i.ilosc ? (i.ilosc * skala(g, i) > 30 ? `<br><span class="mute">≈ ${Math.round(i.ilosc * skala(g, i))} szt. (${Math.ceil(i.ilosc * skala(g, i) * i.gSzt / 250)} opak. po 250 g)</span>` : `<br><span class="mute">≈ ${Math.max(5, Math.round(i.ilosc * skala(g, i) * i.gSzt / 5) * 5)} g</span>`) : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
   }
   // przyprawy i dodatki: osobne wiersze tabeli, z ilością albo „do smaku”
   const spr = przyprawyWiersze(dish);
@@ -1739,7 +1741,7 @@ function skladnikiKroku(g, tekst) {
   for (const i of g.dish.skladniki) {
     if (!i.ilosc || !i.produkt) continue;
     const tok = znorm(i.produkt).split(/[^a-z0-9]+/).filter(x => x.length >= 4 && !['swieze', 'naturalny', 'pelnoziarnista', 'sloiku', 'puszka', 'odsaczona', 'konserwowa', 'sosie', 'wlasnym', 'mrozone', 'mrozona'].includes(x));
-    if (tok.some(x => [...slowa].some(w => w.startsWith(x.slice(0, Math.min(5, x.length)))))) out.push(`${i.produkt} — ${fq(i.ilosc * skala(g, i), i.jednostka)}`);
+    if (tok.some(x => [...slowa].some(w => w.startsWith(x.slice(0, Math.min(5, x.length)))))) out.push(`${i.produkt} — ${fqS(i, i.ilosc * skala(g, i))}`);
   }
   return out.slice(0, 4);
 }
@@ -1792,7 +1794,7 @@ function rysujGot() {
   if (i === 0) {
     const spr = przyprawyWiersze(dish);
     tresc = `<p class="got-et">Przed startem</p><h2 class="got-tyt">${esc(dish.nazwa)}</h2><p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) + '. ' : ''}${dish.sprzet ? 'Sprzęt: ' + esc(dish.sprzet) + '. ' : ''}Ekran nie będzie się wygaszał podczas gotowania${'wakeLock' in navigator ? '' : ' (ta przeglądarka tego nie obsługuje — wyłącz automatyczną blokadę ekranu)'}.</p>
-      <h3>Przygotuj składniki — ${opisGarnka(g)}</h3><div class="got-lista">${dish.skladniki.filter(x => x.ilosc || x.nazwa).map((x, k) => `<label class="got-sk ${got.odhacz[k] ? 'ok' : ''}"><input type="checkbox" data-got-odh="${k}" ${got.odhacz[k] ? 'checked' : ''}><span class="zk-ptak"></span><span class="got-sk-tx">${esc(x.nazwa)}${stala(x) ? '<small>woreczek z zamrażarki — rozmroź wcześniej</small>' : ''}</span><b>${x.ilosc ? fq(x.ilosc * skala(g, x), x.jednostka) : ''}</b></label>`).join('')}${spr.length ? `<p class="mute" style="margin:10px 0 2px">Przyprawy: ${esc(spr.map(x => x.nazwa + (x.ilosc ? ' ' + x.ilosc : '')).join(', '))}</p>` : ''}</div>`;
+      <h3>Przygotuj składniki — ${opisGarnka(g)}</h3><div class="got-lista">${dish.skladniki.filter(x => x.ilosc || x.nazwa).map((x, k) => `<label class="got-sk ${got.odhacz[k] ? 'ok' : ''}"><input type="checkbox" data-got-odh="${k}" ${got.odhacz[k] ? 'checked' : ''}><span class="zk-ptak"></span><span class="got-sk-tx">${esc(x.nazwa)}${stala(x) ? '<small>woreczek z zamrażarki — rozmroź wcześniej</small>' : ''}</span><b>${x.ilosc ? fqS(x, x.ilosc * skala(g, x)) : ''}</b></label>`).join('')}${spr.length ? `<p class="mute" style="margin:10px 0 2px">Przyprawy: ${esc(spr.map(x => x.nazwa + (x.ilosc ? ' ' + x.ilosc : '')).join(', '))}</p>` : ''}</div>`;
   } else if (i <= N) {
     const t = kroki[i - 1], wiecz = /^WIECZOREM/i.test(t), tm = wykryjTimery(t), sk = skladnikiKroku(g, t), zs = got.prep ? null : krokZSesji(g, t);
     tresc = `<p class="got-et">Krok ${i} z ${N}${wiecz ? ' · przygotowanie wcześniej' : got.prep ? ' · meal prep' : ''}</p>${zs ? `<div class="got-sesja">${esc(zs)}: ten krok możesz pominąć.</div>` : ''}<p class="got-tekst">${podswietl(t.replace(/^WIECZOREM:\s*/i, ''))}</p>
@@ -1809,7 +1811,7 @@ function rysujGot() {
       <button class="btn szeroki" data-got-zamknij style="margin-top:18px">Zamknij</button></div>`;
   }
   $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div><button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
-    <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fq(x.ilosc * skala(g, x), x.jednostka)}</b></div>`).join('')}</div>` : ''}${tresc}</div>
+    <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fqS(x, x.ilosc * skala(g, x))}</b></div>`).join('')}</div>` : ''}${tresc}</div>
     <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe' : 'Dalej'} ›</button>` : ''}</div>`;
   if (got._ostI !== i) { const kier = got._ostI === undefined ? 0 : (i > got._ostI ? 1 : -1); got._ostI = i; const m = $('#gotuj .got-main'); if (m && kier) m.dataset.kier = kier; if (m) m.scrollTop = 0; }
 }
@@ -1903,7 +1905,7 @@ function opcjeBialka(p, w) {
     if (maxr > cur + 0.002) {
       const r = cur + 0.6 * (maxr - cur), n = rz(g.dish, g.K, r, g.slot), zysk = pkt(n);
       if (zysk > 0.3 && n.a <= 1.8 * g.a + 1e-9 && n.b >= 0.5 * g.b) {   // bez absurdalnych zmian ilości
-        const zm = [...n.lev].filter(i => i.ilosc).slice(0, 3).map(i => `${i.nazwa}: ${fq(i.ilosc * skala(g, i), i.jednostka)} → ${fq(i.ilosc * n.a, i.jednostka)}`);
+        const zm = [...n.lev].filter(i => i.ilosc).slice(0, 3).map(i => `${i.nazwa}: ${fqS(i, i.ilosc * skala(g, i))} → ${fq(i.ilosc * n.a, i.jednostka)}`);
         if (n.dodatek && !g.dodatek) zm.push(`+ skyr ${fq(n.dodatek.g, 'g')} obok dania`);
         prop.push({ g, r, zysk, zm, wspolny, real: udz * (n.P - g.P) / 7 });
       }

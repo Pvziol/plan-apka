@@ -2518,19 +2518,39 @@ function oknoZuzyj(prod) {
   $('#modal').hidden = false;
 }
 const dzienTxt = iso => `${DNI_KR[(new Date(iso + 'T12:00:00').getDay() + 6) % 7]} ${krotkaData(iso)}`;
-function kartaMiesa(z) {
-  const dzis = isoDzis(), poz = z.wynik['zamrażarka'].filter(p => p.worki && p.worki.length);
-  if (!poz.length) return '';
-  const dniDo = dt => Math.round((new Date(dt + 'T12:00:00') - new Date(dzis + 'T12:00:00')) / 864e5);
-  let h = `<details class="karta zk-miesa"><summary>Mięso i ryby — jak podzielić po zakupach <span class="licznik">${poz.length}</span></summary><p class="mute">Woreczki są ułożone od tego, który pójdzie do garnka pierwszy. Co zjesz w ciągu 2 dni, zostaje w lodówce (nie mrozisz). Resztę mrozisz tak, żeby <b>najwcześniej potrzebny był na wierzchu</b>, a najpóźniejszy na dnie. Jeden woreczek = jedno danie, zawsze ta sama waga.</p>`;
-  for (const p of poz) {
-    const b = p.worki.slice().sort((x, y) => x.dt.localeCompare(y.dt) || y.g - x.g), suma = b.reduce((s, x) => s + x.g, 0);
-    h += `<h3>${esc(p.produkt)} · razem ${suma} g</h3><ol class="worki">` + b.map((x, i) => {
-      const lod = dniDo(x.dt) <= 2;
-      return `<li><b>${x.g} g</b> <span class="znaczek ${lod ? '' : 'mroz'}">${lod ? 'LODÓWKA' : 'ZAMRAŻARKA'}</span> ${dzienTxt(x.dt)} · ${esc(x.dish.length > 34 ? x.dish.slice(0, 32) + '…' : x.dish)}${i === 0 ? '<small>pierwszy do użycia</small>' : ''}<small>etykieta: ${esc(p.produkt.replace(/ filet| mielon\w*/g, ''))} ${x.g} g · ${dzienTxt(x.dt)}</small></li>`;
-    }).join('') + `</ol>`;
+// Podział mięsa i ryb do lodówki / zamrażarki: zawsze liczony od DZIŚ na kolejne dni planu (niezależnie od zaznaczonych dni zakupów),
+// więc da się go sprawdzić i wykonać także po zakupach zrobionych wcześniej.
+const MIESO_DNI = 14;   // od dziś do końca zapisanych tygodni planu
+function miesoPodzial(od, h) {
+  const out = {}, doo = dodajDni(od, h - 1);
+  for (const t of tygodnieZapisane()) {
+    const wk = oblicz({ start: t.start, dni: t.dni }, cele());
+    for (const g of wk.garnki) {
+      const f = pozostalo(g, t.start, t.zuz), dni = dniGarnka(g).filter(d => !t.zuz[kluczZ(d, g.slot, t.start)]);
+      if (f < 0.999 || !dni.length) continue;       // danie już ruszone: woreczek został użyty
+      const dt = dodajDni(t.start, dni[0]); if (dt < od || dt > doo) continue;
+      for (const i of g.dish.skladniki) if (i.ilosc && i.produkt && stala(i)) { const nb = g.nF || 1; for (let n = 0; n < Math.ceil(nb); n++) (out[i.produkt] = out[i.produkt] || []).push({ g: Math.round(i.ilosc * Math.min(1, nb - n)), dt, dish: g.dish.nazwa, slot: g.slot }); }
+    }
   }
-  return h + `<ul class="mute" style="margin:8px 0 0;padding-left:18px"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem przygotuj”); rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></details>`;
+  return out;
+}
+function kartaMiesa() {
+  const dzis = isoDzis(), dane = miesoPodzial(dzis, MIESO_DNI), prods = Object.keys(dane).sort((a, b) => a.localeCompare(b, 'pl'));
+  const dniDo = dt => Math.round((new Date(dt + 'T12:00:00') - new Date(dzis + 'T12:00:00')) / 864e5);
+  const wszystkie = prods.flatMap(pr => dane[pr]), nLod = wszystkie.filter(x => dniDo(x.dt) <= 2).length, nMroz = wszystkie.length - nLod;
+  const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5L12 6.5l2.5-2M9.5 19.5l2.5-2 2.5 2"/></svg>';
+  let h = `<section class="karta miesc"><div class="miesc-gora"><span class="miesc-ik">${ik}</span><div><b>Mięso i ryby: lodówka czy zamrażarka</b><small>Podzielone od dziś (${dzienTxt(dzis)}) na kolejne dni planu</small></div></div>`;
+  if (!prods.length) return h + `<p class="mute miesc-pusto">W planie na kolejne dni nie ma dań z mięsem ani rybą z zamrażarki, albo są już ugotowane.</p></section>`;
+  h += `<div class="miesc-sum"><span class="znaczek">LODÓWKA · ${nLod}</span><span class="znaczek mroz">ZAMRAŻARKA · ${nMroz}</span><span class="mute">woreczków</span></div>
+    <p class="mute miesc-opis">Woreczki są ułożone od tego, który pójdzie do garnka pierwszy. Co zjesz w ciągu 2 dni, zostaje w lodówce. Resztę mrozisz tak, żeby najwcześniej potrzebny leżał na wierzchu. Jeden woreczek = jedno danie.</p>`;
+  for (const pr of prods) {
+    const b = dane[pr].slice().sort((x, y) => x.dt.localeCompare(y.dt) || y.g - x.g), suma = b.reduce((a, x) => a + x.g, 0), nazwaEt = pr.replace(/ filet| mielon\w*/g, '');
+    h += `<div class="miesc-prod"><div class="miesc-prod-gora"><b>${esc(pr)}</b><span class="miesc-razem">razem ${suma >= 1000 ? (suma / 1000).toFixed(2).replace(/0$/, '').replace('.', ',') + ' kg' : suma + ' g'}<small> w ${b.length} ${mn(b.length, 'woreczku', 'woreczkach', 'woreczkach')}</small></span></div>` + b.map((x, i) => {
+      const lod = dniDo(x.dt) <= 2, za = dniDo(x.dt);
+      return `<div class="wor ${lod ? 'lod' : 'mroz'}"><span class="wor-g">${x.g}<small>g</small></span><span class="wor-tx"><b>${dzienTxt(x.dt)}${za === 0 ? ' · dziś' : za === 1 ? ' · jutro' : ''}</b><span class="mute">${esc(x.dish)}</span><small>Podpisz: ${esc(nazwaEt)} ${x.g} g · ${dzienTxt(x.dt)}</small></span><span class="znaczek ${lod ? '' : 'mroz'}">${lod ? 'LODÓWKA' : 'ZAMRAŻARKA'}</span>${i === 0 ? '<i class="wor-pierw">pierwszy do użycia</i>' : ''}</div>`;
+    }).join('') + `</div>`;
+  }
+  return h + `<details class="miesc-tipy"><summary>Jak pakować i rozmrażać</summary><ul class="mute"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem na jutro”). Rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></details></section>`;
 }
 let zakOtw = false;
 // „sob 21.11 – pon 23.11” zamiast listy dat (zakresy ciągłe, reszta po przecinku)
@@ -2578,6 +2598,7 @@ function widokZakupy() {
     }).join('');
   }
   h += `</div></details>`;
+  h += kartaMiesa();
   h += kartaSklepy(cmp);
   h += paskAkcji(['paragon', 'skan']);
   if (!wyb.size) h += `<div class="karta pusta-karta"><b>Zaznacz przynajmniej jeden dzień</b><p class="mute">Kliknij „Zmień dni” powyżej.</p></div>`;
@@ -2598,7 +2619,6 @@ function widokZakupy() {
         return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}${SEZON[p.produkt] && SEZON[p.produkt].includes(miesiac()) ? ' <i class="sezon-lisc" title="w sezonie" aria-label="w sezonie">sezon</i>' : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
       }).join('') + `</div></section>`;
   }
-  h += kartaMiesa(z);
   const zwin = (tyt, n, tresc, kl = '') => `<details class="karta zk-zwin ${kl}"><summary>${tyt} <span class="licznik">${n}</span></summary>${tresc}</details>`;
   if (z.wynik.masz.length) h += zwin('Masz już w lodówce', z.wynik.masz.length, z.wynik.masz.map(p => `<div class="zk-masz"><b>${esc(p.produkt)}</b><span class="mute">potrzeba ${esc(p.ile)}, masz ${esc(p.stan)}</span></div>`).join(''));
   if (z.przyprawy.length) h += zwin('Przyprawy i dodatki — sprawdź w szafce', z.przyprawy.length, `<div class="chips zk-przyp">${z.przyprawy.map(t => `<span class="chip stat">${esc(t)}</span>`).join('')}</div>`);

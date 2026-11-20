@@ -1136,3 +1136,25 @@ button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
 @media (min-width: 361px) { .pk-akcje { flex-wrap: nowrap; gap: 6px; } .pk-akcje .btn.maly { padding: 0 11px; } }
 .dop-panel[hidden] { display: none; }
 .prep-info { margin: 6px 0 14px; font-size: 13px; line-height: 1.45; }
+/* v78: sekcja „Wieczorem na jutro” */
+.wiecz { background: linear-gradient(160deg, color-mix(in srgb, var(--zielony-tlo) 70%, var(--card)), var(--zielony-tlo)); border: 1px solid color-mix(in srgb, var(--zielony) 30%, transparent); }
+.wiecz.teraz { border-width: 2px; box-shadow: 0 6px 22px color-mix(in srgb, var(--zielony) 22%, transparent); }
+.wiecz-gora { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.wiecz-gora b { display: block; font-size: 16px; }
+.wiecz-gora small { color: var(--mute); }
+.wiecz-ik { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--zielony) 18%, transparent); }
+.wiecz-ik svg { width: 22px; height: 22px; fill: none; stroke: var(--zielony); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.wiecz-w { display: flex; gap: 12px; align-items: flex-start; width: 100%; min-height: 48px; text-align: left; font: inherit; font-size: 15px; line-height: 1.4; color: inherit; background: color-mix(in srgb, var(--card) 85%, transparent); border: 1px solid color-mix(in srgb, currentColor 12%, transparent); border-radius: 12px; padding: 10px 12px; margin-top: 8px; cursor: pointer; transition: opacity .2s, transform .15s; }
+.wiecz-w:active { transform: scale(.985); }
+.wiecz-ptak { flex: none; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--zielony); margin-top: 1px; position: relative; transition: background .2s; }
+.wiecz-w.zrobione { opacity: .6; }
+.wiecz-w.zrobione .wiecz-tx { text-decoration: line-through; }
+.wiecz-w.zrobione .wiecz-ptak { background: var(--zielony); }
+.wiecz-w.zrobione .wiecz-ptak::after { content: ''; position: absolute; left: 6px; top: 2px; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+/* v81: podział porcji na końcu trybu gotowania, alarm timera */
+.got-podz-tyt { margin: 16px 0 6px; text-align: left; }
+.got-podzial { text-align: left; }
+.got-vib { font-size: 12.5px; line-height: 1.4; margin: 0 0 8px; }
+.got-t.koniec { animation: gotAlarm 1s ease-in-out infinite; }
+@keyframes gotAlarm { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ostrz) 55%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .got-t.koniec { animation: none; box-shadow: 0 0 0 3px var(--ostrz); } }

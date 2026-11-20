@@ -223,7 +223,24 @@ function normalizujOwoce(d) {
 const G_LYZKA = { 'oliwa / olej': 10, 'miód': 20, 'sos sojowy': 15, 'sezam': 10, 'koncentrat pomidorowy': 15, 'dżem': 20, 'ketchup': 20, 'pesto bazyliowe': 15 };
 const G_LYZECZKA = { 'masło': 5, 'musztarda': 5, 'kakao gorzkie': 3, 'miód': 7, 'chrzan': 5, 'skrobia ziemniaczana': 5, 'gochujang': 6, 'olej sezamowy': 4 };
 const gNaLyzke = (prod, jedn) => jedn === 'łyż.' ? (G_LYZKA[prod] || 15) : (G_LYZECZKA[prod] || 5);
+// Łyżki i łyżeczki w opisach kroków („1 łyżeczkę chrzanu”, „3 łyżeczki masła”) → gramy wg produktu: „5 g chrzanu (≈ 1 łyżeczka)”.
+// Tylko produkty ze znaną wagą łyżki; reszta (np. szczypiorek, przyprawy w nawiasach) zostaje bez zmian.
+const KROK_LYZKI = [[/^masła orzechowego/i, 20, 7], [/^masła/i, 15, 5], [/^chrzanu/i, 15, 5], [/^dżemu/i, 20, 7], [/^musztardy/i, 15, 5], [/^miodu/i, 20, 7], [/^ketchupu/i, 20, 7], [/^(oliwy|oleju)/i, 10, 4], [/^octu/i, 15, 5], [/^sosu sojowego/i, 15, 5], [/^syropu/i, 25, 8], [/^koncentratu/i, 15, 5], [/^śmietany/i, 20, 7], [/^skyru/i, 25, 8], [/^jogurtu/i, 20, 7], [/^cukru/i, 15, 5], [/^soku z cytryny/i, 15, 5], [/^pesto/i, 15, 5], [/^sezamu/i, 10, 3], [/^skrobi/i, 10, 5], [/^kakao/i, 8, 3], [/^gochujang/i, 18, 6]];
+const KROK_UL = { '½': .5, '¼': .25, '¾': .75 };
+const KROK_RE = new RegExp(String.raw`(\d+(?:,\d+)?\s?[½¼¾]?|[½¼¾])?(\s?)(łyżk[a-ząćęłńóśźż]*|łyżecz[a-ząćęłńóśźż]*)((?:\s+czubat[a-ząćęłńóśźż]+)?)\s+(${KROK_LYZKI.map(r => r[0].source.slice(1)).join('|')})`, 'gi');
+function krokiNaGramy(t) {
+  const ul = n => { const c = Math.floor(n), r = n - c, fr = r === .5 ? '½' : r === .25 ? '¼' : r === .75 ? '¾' : ''; return String(c || '') + fr || '0'; };
+  return String(t).replace(KROK_RE, (c, l, sp, sl, cz, prod) => {
+    const dod = (l || '').trim(), ecz = /^łyżecz/i.test(sl);
+    const v = dod ? (parseFloat(dod.replace(/[½¼¾]/g, '').replace(',', '.')) || 0) + (KROK_UL[(dod.match(/[½¼¾]/) || [''])[0]] || 0) : (/^łyż(k|eczk)[ęą]$/i.test(sl) ? 1 : 0);
+    const hit = KROK_LYZKI.find(([re]) => re.test(prod));
+    if (!v || !hit) return c;
+    const g = Math.round(v * (ecz ? hit[2] : hit[1]) * 10) / 10;
+    return `${String(g).replace('.', ',')} g ${prod} (≈ ${ul(v)} ${ecz ? 'łyżeczk' : 'łyżk'}${v === 1 ? 'a' : 'i'})`;
+  });
+}
 function normalizujLyzki(d) {
+  if (Array.isArray(d.kroki)) d.kroki = d.kroki.map(krokiNaGramy);
   for (const i of d.skladniki) if (i.ilosc && (i.jednostka === 'łyż.' || i.jednostka === 'łyżecz.')) {
     const per = gNaLyzke(i.produkt, i.jednostka);
     i.orig = { ilosc: i.ilosc, jednostka: i.jednostka, g: per };
@@ -232,7 +249,7 @@ function normalizujLyzki(d) {
 }
 // „2 łyżki” w tekście → „2 łyżki (30 g)” (bez skalowania; do tekstów przypraw)
 const wNawiasie = (t, off) => t.slice(0, off).split('(').length > t.slice(0, off).split(')').length;     // czy miejsce w tekście jest już w nawiasie
-const lyzkiOpis = t => String(t).replace(/(\d+(?:,\d+)?)?([½¼¾])?(\s)(łyżk\w*|łyżecz\w*)/g, (c, l, f, sp, sl, off, str) => {
+const lyzkiOpis = t => String(t).replace(/(\d+(?:,\d+)?)?([½¼¾])?(\s)(łyżk[a-ząćęłńóśźż]*|łyżecz[a-ząćęłńóśźż]*)/g, (c, l, f, sp, sl, off, str) => {
   if (!l && !f) return c;
   const v = (l ? parseFloat(l.replace(',', '.')) : 0) + ({ '½': .5, '¼': .25, '¾': .75 }[f] || 0), per = /^łyżecz/.test(sl) ? 5 : 15;
   return `${l || ''}${f || ''}${sp}${sl} ${wNawiasie(str, off) ? '= ' : '('}${Math.round(v * per)} g${wNawiasie(str, off) ? '' : ')'}`;
@@ -788,12 +805,13 @@ function kartaDnia(t, c, dzisIso, nawig) {
     const moje = g.porcje.filter(q => q.d === d), ez = !!zuzyte[kluczZ(d, g.slot)];
     const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join('');
     let zn = '';
-    { const nar = [...new Set(moje.map(q => q.p))].map(pp => [pp, naruszenia(g.dish, pp)]).filter(x => x[1].length); if (nar.length) zn += `<span class="znaczek ostrz">zawiera: ${esc([...new Set(nar.flatMap(x => x[1]))].join(', '))} — ${nar.map(x => ETY[x[0]]).join(' i ')} ${nar.length > 1 ? 'nie jedzą' : (nar[0][0] === 'ona' ? 'nie je' : 'nie je')}</span> `; }
-    if (odgrzewane) zn += `<span class="znaczek">odgrzewasz z ${DNI_KR[g.d]}</span> `;
-    else if (new Set(g.porcje.map(q => q.d)).size > 1) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
-    if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
+    { const nar = [...new Set(moje.map(q => q.p))].map(pp => [pp, naruszenia(g.dish, pp)]).filter(x => x[1].length); if (nar.length) zn += `<span class="znaczek ostrz">Uwaga: zawiera ${esc([...new Set(nar.flatMap(x => x[1]))].join(', '))}, a ${nar.map(x => ETY[x[0]]).join(' i ')} ${nar.length > 1 ? 'tego nie jedzą' : 'tego nie je'}</span> `; }
+    if (odgrzewane) zn += `<span class="znaczek">Odgrzewasz porcję z dnia: ${DNI_KR[g.d]}</span> `;
+    else if (new Set(g.porcje.map(q => q.d)).size > 1) zn += `<span class="znaczek">Gotujesz raz, starcza na 2 dni</span> `;
+    // po zamianie dania apka stara się utrzymać białko z poprzedniego dania; pokazuję tylko wyraźną różnicę (3 g na porcję lub więcej)
+    if (g.ratio && !g.wyrownane) { const rb = Math.round(Math.abs(g.roznica) / g.porcje.length); if (rb >= 3) zn += `<span class="znaczek ${g.roznica < 0 ? 'ostrz' : ''}">Białko: o ${rb} g ${g.roznica > 0 ? 'więcej' : 'mniej'} na porcję niż w daniu, które tu było wcześniej</span> `; }
     if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
-    if (((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) && new Set(g.porcje.map(q => q.p)).size > 1) zn += `<span class="znaczek ostrz">porcja ×${(g.sw || g.s).toFixed(2)} względem przepisu</span>`;
+    if (((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) && new Set(g.porcje.map(q => q.p)).size > 1) zn += `<span class="znaczek ostrz">Porcja ${(g.sw || g.s) > 1 ? 'większa' : 'mniejsza'} niż w przepisie (${(g.sw || g.s).toFixed(1).replace('.', ',')}×), dopasowana do Waszych kalorii</span>`;
     h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
       <div class="pk-gora">${Obr.html(g.dish)}<div class="pk-tx"><button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button><div class="liczby">${liczby}</div></div></div>
       ${zn ? `<div class="pk-zn">${zn}</div>` : ''}
@@ -891,14 +909,7 @@ function pokazPrzepis(g, spont) {
   const spr = przyprawyWiersze(dish);
   if (spr.length) wiersze += `<tr class="grupa"><td colspan="2">PRZYPRAWY I DODATKI</td></tr>` + spr.map(x => `<tr><td>${esc(x.nazwa)}${x.nota ? `<br><span class="mute">${esc(x.nota)}</span>` : ''}</td><td>${x.ilosc ? esc(x.ilosc) : '<span class="mute">do smaku</span>'}</td></tr>`).join('');
   if (g.dodatek) wiersze += `<tr class="grupa"><td colspan="2">DODATEK BIAŁKOWY — OBOK DANIA</td></tr><tr><td>skyr naturalny<br><span class="mute">wyrównuje białko po zamianie dania; dzielicie jak danie</span></td><td>${fq(g.dodatek.g, 'g')}</td></tr>`;
-  const masa = dish.masa_g ? dish.masa_g * g.s : null;
-  const pod = g.porcje.map(q => {
-    let t = `${r0(q.udzial * 100)}% całości`;
-    if (masa) t = q.p === 'ona' ? `nalej do szklanki na wadze ${r0(masa * q.udzial / 5) * 5} g` : 'reszta kielicha';
-    if (g.dosypka && q.p === 'on') t += ` + dosypka: odżywka ${fq(DB.dosypka.odzywka * g.dosypka.skala, 'g')} i skyr ${fq(DB.dosypka.skyr * g.dosypka.skala, 'g')}`;
-    const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 };
-    return `<div class="${q.p}"><b>${ETY[q.p]}${new Set(g.porcje.map(x => x.d)).size > 1 ? ' · ' + DNI_KR[q.d] : ''}</b>${t}<br>${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g białka</div>`;
-  }).join('');
+  const pod = podzialPorcji(g);
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>${esc((dish.kod ? dish.kod + ' ' : '') + dish.nazwa)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <div class="przepis-gora">${Obr.html(dish, 'duzy')}<div class="oceny">${przyciskiOceny(dish.id)}</div></div>
     ${sezonChipy(g.dish)}${notaPrepu(g)}${wskazPrepuPrzepis(g)}
@@ -2163,6 +2174,14 @@ function zapasPrepu(dzis) {
   return { zapas, html: zapasHtml };
 }
 let dalejWiecej = false, dopDzien = false;
+// Osobna, wyraźna sekcja: co przygotować wieczorem na jutro (z odhaczaniem; po 17:00 mocniej podświetlona).
+function kartaWieczor(wi, dzis) {
+  window._wiecz = wi;
+  if (!wi.length) return '';
+  const ok = (LS.get('wieczOk', {}) || {})[dzis] || [], wieczor = new Date().getHours() >= 17, zrob = wi.filter(tt => !ok.includes(tt)).length;
+  return `<h2>Wieczorem na jutro</h2><div class="karta wiecz ${wieczor ? 'teraz' : ''} ${zrob ? '' : 'gotowe'}"><div class="wiecz-gora"><span class="wiecz-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg></span><div><b>${zrob ? (wieczor ? 'Zrób to dziś wieczorem' : 'Przygotuj wieczorem') : 'Wszystko gotowe na jutro'}</b><small>${zrob ? `${zrob} ${mn(zrob, 'rzecz', 'rzeczy', 'rzeczy')} do zrobienia, żeby jutro poszło szybciej` : 'Dobra robota, jutro będzie łatwiej'}</small></div></div>
+    ${wi.map((tt, i) => { const z = ok.includes(tt); return `<button class="wiecz-w ${z ? 'zrobione' : ''}" data-wiecz="${i}" role="checkbox" aria-checked="${z}"><span class="wiecz-ptak"></span><span class="wiecz-tx">${esc(tt.charAt(0).toUpperCase() + tt.slice(1))}</span></button>`; }).join('')}</div>`;
+}
 function kartaPrepDzis(dzis) {
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
   const ok = okazjePrepu(), dz = ok[0], naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
@@ -2202,6 +2221,18 @@ function widokPrep() {
   $('#view').innerHTML = h;
 }
 
+// Kto ile bierze: udział w daniu, kcal i białko każdej osoby (+ dosypka skyru i odżywki dla ON, nalewanie shake'a na wadze).
+function podzialPorcji(g) {
+  const dish = g.dish;
+  const masa = dish.masa_g ? dish.masa_g * g.s : null;
+  return g.porcje.map(q => {
+    let t = `${r0(q.udzial * 100)}% całości`;
+    if (masa) t = q.p === 'ona' ? `nalej do szklanki na wadze ${r0(masa * q.udzial / 5) * 5} g` : 'reszta kielicha';
+    if (g.dosypka && q.p === 'on') t += ` + dosypka: odżywka ${fq(DB.dosypka.odzywka * g.dosypka.skala, 'g')} i skyr ${fq(DB.dosypka.skyr * g.dosypka.skala, 'g')}`;
+    const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 };
+    return `<div class="${q.p}"><b>${ETY[q.p]}${new Set(g.porcje.map(x => x.d)).size > 1 ? ' · ' + DNI_KR[q.d] : ''}</b>${t}<br>${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g białka</div>`;
+  }).join('');
+}
 // ---------- tryb gotowania ----------
 let got = null, timery = [], timeryInt = null, wakeLock = null, audioCtx = null, timerSeq = 0;
 const TIMER_RE = new RegExp(`(\\d+(?:[.,]\\d+)?)(?:\\s?[–-]\\s?(\\d+(?:[.,]\\d+)?))?\\s*(godz\\w*|min\\w*|sek\\w*|s)(?!${PL})`, 'gi');
@@ -2226,8 +2257,26 @@ function skladnikiKroku(g, tekst) {
   return out.slice(0, 4);
 }
 async function blokujEkran() { try { if ('wakeLock' in navigator && got) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* nic */ } }
-document.addEventListener('visibilitychange', () => { if (got && !document.hidden) blokujEkran(); });
+document.addEventListener('visibilitychange', () => { if (got && !document.hidden) { blokujEkran(); tykTimerow(); } });
+// Dźwięk: element <audio> z wygenerowanym sygnałem (na iPhonie gra mimo przełącznika ciszy, w przeciwieństwie do WebAudio) + WebAudio jako zapas.
+let alarmAudio = null, alarmUrl = null, alarmOstatni = 0;
+function alarmWav() {
+  const sr = 22050, dl = Math.round(sr * 1.05), buf = new ArrayBuffer(44 + dl * 2), v = new DataView(buf), zapisz = (o, t) => { for (let k = 0; k < t.length; k++) v.setUint8(o + k, t.charCodeAt(k)); };
+  zapisz(0, 'RIFF'); v.setUint32(4, 36 + dl * 2, true); zapisz(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); zapisz(36, 'data'); v.setUint32(40, dl * 2, true);
+  for (let k = 0; k < dl; k++) { const t = k / sr, ph = t % 0.34, w = ph < 0.22 ? Math.min(1, ph / 0.01, (0.22 - ph) / 0.03) : 0; v.setInt16(44 + k * 2, Math.round(Math.sin(2 * Math.PI * 880 * t) * w * 0.7 * 32767), true); }
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+function odblokujAlarm() {   // wołane z kliknięcia: przeglądarka pozwala potem odtworzyć dźwięk bez gestu
+  try {
+    if (!alarmAudio) { alarmUrl = alarmUrl || alarmWav(); alarmAudio = new Audio(alarmUrl); alarmAudio.preload = 'auto'; }
+    alarmAudio.muted = true; const pr = alarmAudio.play();
+    const koniec = () => { try { alarmAudio.pause(); alarmAudio.currentTime = 0; alarmAudio.muted = false; } catch (e) { /* nic */ } };
+    if (pr && pr.then) pr.then(koniec).catch(() => { try { alarmAudio.muted = false; } catch (e) { /* nic */ } }); else koniec();
+  } catch (e) { /* nic */ }
+}
 function pikniecie() {
+  alarmOstatni = Date.now();
+  try { if (alarmAudio) { alarmAudio.muted = false; alarmAudio.currentTime = 0; const pr = alarmAudio.play(); if (pr && pr.catch) pr.catch(() => { /* nic */ }); } } catch (e) { /* nic */ }
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -2236,6 +2285,7 @@ function pikniecie() {
   try { navigator.vibrate && navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) { /* nic */ }
 }
 function startTimer(et, sek) {
+  odblokujAlarm();
   try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) { /* nic */ }
   timery.push({ id: ++timerSeq, et, ile: sek, koniec: Date.now() + sek * 1000, pauza: null, zrobiony: false });
   if (!timeryInt) timeryInt = setInterval(tykTimerow, 500);
@@ -2249,6 +2299,7 @@ function tykTimerow() {
     else { const el = document.querySelector(`[data-tid="${t.id}"]`); if (el) el.textContent = fmtCzas((t.koniec - Date.now()) / 1000); }
   }
   if (zmiana) rysujGot();
+  else if (timery.some(t => t.zrobiony) && Date.now() - alarmOstatni > 4000) pikniecie();
   if (!timery.length) { clearInterval(timeryInt); timeryInt = null; }
 }
 function otworzGotowanie(g, spont) {
@@ -2269,7 +2320,7 @@ function rysujGot() {
   const { g, kroki, i } = got, N = kroki.length, dish = g.dish;
   const pasek = `<div class="got-postep">${Array.from({ length: N + 2 }, (_, k) => `<i class="${k < i ? 'zrob' : k === i ? 'akt' : ''}"></i>`).join('')}</div>`;
   const aktywne = timery.filter(t => !t.zrobiony).length;
-  const tim = timery.length ? `<div class="got-timery">${timery.map(t => `<div class="got-t ${t.zrobiony ? 'koniec' : ''}"><span class="got-t-et">${esc(t.et)}</span><b data-tid="${t.id}">${t.zrobiony ? 'Czas minął!' : fmtCzas(t.pauza ? (t.koniec - t.pauza) / 1000 : (t.koniec - Date.now()) / 1000)}</b>${t.zrobiony ? `<button data-got-tx="${t.id}">OK</button>` : `<button data-got-tp="${t.id}" aria-label="${t.pauza ? 'Wznów' : 'Pauza'}">${t.pauza ? '▶' : '❚❚'}</button><button data-got-t1="${t.id}" aria-label="Dodaj minutę">+1′</button><button data-got-tx="${t.id}" aria-label="Usuń">✕</button>`}</div>`).join('')}</div>` : '';
+  const tim = timery.length ? `<div class="got-timery">${navigator.vibrate ? '' : '<p class="got-vib mute">Ten telefon nie wibruje z przeglądarki (iPhone), więc timer przypomni dźwiękiem, a alarm powtarza się, dopóki nie klikniesz OK. Sprawdź, czy głośność jest włączona.</p>'}${timery.map(t => `<div class="got-t ${t.zrobiony ? 'koniec' : ''}"><span class="got-t-et">${esc(t.et)}</span><b data-tid="${t.id}">${t.zrobiony ? 'Czas minął!' : fmtCzas(t.pauza ? (t.koniec - t.pauza) / 1000 : (t.koniec - Date.now()) / 1000)}</b>${t.zrobiony ? `<button data-got-tx="${t.id}">OK</button>` : `<button data-got-tp="${t.id}" aria-label="${t.pauza ? 'Wznów' : 'Pauza'}">${t.pauza ? '▶' : '❚❚'}</button><button data-got-t1="${t.id}" aria-label="Dodaj minutę">+1′</button><button data-got-tx="${t.id}" aria-label="Usuń">✕</button>`}</div>`).join('')}</div>` : '';
   let tresc = '';
   if (i === 0) {
     const spr = przyprawyWiersze(dish);
@@ -2285,6 +2336,7 @@ function rysujGot() {
   } else {
     const dzien = dniGarnka(g).find(x => !zuzyte[kluczZ(x, g.slot)]), os = dzien !== undefined ? [...new Set(g.porcje.filter(q => q.d === dzien).map(q => q.p))] : [];
     tresc = `<div class="got-koniec"><div class="intro-ik"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h2>Smacznego!</h2><p class="mute">${esc(dish.nazwa)}</p>
+      <h3 class="got-podz-tyt">Podziel na porcje</h3><div class="podzial got-podzial">${podzialPorcji(g)}</div>
       ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
       ${got.spont ? `<button class="btn glowny szeroki" data-got-spont="1">Ugotowaliśmy — zdejmij z lodówki</button>` : (dzien !== undefined && !got.zjedzone ? `<button class="btn glowny szeroki" data-got-zjedz="${dzien}">Oznacz jako zjedzone (${DNI_KR[dzien]})</button>` : '')}
       ${os.length ? `<h3 style="margin-top:18px">Jak smakowało?</h3>${os.map(pp => `<div class="smak-w"><b class="${pp}">${ETY[pp]}</b><div class="seg mini">${[[2, 'Super'], [1, 'Może być'], [0, 'Nie']].map(([v, et]) => `<button data-smak="${esc(dish.id)}:${pp}:${v}" class="${smaki[dish.id] && smaki[dish.id][pp] && smaki[dish.id][pp].v === v ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`).join('')}` : ''}
@@ -2292,7 +2344,7 @@ function rysujGot() {
   }
   $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div><button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
     <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fqS(x, x.ilosc * skala(g, x))}</b></div>`).join('')}</div>` : ''}${tresc}</div>
-    <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe' : 'Dalej'} ›</button>` : ''}</div>`;
+    <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe, podział porcji' : 'Dalej'} ›</button>` : ''}</div>`;
   if (got._ostI !== i) { const kier = got._ostI === undefined ? 0 : (i > got._ostI ? 1 : -1); got._ostI = i; const m = $('#gotuj .got-main'); if (m && kier) m.dataset.kier = kier; if (m) m.scrollTop = 0; }
 }
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'dop-tekst') oknoDopasuj(rozumiemTekst(e.target.value)); });
@@ -2747,6 +2799,7 @@ function widokDzis() {
         <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
     o += pozaLista(day, d);
+    o += kartaWieczor(wieczorem(w, d), dzis);
     const sh = OS.filter(p => shakeAkt(day, p));
     if (sh.length) o += `<div class="karta"><b>Po treningu · shake</b><p class="mute">${sh.map(p => `${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml`).join(' · ')}</p></div>`;
     // co dalej
@@ -2755,7 +2808,6 @@ function widokDzis() {
       if (maOdh && !paragony.some(x => x.data >= dodajDni(dzis, -2))) kar.push(`<div class="karta zad"><b>Masz paragon z zakupów?</b><p class="mute">Wklej go, a zapamiętam ceny i sklep, żeby podpowiadać, gdzie taniej.</p><button class="btn szeroki" data-szybka="paragon">Dodaj paragon</button></div>`);
       else if (!raz) kar.push(`<div class="karta zad"><b>Lodówka jest pusta</b><p class="mute">Zeskanuj kody produktów albo dodaj paragon, a apka będzie liczyć, co jeszcze masz.</p><div class="rzad"><button class="btn glowny" data-szybka="skan">Skanuj kod</button><button class="btn" data-szybka="paragon">Dodaj paragon</button></div></div>`); }
     { const brak = prognoza(w).filter(x => x.pilne); if (brak.length) kar.push(`<div class="karta zad ostrz-karta"><b>Zaraz zabraknie w lodówce</b><p class="mute">${brak.slice(0, 4).map(x => `${esc(x.produkt)} (${DNI_KR[x.d]})`).join(', ')}${brak.length > 4 ? ' i inne' : ''}.</p><div class="rzad"><button class="btn glowny" data-tab="zakupy">Lista zakupów</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
-    if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
     { const dz = doZuzycia(); if (dz.length) kar.push(`<div class="karta zad ostrz-karta"><b>Do zużycia w lodówce</b><ul>${dz.slice(0, 4).map(x => `<li>${esc(x.pr)} — ${swiezoscTxt(x.f)}</li>`).join('')}</ul><div class="rzad"><button class="btn glowny" data-szybka="spont">Co z tego ugotować</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
     const idx = dzienTyg();
     if (Object.keys(smaki).length < 12 && LS.get('swipeP', '') !== isoDzis().slice(0, 7)) kar.push(`<div class="karta zad"><b>Poznajmy Wasz smak</b><p class="mute">Przesuń kilka dań: te, które lubicie, będą wracać częściej, a te, których nie chcecie, zostaną w tle.</p><div class="rzad"><button class="btn glowny" data-szybka="swipe">Co lubicie?</button><button class="btn" data-swipe-pozniej="1">Później</button></div></div>`);
@@ -3338,6 +3390,7 @@ document.addEventListener('click', e => {
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
+  if (t.dataset.wiecz !== undefined) { const dz = isoDzis(), wi = window._wiecz || [], tt = wi[+t.dataset.wiecz]; if (tt) { const all = LS.get('wieczOk', {}) || {}, a = all[dz] || []; all[dz] = a.includes(tt) ? a.filter(x => x !== tt) : a.concat(tt); Object.keys(all).forEach(k => { if (k < dodajDni(dz, -3)) delete all[k]; }); LS.set('wieczOk', all); rysuj(); } return; }
   if (t.dataset.dalejWiecej !== undefined) { dalejWiecej = t.dataset.dalejWiecej === '1'; rysuj(); return; }
   if (t.dataset.dopToggle) { dopDzien = !dopDzien; otwartyDzien = otwartyDzien; rysuj(); return; }
   if (t.dataset.blok) { const [dd, sl] = t.dataset.blok.split(':'), day = plan.dni[+dd]; day.blok = day.blok || {}; if (day.blok[sl]) delete day.blok[sl]; else day.blok[sl] = true; LS.set('plan', plan); Z([[['dni', +dd, 'blok'], Object.keys(day.blok).length ? day.blok : undefined]]); otwartyDzien = +dd; rysuj(); pokazToast(day.blok[sl] ? 'Zablokowane: zostanie przy ponownym losowaniu tygodnia' : 'Odblokowane'); return; }

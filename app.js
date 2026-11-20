@@ -2197,15 +2197,20 @@ function widokDzis() {
     const nast = sloty.find(({ g }) => !zjedz_(g) && (GODZ[g.slot] || 12) >= godz - 1.5) || sloty.find(({ g }) => !zjedz_(g));
     let o = `<section data-wk="${t.start}"><div data-d="${d}">`;
     if (nast) {
-      const g = nast.g, moje = g.porcje.filter(q => q.d === d);
-      o += `<div class="hero"><span class="hero-et">${(GODZ[g.slot] || 12) >= godz - 1.5 ? 'Następny posiłek' : 'Jeszcze niezjedzone'} · ${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00' : PORA[g.slot].split(' · ')[0]}</span>
-        <div class="hero-dan">${Obr.html(g.dish, 'duzy')}<div><b>${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</b>${nast.odgrzewane ? `<small>odgrzewasz z ${DNI_KR[g.d]}</small>` : ''}</div></div>
-        <div class="hero-liczby">${moje.map(q => `<span>${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal · ${r0(q.b + (g.dosypka && q.p === 'on' ? g.dosypka.b : 0))} g białka</span>`).join('')}</div>
-        <div class="rzad"><button class="btn hero-btn" data-przepis="${w.garnki.indexOf(g)}:${d}">Zobacz przepis</button>${nast.odgrzewane ? '' : `<button class="btn hero-btn jasny" data-zmien="${d}:${g.slot}">Zmień danie</button>`}</div></div>`;
+      const gh = n => (GODZ[n.g.slot] || 12), grupa = sloty.filter(n => !zjedz_(n.g) && gh(n) === gh(nast)), godzTxt = nast.g.slot === 'm13' && nast.g.dish.typ !== 'koktajl' ? '13:00' : PORA[nast.g.slot].split(' · ')[0];
+      const wiersz = (n, podw) => {
+        const g = n.g, moje = g.porcje.filter(q => q.d === d), kto = podw ? (g.slot === 'm13ona' ? 'ONA' : g.slot === 'm13on' ? 'ON' : moje.map(q => ETY[q.p]).join(' + ')) : '';
+        return `<div class="hero-poz"><div class="hero-dan">${Obr.html(g.dish, podw ? '' : 'duzy')}<div>${kto ? `<i class="hero-kto">${kto}</i>` : ''}<b>${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</b>${n.odgrzewane ? `<small>odgrzewasz z ${DNI_KR[g.d]}</small>` : ''}</div></div>
+        <div class="hero-liczby">${moje.map(q => `<span>${podw ? '' : ETY[q.p] + ' '}${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal · ${r0(q.b + (g.dosypka && q.p === 'on' ? g.dosypka.b : 0))} g białka</span>`).join('')}</div>
+        <div class="rzad"><button class="btn hero-btn" data-przepis="${w.garnki.indexOf(g)}:${d}">Zobacz przepis</button>${n.odgrzewane ? '' : `<button class="btn hero-btn jasny" data-zmien="${d}:${g.slot}">Zmień danie</button>`}</div></div>`;
+      };
+      const podw = grupa.length > 1;
+      o += `<div class="hero ${podw ? 'podwojny' : ''}"><span class="hero-et">${gh(nast) >= godz - 1.5 ? 'Następny posiłek' : 'Jeszcze niezjedzone'} · ${godzTxt}</span>${(podw ? grupa : [nast]).map(n => wiersz(n, podw)).join('')}</div>`;
     } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div></div>`;
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
-    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>${z >= cel ? 'cel osiągnięty' : 'jeszcze ' + r0(Math.max(0, cel - z))}</small></div></div>`; }).join('')}</div>`;
+    const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
+    o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><div class="kolo" style="--d:${(pr * 1.1938).toFixed(1)}"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" r="19" cx="22" cy="22"/><circle class="w" r="19" cx="22" cy="22"/></svg><span><span data-licz="${pr}">${pr}</span><small>%</small></span></div><div class="kolo-tx"><b>${ETY[p]}</b><span>${r0(z)} <em>/ ${r0(cel)} kcal</em></span><small>białko <span class="bbk">${r0(zjedB(p))}</span> <span class="nb">/ ${r0(x[p].b)} g</span></small></div></div>`; }).join('')}</div>`;
     o += paskAkcji(['skan', 'paragon', 'spont', 'waga']);
     o += kartaPrepDzis(dzis);
     // lista posiłków

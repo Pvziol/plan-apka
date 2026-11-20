@@ -1015,3 +1015,15 @@ details.dzien[open] { box-shadow: 0 18px 40px -14px rgba(20, 70, 50, .28), var(-
 .konfetti { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
 .konfetti i { position: absolute; top: -20px; border-radius: 2px; opacity: 0; animation: spada 2s cubic-bezier(.3, .6, .4, 1) forwards; }
 @keyframes spada { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), 105vh) rotate(var(--r)); } }
+
+/* v57: hero z dwoma daniami o tej samej porze + białko w pierścieniach */
+.hero.podwojny { padding-bottom: 14px; }
+.hero-poz + .hero-poz { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .25); }
+.hero.podwojny .hero-dan { margin: 8px 0 6px; gap: 12px; }
+.hero.podwojny .hero-dan b { font-size: 17.5px; }
+.hero.podwojny .obr { width: 54px; height: 54px; border-radius: 16px; flex: none; }
+.hero-kto { display: inline-block; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: .1em; padding: 2px 9px; border-radius: 999px; background: rgba(255, 255, 255, .26); margin-bottom: 3px; }
+.hero.podwojny .hero-liczby { margin-bottom: 10px; }
+.hero.podwojny .rzad > .btn { min-height: 44px; }
+.kolo-tx small .bbk { color: var(--ink); font-weight: 750; }
+.nb { white-space: nowrap; }

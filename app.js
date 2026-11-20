@@ -157,6 +157,43 @@ function normalizujPomidory(d) {
     return false;
   });
 }
+// Jeden produkt zamiast kilku odmian: zawsze kupujecie pomidorki koktajlowe i zwykłą cebulę, więc „pomidory świeże”, „pomidor” i „cebula czerwona”
+// łączę z nimi w przepisach, zakupach i lodówce. [nowy produkt, gramów na sztukę]. Pomidory z puszki, passata i ogórek kiszony zostają osobno.
+const SCAL = { 'pomidory świeże': ['pomidorki koktajlowe', 15], 'pomidor': ['pomidorki koktajlowe', 15], 'cebula czerwona': ['cebula', 100] };
+function normalizujScalone(d) {
+  for (const i of d.skladniki) {
+    const sc = SCAL[i.produkt]; if (!sc) continue;
+    if (i.jednostka === 'g' && i.ilosc) { i.ilosc = Math.round(i.ilosc / sc[1] * 10) / 10; i.jednostka = 'szt.'; i.gSzt = sc[1]; }
+    i.nazwa = i.nazwa === i.produkt ? sc[0] : i.nazwa.replace(/pomidory świeże/i, 'pomidorki koktajlowe').replace(/cebula czerwona/i, 'cebula');
+    i.produkt = sc[0]; if (i.kategoria === undefined || i.kategoria === null) i.kategoria = sc[0] === 'cebula' ? 'zapas' : 'świeże';
+  }
+  const widziane = new Map(), nowe = new Set(Object.values(SCAL).map(x => x[0]));
+  d.skladniki = d.skladniki.filter(i => {
+    if (!nowe.has(i.produkt) || !i.ilosc) return true;
+    const k = (i.grupa || '') + '|' + i.produkt + '|' + i.jednostka, pr = widziane.get(k);
+    if (!pr) { widziane.set(k, i); return true; }
+    pr.ilosc += i.ilosc; pr.kcal = (pr.kcal || 0) + (i.kcal || 0); pr.bialko = (pr.bialko || 0) + (i.bialko || 0);
+    return false;
+  });
+}
+// Dane zapisane na telefonie (lodówka, mapowania paragonów, kody) przenoszę na połączone produkty.
+function migrujScalenia() {
+  const zm = [], lacz = (a, b) => Math.round(((a || 0) + b) * 10) / 10;
+  for (const [stary, [nowy, g]] of Object.entries(SCAL)) {
+    const us = lodowka[stary];
+    if (us) {
+      lodowka[nowy] = lodowka[nowy] || {};
+      for (const [u, q] of Object.entries(us)) { const nu = u === 'g' ? 'szt.' : u, nq = u === 'g' ? q / g : (stary === 'pomidor' && u === 'szt.' ? q * 10 : q); lodowka[nowy][nu] = lacz(lodowka[nowy][nu], nq); zm.push([['lodowka', nowy, nu], lodowka[nowy][nu]]); }
+      delete lodowka[stary]; zm.push([['lodowka', stary], undefined]); LS.set('lodowka', lodowka);
+    }
+    if (ceny[stary]) { delete ceny[stary]; zm.push([['ceny', stary], undefined]); LS.set('ceny', ceny); }
+    if (pakiety[stary]) { delete pakiety[stary]; zm.push([['pakiety', stary], undefined]); LS.set('pakiety', pakiety); }
+    if (wlasneProd[stary]) { delete wlasneProd[stary]; zm.push([['wlasneProd', stary], undefined]); LS.set('wlasneProd', wlasneProd); }
+    for (const [k, v] of Object.entries(mapaPar)) if (v === stary) { mapaPar[k] = nowy; zm.push([['mapaPar', k], nowy]); LS.set('mapaPar', mapaPar); }
+    for (const [k, v] of Object.entries(kody)) if (v && v.p === stary) { delete kody[k]; zm.push([['kody', k], undefined]); LS.set('kody', kody); }
+  }
+  if (zm.length) Z(zm);
+}
 // W sklepach trudno o mrożone pojedyncze owoce, zwykle są mieszanki — więc maliny, truskawki, jagody i wiśnie traktuję jako „owoce mrożone (mieszanka)”,
 // a mango i brzoskwinie jako „mieszankę tropikalną”. Kcal i białko wierszy zostają, powtórzone wiersze w daniu łączę.
 const MIX_LESNA = 'owoce mrożone (mieszanka)', MIX_TROP = 'mieszanka tropikalna mrożona (mango, ananas…)';
@@ -236,7 +273,7 @@ async function wczytajBaze() {
     wczytaj('dania.json'), wczytaj('dania-dodane.json', []), wczytaj('shake.json'), wczytaj('opakowania.json', {})
   ]);
   DB.dania.clear();
-  for (const d of dania.concat(dodane)) { normalizujPomidory(d); normalizujOwoce(d); normalizujLyzki(d); normalizujPuszki(d); DB.dania.set(d.id, d); }
+  for (const d of dania.concat(dodane)) { normalizujPomidory(d); normalizujScalone(d); normalizujOwoce(d); normalizujLyzki(d); normalizujPuszki(d); DB.dania.set(d.id, d); }
   const wsz = [...DB.dania.values()];
   const typ = (...t) => wsz.filter(d => t.includes(d.typ));
   DB.pula = {
@@ -827,7 +864,7 @@ function pokazPrzepis(g, spont) {
   let wiersze = '', grupa = null;
   for (const i of dish.skladniki) {
     if (i.grupa && i.grupa !== grupa) { grupa = i.grupa; wiersze += `<tr class="grupa"><td colspan="2">${esc(grupa)}</td></tr>`; }
-    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
+    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${i.gSzt && i.ilosc ? `<br><span class="mute">≈ ${Math.max(5, Math.round(i.ilosc * skala(g, i) * i.gSzt / 5) * 5)} g</span>` : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
   }
   // przyprawy i dodatki: osobne wiersze tabeli, z ilością albo „do smaku”
   const spr = przyprawyWiersze(dish);
@@ -863,7 +900,7 @@ function pokazPrzepis(g, spont) {
 // ---------- paragony i ceny ----------
 const liczbaZ = t => parseFloat(String(t).replace(/\s/g, '').replace(',', '.'));
 const zl = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' zł';
-const G_SZT = { banan: 150, 'jabłko': 180, papryka: 200, 'ogórek świeży': 200, cebula: 100, marchew: 90, 'cebula czerwona': 100, cukinia: 300, awokado: 200, por: 200, 'pomidory świeże': 120, 'pietruszka (korzeń)': 80, 'rzodkiewka (pęczek)': 10 };
+const G_SZT = { banan: 150, 'jabłko': 180, papryka: 200, 'ogórek świeży': 200, cebula: 100, marchew: 90, cukinia: 300, awokado: 200, por: 200, 'pomidorki koktajlowe': 15, 'pietruszka (korzeń)': 80, 'rzodkiewka (pęczek)': 10 };
 // E-paragon w JSON (Moja Biedronka i inne sklepy używające e-paragonu JPK): linie w `body[].sellLine`, nagłówek z nazwą i adresem sklepu w `header`,
 // a pełny dokument także zakodowany w `data` (pozycja[].towar). Nazwy są skrócone i sklejone („PałeczkiKukurGłod60g C”), więc je rozdzielam.
 const htmlNaTekst = h => String(h || '').replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&').split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -959,7 +996,7 @@ const ALIASY = [
   ['płatki owsiane', /platki owsiane/], ['granola', /granola|musli/], ['miód', /^miod\b/], ['oliwa / olej', /^oliw|^olej(?! sezam)|olej rzepak/], ['passata', /passata/], ['koncentrat pomidorowy', /koncentrat pomidor/],
   ['pomidory krojone (puszka)', /pomidory krojone|pomidory w puszce|pomidory (w )?sosie wlasnym/], ['ketchup', /ketchup/], ['musztarda', /musztard/], ['dżem', /dzem|konfitur/], ['sos sojowy', /sos sojowy/],
   ['kukurydza konserwowa', /^kukurydza|kukurydza (konserw|z puszki|w puszce|slodka)/], ['ciecierzyca z puszki (odsączona)', /ciecierzyc/], ['fasola czerwona z puszki (odsączona)', /fasol/], ['soczewica czerwona', /soczewic/], ['ogórek kiszony', /korniszon|ogorki kiszon|ogorek kiszon/],
-  ['ogórek świeży', /ogork|ogorek/], ['cebula czerwona', /cebula czerwon/], ['cebula', /^cebul(?!k|a prazon)/], ['papryka', /^papryk(?!a mielon|a wedzon)/], ['pomidorki koktajlowe', /koktajl|cherry/], ['pomidory świeże', /^pomidor(?!y krojon)/],
+  ['ogórek świeży', /ogork|ogorek/], ['cebula', /^cebul(?!k|a prazon)/], ['papryka', /^papryk(?!a mielon|a wedzon)/], ['pomidorki koktajlowe', /koktajl|cherry|^pomidor(?!y krojon|y w |y suszon|y pelati)/],
   ['marchew', /marchew/], ['ziemniaki', /ziemniak/], ['bataty', /batat/], ['por', /^por\b/], ['seler korzeniowy', /^seler/], ['pietruszka (korzeń)', /pietruszk/], ['brokuł', /brokul/], ['kalafior', /kalafior/], ['cukinia', /cukini/],
   ['sałata', /^salat|rukola|roszponka|mix salat/], ['szpinak świeży', /szpinak/], ['pieczarki', /pieczark/], ['awokado', /awokad/], ['banan', /banan/], ['jabłko', /jablk/], ['dynia piżmowa', /^dyni/], ['rzodkiewka (pęczek)', /rzodkiew/],
   ['tortilla pełnoziarnista', /tortill/], ['chleb żytni', /chleb|pieczywo (zytnie|razowe)/], ['bułka pełnoziarnista', /^bulk/], ['pieczywo chrupkie', /chrupk/], ['paluszki rybne', /paluszki rybne/],
@@ -2328,7 +2365,7 @@ function rysuj() {
   }
   if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
   naprawBrakujace();
-  if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); }
+  if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); migrujScalenia(); }
   if (inny && inny.start < poniedzialek()) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby

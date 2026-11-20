@@ -612,3 +612,140 @@ details.zk-miesa > :last-child, details.zk-zwin > :last-child { margin-bottom: 1
 .pomin-w i { font-style: normal; font-weight: 800; }
 .pomin-w i.ona { color: var(--ona); } .pomin-w i.on { color: var(--on); }
 .dnia-liczby small.przen { color: var(--zielony); font-weight: 650; margin-top: 3px; }
+
+/* ───────── Czego nie jecie (v41) ───────── */
+.wykl-stat { padding: 4px 16px; }
+.wykl-w { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.wykl-w:last-child { border-bottom: 0; }
+.wykl-w b { font-weight: 800; }
+.wykl-w small { width: 100%; font-size: 12.5px; font-weight: 600; }
+.wykl-w.malo b, .wykl-w.malo small { color: var(--ostrz); }
+.wykl-w.zle b, .wykl-w.zle small { color: #c0392b; }
+
+/* ───────── Tryb gotowania i smak (v41) ───────── */
+.lod-rzad input { min-height: 46px; padding: 0 16px; border-radius: 14px; border: 0; background: var(--card); box-shadow: var(--cien-maly); }
+.lod-rzad input:focus { outline: 2px solid var(--zielony2); }
+#toast { z-index: 80; }
+body.got-otwarte { overflow: hidden; }
+#gotuj { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: var(--bg); padding-top: env(safe-area-inset-top); animation: wsun .22s ease; }
+#gotuj[hidden] { display: none; }
+.got-gora { display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px; }
+.got-x { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--card); box-shadow: var(--cien-maly); font-size: 17px; font-weight: 700; color: var(--ink); }
+.got-nazwa { flex: 1; min-width: 0; text-align: center; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.got-skl { flex: none; min-height: 42px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--zielony-tlo); color: var(--zielony); font-weight: 750; font-size: 14px; box-shadow: none; }
+.got-postep { display: flex; gap: 4px; padding: 6px 16px 8px; }
+.got-postep i { flex: 1; height: 5px; border-radius: 5px; background: var(--line); }
+.got-postep i.zrob { background: var(--zielony); } .got-postep i.akt { background: var(--zielony2); }
+.got-timery { display: flex; flex-direction: column; gap: 6px; padding: 0 14px 6px; }
+.got-t { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 16px; padding: 8px 10px 8px 14px; box-shadow: var(--cien-maly); }
+.got-t-et { flex: 1; min-width: 0; font-size: 13px; color: var(--mute); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.got-t b { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.got-t button { min-width: 38px; height: 38px; border: 0; border-radius: 12px; background: var(--bg); font-weight: 700; font-size: 13px; padding: 0 8px; box-shadow: none; }
+.got-t.koniec { background: var(--ostrz-tlo); animation: miganie 1s ease-in-out infinite; }
+.got-t.koniec b { color: var(--ostrz); }
+@keyframes miganie { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ostrz) 35%, transparent); } }
+.got-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 18px 18px; }
+.got-et { font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--zielony); margin: 8px 0 10px; }
+.got-tyt { font-size: 26px; margin: 0 0 8px; letter-spacing: -.02em; }
+.got-tekst { font-size: 25px; line-height: 1.38; font-weight: 550; letter-spacing: -.01em; margin: 4px 0 18px; overflow-wrap: anywhere; }
+.got-tekst mark { background: var(--zielony-tlo); color: var(--zielony); font-weight: 800; padding: 0 5px; border-radius: 7px; white-space: nowrap; }
+.got-tm { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.got-tm .btn { min-height: 56px; font-size: 18px; font-weight: 750; }
+.got-sk-krok { background: var(--card); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; box-shadow: var(--cien-maly); }
+.got-sk-krok b { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--mute); }
+.got-sk-krok span { font-size: 15px; font-weight: 600; }
+.got-lista { background: var(--card); border-radius: 22px; padding: 4px 14px; box-shadow: var(--cien-maly); margin-top: 8px; }
+.got-sk { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.got-sk:last-of-type { border-bottom: 0; }
+.got-sk input { position: absolute; opacity: 0; pointer-events: none; }
+.got-sk input:checked + .zk-ptak { background: var(--zielony); border-color: var(--zielony); }
+.got-sk input:checked + .zk-ptak::after { color: #fff; }
+.got-sk-tx { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.got-sk-tx small { display: block; color: var(--ostrz); font-weight: 600; font-size: 12px; }
+.got-sk.ok .got-sk-tx { text-decoration: line-through; color: var(--mute); }
+.got-sk b { flex: none; color: var(--zielony); }
+.got-panel { background: var(--card); border-radius: 20px; padding: 6px 16px 10px; margin-bottom: 14px; box-shadow: var(--cien-maly); }
+.got-pw { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.got-pw:last-child { border-bottom: 0; }
+.got-dol { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent, var(--bg) 35%); }
+.got-dol .btn { min-height: 60px; font-size: 18px; font-weight: 750; border-radius: 18px; }
+.got-koniec { text-align: center; padding-top: 18px; }
+.got-koniec h2 { font-size: 30px; margin: 0 0 6px; }
+.got-koniec .intro-ik { margin-bottom: 14px; }
+@media (max-width: 359px) { .got-tekst { font-size: 21px; } .got-dol .btn { font-size: 16px; } }
+.smak-w { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.smak-w > b { flex: none; width: 44px; font-size: 12px; letter-spacing: .1em; font-weight: 800; }
+.smak-w .seg { flex: 1; margin: 0; }
+.smak-w .seg button { font-size: 13px; padding: 0 4px; }
+.smak-blok { margin-bottom: 4px; }
+
+/* ───────── Adaptacyjne kalorie (v42) ───────── */
+.adapt-liczby { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 10px; }
+.adapt-liczby > div { background: var(--bg); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
+.adapt-liczby b { font-size: 17px; letter-spacing: -.01em; }
+.adapt-liczby small { color: var(--mute); font-size: 12px; }
+.adapt-ok { color: var(--zielony); font-weight: 650; margin: 4px 0 0; }
+.adapt-prop { background: var(--zielony-tlo); border-radius: 18px; padding: 14px; }
+.adapt-prop > b { font-size: 18px; }
+.adapt-auto { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.adapt-auto input { width: 22px; height: 22px; accent-color: var(--zielony); flex: none; }
+
+/* ───────── porządki wizualne (v42) ───────── */
+.wiersz { background: var(--card); border-radius: 22px; box-shadow: var(--cien-maly); padding: 4px 4px 8px; margin: 10px 0; }
+.wiersz .wybor { background: transparent; border: 0; box-shadow: none; }
+.wiersz .oceny { padding: 0 12px; margin-top: 0; }
+.wiersz.ukryte { opacity: .55; }
+.wpis { padding: 10px 0; }
+.karta .wpis:last-child { border-bottom: 0; }
+h2 + .karta, h2 + .przyp { margin-top: 8px; }
+.okno-gora { padding-bottom: 12px; }
+.przepis-gora { align-items: center; }
+.pole input[type="date"] { min-height: 48px; }
+.uwaga { border-radius: 16px; }
+select { background-color: var(--bg); }
+
+/* ───────── Paragony, ceny, porównanie sklepów (v44) ───────── */
+.par-w { display: flex; align-items: flex-start; gap: 12px; background: var(--card); border-radius: 18px; padding: 12px 14px; margin: 8px 0; box-shadow: var(--cien-maly); }
+.par-w.wyl { opacity: .75; }
+.par-wl { flex: none; margin-top: 2px; }
+.par-wl input { position: absolute; opacity: 0; pointer-events: none; }
+.par-wl input:checked + .zk-ptak { background: var(--zielony); border-color: var(--zielony); }
+.par-wl input:checked + .zk-ptak::after { color: #fff; }
+.par-tx { flex: 1; min-width: 0; }
+.par-tx > b { display: block; font-size: 15px; font-weight: 650; overflow-wrap: anywhere; line-height: 1.3; }
+.par-tx > small { display: block; color: var(--mute); font-size: 12.5px; margin: 2px 0 6px; }
+.par-prod { display: inline-block; max-width: 100%; padding: 6px 12px; border: 0; border-radius: 999px; background: var(--zielony-tlo); color: var(--zielony); font-size: 13px; font-weight: 750; box-shadow: none; text-align: left; overflow-wrap: anywhere; }
+.par-prod.brak { background: var(--ostrz-tlo); color: var(--ostrz); }
+.par-q { display: flex; gap: 8px; margin-top: 8px; }
+.par-q input { width: 84px; min-height: 40px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); font-weight: 700; text-align: center; }
+.par-q select { min-height: 40px; border-radius: 12px; border: 1px solid var(--line); padding: 0 8px; }
+.par-cena { flex: none; font-size: 15px; letter-spacing: -.01em; white-space: nowrap; }
+.par-pom { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.par-pom:last-child { border-bottom: 0; }
+details.par-karta { padding: 0 16px; margin: 10px 0; }
+details.par-karta > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 0; }
+details.par-karta > summary::-webkit-details-marker { display: none; }
+details.par-karta > summary > span { display: flex; flex-direction: column; }
+details.par-karta > summary small { color: var(--mute); font-size: 12.5px; font-weight: 600; }
+.par-pw { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.par-pw span { min-width: 0; overflow-wrap: anywhere; } .par-pw b { flex: none; }
+.ceny-karta { padding: 2px 16px; }
+.cena-w { padding: 11px 0; border-bottom: 1px solid var(--line); }
+.cena-w:last-child { border-bottom: 0; }
+.cena-w[hidden] { display: none; }
+.cena-w > b { display: block; font-size: 15px; margin-bottom: 4px; }
+.cena-sk { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; color: var(--mute); }
+.cena-sk b { color: var(--ink); } .cena-sk small { margin-left: 6px; color: var(--mute); font-size: 11.5px; }
+.cena-sk .naj, .cena-sk .naj b { color: var(--zielony); }
+details.sklepy-karta > summary .licznik { background: var(--zielony-tlo); color: var(--zielony); }
+.sk-slupki { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
+.sk-sl { display: grid; grid-template-columns: 84px 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+.sk-sl .pasek { margin: 0; height: 12px; color: var(--mute); }
+.sk-sl.naj .pasek { color: var(--zielony); } .sk-sl.naj b, .sk-sl.naj span { color: var(--zielony); }
+.okazja { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.okazja small { color: var(--zielony); font-weight: 700; margin-left: 4px; }
+
+/* ───────── opakowania w lodówce (v46) ───────── */
+.pak-info { color: var(--mute); font-size: 12px; font-weight: 600; margin-top: 2px; }
+.pak-info .link, .stan-nm .link { background: none; border: 0; padding: 0; color: var(--zielony); font-weight: 750; font-size: 12px; box-shadow: none; text-decoration: underline; text-underline-offset: 2px; }
+.par-tx > small.par-pak { color: var(--zielony); font-weight: 650; margin: -2px 0 6px; }

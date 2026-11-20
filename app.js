@@ -37,6 +37,13 @@ let zakDni = LS.get('zakDni', null);                      // daty (RRRR-MM-DD), 
 let zmienCtx = null, spontG = null, spontWroc = false, spontFiltr = { typ: 'wszystko', q: '' };
 let zakladka = 'dzis';
 let wskazowki = LS.get('wskazowki', {});                     // które podpowiedzi „Wskazówka” już zamknięto (tylko ten telefon)
+let wyklucz = LS.get('wyklucz', { ona: [], on: [] });         // czego kto nie je: grupy („g:ryby”) i własne słowa; wspólne dla pary
+let smaki = LS.get('smaki', {});                           // smaki[id dania][osoba] = { n, s }: ile razy oceniono i suma (0 nie, 1 może być, 2 super); wspólne
+let korekta = LS.get('korekta', { ona: { kcal: 0, od: null, hist: [] }, on: { kcal: 0, od: null, hist: [] } });   // adaptacyjna korekta kalorii wg trendu wagi; wspólna
+let paragony = LS.get('paragony', []);                     // ostatnie paragony: [{ id, data, sklep, lokal, suma, poz: [{ n, p, q, u, c, b }] }]; wspólne
+let ceny = LS.get('ceny', {});                             // ceny[produkt][sklep] = { u, ost, sr, cb, n, t, h }: zł za kg / l / szt. po rabatach; wspólne
+let mapaPar = LS.get('mapaPar', {});                       // nazwa z paragonu (bez liczb) -> produkt albo '' (pomiń); wspólne
+let pakiety = LS.get('pakiety', {});                       // pakiety[produkt] = { r, u, et, w: [rozmiary], t }: standardowe opakowania poznane z paragonów; wspólne
 let otwartyDzien = null, otwartyTyg = null;   // który dzień którego tygodnia jest rozwinięty
 let odroczone = false, ekranStartowy = false, ekranCzekania = false, formStart = null;
 // wspólny plan: wysyła tylko zmienione pola, np. [[['dni', 3, 'sn'], 'id-dania']]; undefined = usuń pole
@@ -105,12 +112,12 @@ const sredniaOsoby = (w, p, pole) => { const ix = obecneDni(plan, p); return ix.
 const fmtStan = (q, u) => (u === 'g' || u === 'ml') ? Math.round(q) + ' ' + u : (Math.round(q * 2) / 2).toString().replace('.', ',') + ' ' + u;
 
 // ---------- zapotrzebowanie ----------
-function zapotrzebowanie(o) {
+function zapotrzebowanie(o, kor = 0) {
   if (!o || !o.wiek || !o.waga || !o.wzrost) return null;
   const bmr = 10 * o.waga + 6.25 * o.wzrost - 5 * o.wiek + (o.plec === 'm' ? 5 : -161);   // Mifflin-St Jeor
   const cpm = bmr * parseFloat(o.akt || '1.375');
   const [, mnoznik, gkg] = CEL[o.cel] || CEL.utrzymanie;
-  const kcal = o.wlasne ? +o.wlasne : Math.round(cpm * mnoznik / 10) * 10;
+  const kcal = o.wlasne ? +o.wlasne : Math.round(cpm * mnoznik / 10) * 10 + (kor || 0);   // kor = adaptacyjna korekta wg trendu wagi
   const b = Math.round(gkg * o.waga);
   return { bmr: r0(bmr), cpm: r0(cpm), kcal, b, bMin: r0(b * 0.9), bMax: r0(b * 1.15) };
 }
@@ -120,7 +127,7 @@ function wagaAktualna(p) {
   return e.length ? waga[p][e[e.length - 1]] : (profil && profil[p] ? profil[p].waga : null);
 }
 const profilEf = p => profil && profil[p] ? Object.assign({}, profil[p], { waga: wagaAktualna(p) }) : null;
-function cele() { return { ona: zapotrzebowanie(profilEf('ona')), on: zapotrzebowanie(profilEf('on')) }; }
+function cele() { return { ona: zapotrzebowanie(profilEf('ona'), korekta.ona.kcal), on: zapotrzebowanie(profilEf('on'), korekta.on.kcal) }; }
 
 // ---------- baza ----------
 async function wczytaj(plik, domyslne) {
@@ -181,12 +188,51 @@ const lyzkiOpis = t => String(t).replace(/(\d+(?:,\d+)?)?([½¼¾])?(\s)(łyżk\
   const v = (l ? parseFloat(l.replace(',', '.')) : 0) + ({ '½': .5, '¼': .25, '¾': .75 }[f] || 0), per = /^łyżecz/.test(sl) ? 5 : 15;
   return `${l || ''}${f || ''}${sp}${sl} ${wNawiasie(str, off) ? '= ' : '('}${Math.round(v * per)} g${wNawiasie(str, off) ? '' : ')'}`;
 });
+// Puszki (tuńczyk) w gramach, jak łyżki: przepis liczy 185 g na puszkę, a lodówka i zakupy liczą w gramach — wtedy puszki z paragonu (np. 160 g) odliczają się dokładnie.
+function normalizujPuszki(d) {
+  for (const i of d.skladniki) if (i.ilosc && i.jednostka === 'pusz.') {
+    const m = (i.produkt || '').match(/puszka\s+(\d+)\s*g/i), per = m ? +m[1] : 185;
+    i.orig = { ilosc: i.ilosc, jednostka: 'pusz.', g: per };
+    i.ilosc = Math.round(i.ilosc * per * 10) / 10; i.jednostka = 'g';
+    i.produkt = i.produkt.replace(/\s*\(puszka[^)]*\)/i, '').trim(); i.nazwa = (i.nazwa || '').replace(/\s*\(puszka[^)]*\)/i, '').trim();
+  }
+}
+// Stare wpisy lodówki „tuńczyk (puszka 185 g)” w puszkach przeliczam na gramy (wartości ustawiam, nie dodaję — dwa telefony dadzą ten sam wynik).
+function migrujPuszki() {
+  const zm = [];
+  for (const [k, us] of Object.entries(lodowka)) if (us && us['pusz.'] != null && /puszka\s+\d+\s*g/i.test(k)) {
+    const per = +(k.match(/puszka\s+(\d+)\s*g/i)[1]), nowy = k.replace(/\s*\(puszka[^)]*\)/i, '').trim(), g = Math.round(us['pusz.'] * per * 10) / 10;
+    lodowka[nowy] = lodowka[nowy] || {}; lodowka[nowy].g = Math.round(((lodowka[nowy].g || 0) + g) * 10) / 10; delete us['pusz.']; if (!Object.keys(us).length) delete lodowka[k];
+    zm.push([['lodowka', k, 'pusz.'], undefined], [['lodowka', nowy, 'g'], lodowka[nowy].g]);
+  }
+  if (zm.length) { LS.set('lodowka', lodowka); Z(zm); }
+}
+// ---------- standardowe opakowania: z paragonów („Ciecierzyca 540g”, „Tortilla 6szt”) do zasady zero waste ----------
+function etykietaPaku(prod) {
+  const n = znorm(prod);
+  if (DB.opak[prod] && DB.opak[prod].rodzaj) return DB.opak[prod].rodzaj;
+  if (/tunczyk|ciecierzyc|fasol|kukurydz|ananas|pomidory krojone/.test(n)) return 'puszka';
+  if (/passata|ketchup|oliw|olej|sos |mleko/.test(n)) return 'butelka';
+  if (/miod|dzem|musztard|chrzan|pesto|maslo orzech|ogorek kiszony/.test(n)) return 'słoik';
+  return 'opak.';
+}
+function zastosujPakiety() {
+  for (const [prod, x] of Object.entries(pakiety)) if (x && x.r > 0) DB.opak[prod] = { rodzaj: x.et || 'opak.', wielkosc: x.r, jednostka: x.u };
+}
+function uczPak(prod, r, u) {
+  if (!(r > 0) || !u) return;
+  const x = (pakiety[prod] = pakiety[prod] || { w: [] });
+  x.r = r; x.u = u; x.et = etykietaPaku(prod); x.t = isoDzis(); x.w = [r].concat((x.w || []).filter(v => v !== r)).slice(0, 4);
+  zastosujPakiety();
+}
+const pakProd = prod => { const o = DB.opak[prod]; return o && o.wielkosc > 0 ? { r: o.wielkosc, u: o.jednostka, et: o.rodzaj || 'opak.', w: (pakiety[prod] && pakiety[prod].w) || [o.wielkosc] } : null; };
+const fmtPak = x => String(Math.round(x * 10) / 10).replace('.', ',');
 async function wczytajBaze() {
   const [dania, dodane, shake, opak] = await Promise.all([
     wczytaj('dania.json'), wczytaj('dania-dodane.json', []), wczytaj('shake.json'), wczytaj('opakowania.json', {})
   ]);
   DB.dania.clear();
-  for (const d of dania.concat(dodane)) { normalizujPomidory(d); normalizujOwoce(d); normalizujLyzki(d); DB.dania.set(d.id, d); }
+  for (const d of dania.concat(dodane)) { normalizujPomidory(d); normalizujOwoce(d); normalizujLyzki(d); normalizujPuszki(d); DB.dania.set(d.id, d); }
   const wsz = [...DB.dania.values()];
   const typ = (...t) => wsz.filter(d => t.includes(d.typ));
   DB.pula = {
@@ -329,9 +375,61 @@ function poniedzialek() {
 }
 const dodajDni = (iso, n) => { const t = new Date(iso + 'T12:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
 const krotkaData = iso => new Date(iso + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });
+// ---------- czego nie jecie ----------
+const GRUPY_WYKL = {
+  ryby: ['Ryby i owoce morza', /(^|[^a-z0-9])(losos|dorsz|tunczyk|ryb|krewet|sledz|makrel|paluszki rybne)/],
+  wieprzowina: ['Wieprzowina', /(^|[^a-z0-9])(wieprzow|boczek|kielbas|schab|zeberk|karkowk)/],
+  wolowina: ['Wołowina', /(^|[^a-z0-9])wolowin/],
+  drob: ['Drób', /(^|[^a-z0-9])(kurczak|indyk|drob|cwiartki)/],
+  jaja: ['Jaja', /(^|[^a-z0-9])(jaj|jajk|jajecz)/],
+  nabial: ['Nabiał (bez odżywki)', /(^|[^a-z0-9])(mleko|skyr|jogurt|ser |ser$|serek|twarog|smietan|maslo(?! orzech)|kefir|feta|parmezan|mozzarella)/],
+  orzechy: ['Orzechy i orzeszki', /(^|[^a-z0-9])(orzech|orzesz|migdal|nerkowc|pistacj)/],
+  gluten: ['Gluten (pszenica, żyto)', /(^|[^a-z0-9])(pszen|zytn|maka|makaron(?! ryzow)|manna|chleb|bulk|tortilla|pieczywo|kuskus|bulgur|lasagne|gnocchi|zacierk|zakwas)/],
+  ostre: ['Ostre (chili)', /(^|[^a-z0-9])(chili|gochujang)/],
+  grzyby: ['Grzyby i pieczarki', /(^|[^a-z0-9])(pieczark|grzyb)/],
+  cebula: ['Cebula', /(^|[^a-z0-9])cebul/],
+  czosnek: ['Czosnek', /(^|[^a-z0-9])czosnek/]
+};
+const tekstDania = d => d._tw || (d._tw = znorm([d.nazwa, ...d.skladniki.map(i => (i.produkt || '') + ' ' + (i.nazwa || '')), ...(d.przyprawy || [])].join(' | ')));
+const KOMP_WYKL = {};
+function wzorWykl(w) {
+  if (KOMP_WYKL[w]) return KOMP_WYKL[w];
+  const m = w.startsWith('g:') ? (GRUPY_WYKL[w.slice(2)] || [w, /$^/])[1] : new RegExp('(^|[^a-z0-9])' + znorm(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return (KOMP_WYKL[w] = m);
+}
+const etykietaWykl = w => w.startsWith('g:') ? (GRUPY_WYKL[w.slice(2)] || [w])[0] : w;
+// Co z listy osoby p zawiera danie (puste = można jeść).
+function naruszenia(d, p) {
+  const lista = (wyklucz[p] || []).filter(w => znorm(w.replace(/^g:/, '')).length >= 2);
+  if (!lista.length) return [];
+  const t = tekstDania(d);
+  return lista.filter(w => {
+    if (!wzorWykl(w).test(t)) return false;
+    if (p === 'ona' && /cebul/.test(w.replace(/^g:/, '')) && /uzyj pora/.test(znorm(d.uwaga || ''))) return false;   // „cebula tylko dla niego — dla niej por”
+    return true;
+  }).map(etykietaWykl);
+}
+const dopuszcza = (d, osoby) => osoby.every(p => !naruszenia(d, p).length);
+const KTO_PULI = { sn: OS, m13ona: ['ona'], m13on: ['on'], m13: OS, k18: OS, ob1: OS, ob2: OS, m13kokt: OS, m13dania: OS };
+const osobySlotu = slot => slot === 'm13ona' ? ['ona'] : slot === 'm13on' ? ['on'] : OS;
+// Naruszenia w całym planie: gdzie posiłek zawiera coś, czego ktoś z jedzących go nie je.
+function naruszeniaPlanu(pl, odDnia = '') {
+  const out = [];
+  pl.dni.forEach((day, d) => {
+    if (odDnia && dodajDni(pl.start, d) < odDnia) return;
+    const sloty = [['sn', day.sn], day.m13.wsp ? ['m13', day.m13.wsp] : null, !day.m13.wsp ? ['m13ona', day.m13.ona] : null, !day.m13.wsp ? ['m13on', day.m13.on] : null, day.ob ? ['ob', day.ob] : null, ['k18', day.k18]].filter(Boolean);
+    for (const [slot, id] of sloty) {
+      const dish = DB.dania.get(id); if (!dish) continue;
+      const kto = osobySlotu(slot).filter(p => !nieob(day, p) && !pomija(day, p, slot));
+      const nar = kto.map(p => [p, naruszenia(dish, p)]).filter(x => x[1].length);
+      if (nar.length) out.push({ d, slot, id, nar });
+    }
+  });
+  return out;
+}
 function kandydat() {
   // ukryte dania pomijam (chyba że w danej puli zostałoby mniej niż 2 dania)
-  const P = Object.fromEntries(Object.entries(DB.pula).map(([k, v]) => { const ok = v.filter(d => !ukryte(d.id)); return [k, ok.length >= 2 ? ok : v]; }));
+  const P = Object.fromEntries(Object.entries(DB.pula).map(([k, v]) => { const ok = v.filter(d => !ukryte(d.id) && dopuszcza(d, KTO_PULI[k] || OS)); const ok2 = v.filter(d => !ukryte(d.id)); return [k, ok.length >= 1 ? ok : ok2.length >= 2 ? ok2 : v]; }));   // dozwolone dania nawet jeśli został 1 (będzie się powtarzał); dopiero przy 0 dozwolonych wracam do pełnej puli
   const sn = tasuj(P.sn); while (sn.length < 7) sn.push(los(P.sn));
   const bezPowt = (pula, n) => { const out = []; while (out.length < n) { const x = los(pula); if (pula.length < 2 || x !== out[out.length - 1]) out.push(x); } return out; };
   const dd = bezPowt(P.m13on.filter(d => !d.tylko_wybor), 5),   // w tygodniu bez dań „na świeżo” (np. wrapy) — te tylko do ręcznego wyboru
@@ -368,6 +466,7 @@ function ocena(pl, c) {
   kara += 20 * Math.max(0, tunczyk - 1);
   pl.dni.flatMap(day => [day.sn, day.k18, day.ob, day.m13.wsp, day.m13.ona, day.m13.on]).filter(Boolean).forEach(id => { if (oceny[id] === 1) kara -= 6; else if (ukryte(id)) kara += 200; });
   w.garnki.forEach(g => { if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) kara += 10; });
+  kara += 300 * naruszeniaPlanu(pl).length + smakKara(pl);                       // dania z wykluczonymi składnikami to ostateczność
   // zero waste: świeże produkty sprzedawane w opakowaniach (np. łosoś wędzony 100 g) — im mniej zostaje po zakupie, tym lepiej
   const potrz = {};
   w.garnki.forEach(g => g.dish.skladniki.forEach(i => { const o = i.produkt && DB.opak[i.produkt]; if (o && i.jednostka === o.jednostka && i.kategoria === 'świeże') potrz[i.produkt] = (potrz[i.produkt] || 0) + i.ilosc * skala(g, i); }));
@@ -415,7 +514,7 @@ function naprawBrakujace() {
   plan.dni.forEach((day, d) => {
     const podmien = (id, pula, slot, sciezka, ustaw) => {
       if (!id || DB.dania.has(id)) return;
-      const kand = pula.filter(x => !ukryte(x.id)), n = los(kand.length ? kand : pula);
+      const kand = pula.filter(x => !ukryte(x.id) && dopuszcza(x, KTO_PULI[slot === 'm13' ? 'm13' : slot === 'ob' ? 'ob1' : slot] || OS)), n = los(kand.length ? kand : pula);
       ustaw(n.id); zm.push([['dni', d, ...sciezka], n.id]);
       if (day.ratio && day.ratio[slot] !== undefined) { delete day.ratio[slot]; zm.push([['dni', d, 'ratio', slot], undefined]); }
     };
@@ -627,6 +726,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
     const moje = g.porcje.filter(q => q.d === d), ez = !!zuzyte[kluczZ(d, g.slot)];
     const liczby = moje.map(q => { const dk = g.dosypka && q.p === 'on' ? g.dosypka : { kcal: 0, b: 0 }; return `<span class="${q.p}">${ETY[q.p]} ${r0(q.kcal + dk.kcal)} kcal · ${r0(q.b + dk.b)} g</span>`; }).join('');
     let zn = '';
+    { const nar = [...new Set(moje.map(q => q.p))].map(pp => [pp, naruszenia(g.dish, pp)]).filter(x => x[1].length); if (nar.length) zn += `<span class="znaczek ostrz">zawiera: ${esc([...new Set(nar.flatMap(x => x[1]))].join(', '))} — ${nar.map(x => ETY[x[0]]).join(' i ')} ${nar.length > 1 ? 'nie jedzą' : (nar[0][0] === 'ona' ? 'nie je' : 'nie je')}</span> `; }
     if (odgrzewane) zn += `<span class="znaczek">odgrzewasz z ${DNI_KR[g.d]}</span> `;
     else if (new Set(g.porcje.map(q => q.d)).size > 1) zn += `<span class="znaczek">gotujesz na 2 dni</span> `;
     if (g.ratio) zn += g.wyrownane ? `<span class="znaczek">makro wyrównane po zamianie</span> ` : `<span class="znaczek ostrz">białko ${g.roznica > 0 ? '+' : '−'}${r0(Math.abs(g.roznica) / g.porcje.length)} g na porcję względem poprzedniego dania</span> `;
@@ -659,6 +759,7 @@ function widokTydzien() {
   if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
   const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
+  { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${nar.length === 1 ? 'posiłek zawiera' : 'posiłków zawiera'} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
   h += zTygodniem(t, () => kartaDnia(t, c, dzisIso, { prev: idx > 0 ? `${wszystkie[idx - 1].start}:${wszystkie[idx - 1].d}` : '', next: idx < wszystkie.length - 1 ? `${wszystkie[idx + 1].start}:${wszystkie[idx + 1].d}` : '' }));
@@ -716,12 +817,12 @@ function wieczorem(w, d) {
 
 function oknoPrzepis(gi) { pokazPrzepis(window._w.garnki[gi], false); }
 function pokazPrzepis(g, spont) {
-  const dish = g.dish;
+  const dish = g.dish; window._przepisG = g;
   spontG = spont ? g : null; spontWroc = !!spont;
   let wiersze = '', grupa = null;
   for (const i of dish.skladniki) {
     if (i.grupa && i.grupa !== grupa) { grupa = i.grupa; wiersze += `<tr class="grupa"><td colspan="2">${esc(grupa)}</td></tr>`; }
-    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / i.orig.g * 2) / 2))}</span>` : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
+    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fq(i.ilosc * skala(g, i), i.jednostka) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
   }
   // przyprawy i dodatki: osobne wiersze tabeli, z ilością albo „do smaku”
   const spr = przyprawyWiersze(dish);
@@ -737,20 +838,409 @@ function pokazPrzepis(g, spont) {
   }).join('');
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>${esc((dish.kod ? dish.kod + ' ' : '') + dish.nazwa)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <div class="przepis-gora">${Obr.html(dish, 'duzy')}<div class="oceny">${przyciskiOceny(dish.id)}</div></div>
+    ${dish.kroki && dish.kroki.length ? `<button class="btn glowny szeroki" data-gotuj="1" style="margin-bottom:6px">Gotuj krok po kroku</button>` : ''}
+    <h3 style="margin-top:6px">Jak smakuje?</h3><div class="smak-blok" data-dish="${esc(dish.id)}">${smakWiersze(dish.id, OS)}</div>
     <p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) : ''}${dish.sprzet ? ' · Sprzęt: ' + esc(dish.sprzet) : ''}</p>
     ${dish.dodane ? '<p class="mute">Danie dodane do bazy — wartości liczone z tabel, nie z Twojego planu.</p>' : ''}
-    <h3>Składniki — ${opisGarnka(g)}</h3>
+    <h3>Składniki — ${opisGarnka(g)}</h3>${(() => { const k = kosztDania(g); return k ? `<p class="mute" style="margin:-4px 0 8px">Szacowany koszt składników: <b>ok. ${zl(k.zl)}</b> (ceny z paragonów, ${k.zn} z ${k.raz} składników)</p>` : ''; })()}
     <table class="skl">${wiersze}</table>
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
     ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
     <h3>Kto ile bierze</h3><div class="podzial">${pod}</div>
-    ${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników składników.</p><ol class="kroki">${dish.kroki.map(k => `<li>${esc(krokPrzeliczony(g, k))}</li>`).join('')}</ol>` : ''}
+    ${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => `<li>${esc(krokPrzeliczony(g, k))}</li>`).join('')}</ol>` : ''}
     ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
     ${dish.uwaga ? `<div class="uwaga">${esc(dish.uwaga)}</div>` : ''}
     ${spont ? `<button class="btn glowny szeroki" data-spont-gotuj="1" style="margin-top:14px">Ugotowaliśmy — zdejmij z lodówki</button>` : ''}`;
   $('#modal').hidden = false;
 }
 
+// ---------- paragony i ceny ----------
+const liczbaZ = t => parseFloat(String(t).replace(/\s/g, '').replace(',', '.'));
+const zl = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' zł';
+const G_SZT = { banan: 150, 'jabłko': 180, papryka: 200, 'ogórek świeży': 200, cebula: 100, marchew: 90, 'cebula czerwona': 100, cukinia: 300, awokado: 200, por: 200, 'pomidory świeże': 120, 'pietruszka (korzeń)': 80, 'rzodkiewka (pęczek)': 10 };
+// Wklejony tekst paragonu (Lidl Plus / Biedronka / podobne): nazwa w jednej linii, pod nią „1 * 20.99 20.99 C” albo „0,244kg x 6.99 1.71 C”, a rabaty jako linie z ujemną kwotą.
+function parsujParagon(tekst) {
+  const lin = String(tekst || '').replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, '').replace(/\t/g, '  '));
+  const pelny = lin.join('\n'), out = { sklep: '', lokal: '', data: '', godz: '', suma: null, poz: [], ostrz: [] };
+  out.sklep = /lidl/i.test(pelny) ? 'Lidl' : /biedronk|jeronimo/i.test(pelny) ? 'Biedronka' : /kaufland/i.test(pelny) ? 'Kaufland' : /auchan/i.test(pelny) ? 'Auchan' : /carrefour/i.test(pelny) ? 'Carrefour' : /netto/i.test(pelny) ? 'Netto' : /(żabka|zabka)/i.test(pelny) ? 'Żabka' : '';
+  let m = pelny.match(/(\d{4})-(\d{2})-(\d{2})/); if (m) out.data = `${m[1]}-${m[2]}-${m[3]}`;
+  else { m = pelny.match(/(\d{2})[.-](\d{2})[.-](\d{4})/); if (m) out.data = `${m[3]}-${m[2]}-${m[1]}`; }
+  m = pelny.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/); if (m) out.godz = m[0];
+  m = pelny.match(/ul\.\s*[^,\n]+(?:,\s*\d{2}-\d{3}\s*[^\n]+)?/i); if (m) out.lokal = m[0].replace(/\s+/g, ' ').trim();
+  const reA = /^\s*(\d+)\s*[*xX×]\s*(\d+[.,]\d{2})\s+(\d+[.,]\d{1,2})\s*([A-G])?\s*$/;
+  const reB = /^\s*(\d+[.,]\d+)\s*(kg|g)?\s*[xX*×]\s*(\d+[.,]\d{2})\s+(\d+[.,]\d{1,2})\s*([A-G])?\s*$/i;
+  const reC = /^(.+?)\s{2,}(\d+(?:[.,]\d+)?)\s*(kg|szt\.?)?\s*[xX*×]\s*(\d+[.,]\d{2})\s+(\d+[.,]\d{1,2})\s*([A-G])?\s*$/i;
+  const reR = /^\s*(.+?)\s+(-\s?\d+[.,]\d{2})\s*$/, reSuma = /^\s*(SUMA\s+PLN|DO\s+ZAPŁATY|RAZEM)\b[^\d-]*(\d+[.,]\d{2})/i;
+  let nazwa = '', ostatnia = null;
+  for (const l of lin) {
+    if (!l.trim()) continue;
+    const ms = l.match(reSuma);
+    if (ms) { out.suma = liczbaZ(ms[2]); break; }
+    let a = l.match(reA), b = !a && l.match(reB), c = !a && !b && l.match(reC);
+    if (a || b || c) {
+      let poz;
+      if (a) poz = { raw: nazwa, ilosc: +a[1], waga: null, cenaJ: liczbaZ(a[2]), wartosc: liczbaZ(a[3]) };
+      else if (b) { const v = liczbaZ(b[1]); poz = /g$/i.test(b[2] || '') && !/kg/i.test(b[2] || '') ? { raw: nazwa, ilosc: 1, waga: v / 1000, cenaJ: liczbaZ(b[3]), wartosc: liczbaZ(b[4]) } : { raw: nazwa, ilosc: 1, waga: v, cenaJ: liczbaZ(b[3]), wartosc: liczbaZ(b[4]) }; }
+      else { const v = liczbaZ(c[2]); poz = /kg/i.test(c[3] || '') || (v % 1 !== 0) ? { raw: c[1].trim(), ilosc: 1, waga: v, cenaJ: liczbaZ(c[4]), wartosc: liczbaZ(c[5]) } : { raw: c[1].trim(), ilosc: v, waga: null, cenaJ: liczbaZ(c[4]), wartosc: liczbaZ(c[5]) }; }
+      poz.raw = (poz.raw || '').trim(); poz.rabaty = []; ostatnia = poz; nazwa = '';
+      if (poz.raw) out.poz.push(poz); else out.ostrz.push('Pozycja bez nazwy (' + zl(poz.wartosc) + ')');
+      continue;
+    }
+    const r = l.match(reR);
+    if (r && ostatnia) { ostatnia.rabaty.push({ et: r[1].trim(), kw: liczbaZ(r[2].replace(/\s/g, '')) }); continue; }
+    if (/^\s*(PTU|Kwota\s|Suma\s|Sprzedaż|NIP|Nr\s|nr\s|Kasa|Kasjer)/i.test(l)) continue;
+    nazwa = l.trim(); ostatnia = null;
+  }
+  out.poz.forEach(x => { x.rabat = sum(x.rabaty, r => r.kw); x.netto = Math.round((x.wartosc + x.rabat) * 100) / 100; });
+  out.sumaPoz = Math.round(sum(out.poz, x => x.netto) * 100) / 100;
+  if (!out.poz.length) out.ostrz.push('Nie rozpoznałem żadnych pozycji. Ten format paragonu może wymagać dopasowania.');
+  else if (out.suma != null && Math.abs(out.sumaPoz - out.suma) > 0.05) out.ostrz.push(`Suma pozycji (${zl(out.sumaPoz)}) różni się od sumy na paragonie (${zl(out.suma)}). Mogło się nie wczytać kilka linii.`);
+  if (!out.data) out.data = isoDzis();
+  return out;
+}
+const NIE_JEDZENIE = /(cola|pepsi|fanta|sprite|napoj|energy|red bull|monster|black napoj|piwo|\bipa\b|wino|whisk|wodka|vodka|likier|jameson|\bgin\b|\brum\b|lomza|kaucj|torba|reklamow|papier toal|recznik|worki?\b|mydl|plyn|detergent|proszek|tabletk|pielucha|zmywar|czekolad|baton|chips|lody\b|ciastka|wafle|zelki|cukierk|guma do zucia|papieros|gazeta|bilet|doladowanie)/;
+const ALIASY = [
+  ['jaja', /^jaj(a|ka)\b|^jaja/], ['mleko 2%', /^mleko(?! kokos| owsiane)/], ['jogurt naturalny', /jogurt nat/], ['skyr naturalny', /skyr/], ['masło orzechowe', /maslo orzech/], ['masło', /^maslo/],
+  ['ser topiony', /ser topion|serek topion/], ['serek wiejski', /serek wiejski|twarog wiejski/], ['twaróg półtłusty', /twarog/], ['feta', /\bfeta\b|ser salatk/], ['parmezan', /parmezan|grana padano|pecorino/],
+  ['ser żółty', /ser (zolty|gouda|edam|tylz|cheddar|ementaler)|^gouda|^edam|plastry ser|ser w plastrach/], ['śmietana 12%', /^smietana(?!nk)|smietana \d+/],
+  ['pierś z kurczaka', /piers.*kurcz|filet.*kurcz|kurczak.*(piers|filet)/], ['ćwiartki / porcja rosołowa z kurczaka', /cwiartk|udka|podudzi|porcja rosolowa|rosolow/], ['indyk mielony', /mielon.*indyk|indyk.*mielon/],
+  ['wołowina mielona', /mielon.*wolow|wolow.*mielon/], ['wieprzowina mielona (łopatka)', /mielon.*wieprz|wieprz.*mielon|mielone? z lopatki/], ['polędwiczka wieprzowa', /poledwicz/],
+  ['filet z indyka', /filet.*indyk|piers.*indyk/], ['szynka z indyka', /szynka/], ['kiełbasa biała', /kielbasa bial/], ['łosoś wędzony', /losos wedz|losos.*wedz/], ['łosoś filet', /^losos|filet.*losos/], ['dorsz filet', /dorsz/],
+  ['tuńczyk w sosie własnym', /tunczyk/], ['ryż', /^ryz\b/], ['kasza gryczana', /kasza gryczan/], ['kasza jaglana', /jaglan|kasza jagl/], ['kasza manna', /\bmanna\b/], ['kasza bulgur', /bulgur/], ['kuskus', /kuskus|couscous/],
+  ['makaron ryżowy', /makaron ryzow/], ['makaron pszenny', /makaron|spaghetti|penne|fusilli|rurki|wstazki/], ['płaty lasagne', /lasagne|lazanki/], ['gnocchi', /gnocchi|kopytka/],
+  ['płatki owsiane', /platki owsiane/], ['granola', /granola|musli/], ['miód', /^miod\b/], ['oliwa / olej', /^oliw|^olej(?! sezam)|olej rzepak/], ['passata', /passata/], ['koncentrat pomidorowy', /koncentrat pomidor/],
+  ['pomidory krojone (puszka)', /pomidory krojone|pomidory w puszce|pomidory (w )?sosie wlasnym/], ['ketchup', /ketchup/], ['musztarda', /musztard/], ['dżem', /dzem|konfitur/], ['sos sojowy', /sos sojowy/],
+  ['kukurydza konserwowa', /kukurydz/], ['ciecierzyca z puszki (odsączona)', /ciecierzyc/], ['fasola czerwona z puszki (odsączona)', /fasol/], ['soczewica czerwona', /soczewic/], ['ogórek kiszony', /korniszon|ogorki kiszon|ogorek kiszon/],
+  ['ogórek świeży', /ogork|ogorek/], ['cebula czerwona', /cebula czerwon/], ['cebula', /^cebul(?!k|a prazon)/], ['papryka', /^papryk(?!a mielon|a wedzon)/], ['pomidorki koktajlowe', /koktajl|cherry/], ['pomidory świeże', /^pomidor(?!y krojon)/],
+  ['marchew', /marchew/], ['ziemniaki', /ziemniak/], ['bataty', /batat/], ['por', /^por\b/], ['seler korzeniowy', /^seler/], ['pietruszka (korzeń)', /pietruszk/], ['brokuł', /brokul/], ['kalafior', /kalafior/], ['cukinia', /cukini/],
+  ['sałata', /^salat|rukola|roszponka|mix salat/], ['szpinak świeży', /szpinak/], ['pieczarki', /pieczark/], ['awokado', /awokad/], ['banan', /banan/], ['jabłko', /jablk/], ['dynia piżmowa', /^dyni/], ['rzodkiewka (pęczek)', /rzodkiew/],
+  ['tortilla pełnoziarnista', /tortill/], ['chleb żytni', /chleb|pieczywo (zytnie|razowe)/], ['bułka pełnoziarnista', /^bulk/], ['pieczywo chrupkie', /chrupk/], ['paluszki rybne', /paluszki rybne/],
+  ['owoce mrożone (mieszanka)', /maliny|truskawk|jagod|owoce lesne|owoce mrozon|mrozone owoce/], ['mieszanka tropikalna mrożona (mango, ananas…)', /^mango|tropikaln/], ['ananas z puszki (mała 230 g)', /ananas/],
+  ['orzechy włoskie', /orzechy wloskie|orzech wloski/], ['orzeszki ziemne', /orzeszki/], ['sezam', /^sezam/], ['chia', /^chia|nasiona chia/], ['pesto bazyliowe', /pesto/], ['chrzan', /chrzan/], ['mąka pszenna', /make pszenna|^maka\b/],
+  ['kakao gorzkie', /kakao/], ['skrobia ziemniaczana', /skrobia/], ['odżywka białkowa', /odzywka|\bwpc\b|protein/]
+];
+const nPar = raw => znorm(raw).replace(/[^a-z0-9% ]/g, ' ').replace(/\s+/g, ' ').trim();
+const kluczPar = raw => nPar(raw).replace(/\b\d+[a-z%]*\b/g, ' ').replace(/\s+/g, ' ').trim();
+function dopasujProdukt(raw) {
+  const n = nPar(raw), k = kluczPar(raw);
+  if (mapaPar[k] !== undefined) return mapaPar[k] === '' ? { pomin: true, powod: 'pomijasz tę pozycję' } : { produkt: mapaPar[k], pew: 1, zapamietane: true };
+  if (NIE_JEDZENIE.test(n)) return { pomin: true, powod: 'napój, alkohol lub nie jedzenie' };
+  for (const [prod, re] of ALIASY) if (re.test(n)) return { produkt: prod, pew: 1 };
+  // przybliżenie (tylko podpowiedź do sprawdzenia): pierwsze słowo nazwy z paragonu zaczyna się tak jak słowo nazwy znanego produktu
+  const pierwsze = (n.split(' ').filter(w => w.length >= 4)[0] || ''); let naj = null, ns = 0;
+  if (pierwsze) for (const prod of DB.produkty.keys()) { const tok = znorm(prod).split(/[^a-z0-9]+/).filter(w => w.length >= 4); if (tok.some(t => pierwsze.startsWith(t.slice(0, 5)) && Math.abs(pierwsze.length - t.length) <= 3)) { const sc = 1 / tok.length; if (sc > ns) { ns = sc; naj = prod; } } }
+  return naj ? { produkt: naj, pew: 0.5 } : { produkt: null, pew: 0 };
+}
+// Ilość kupiona w jednostce bazowej produktu (g / ml / szt.), z wagi na paragonie albo z rozmiaru w nazwie („30szt”, „540g”, „2l”).
+function ilosciPozycji(poz, prod) {
+  const baza = (DB.produkty.get(prod) || {}).u || 'g', mm = poz.raw.match(/(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|szt)\b/i);
+  let q = null, u = null;
+  if (poz.waga) { q = poz.waga * 1000; u = 'g'; }
+  else if (mm) { const v = liczbaZ(mm[1]), j = mm[2].toLowerCase(); if (j === 'szt') { q = v * poz.ilosc; u = 'szt.'; } else if (j === 'kg' || j === 'l') { q = v * 1000 * poz.ilosc; u = j === 'kg' ? 'g' : 'ml'; } else { q = v * poz.ilosc; u = j; } }
+  else if (['szt.', 'krom.', 'pusz.'].includes(baza)) { q = poz.ilosc; u = baza; }
+  else if (DB.opak[prod] && DB.opak[prod].jednostka === baza) { q = DB.opak[prod].wielkosc * poz.ilosc; u = baza; }
+  if (q == null) return { q: null, u: baza };
+  let pak = null; if (mm && !poz.waga) { const v = liczbaZ(mm[1]), j = mm[2].toLowerCase(); pak = j === 'szt' ? v : (j === 'kg' || j === 'l') ? v * 1000 : v; }
+  if (/odsączona/.test(prod) && u === 'g') { q = Math.round(q * 0.55 / 10) * 10; if (pak) pak = Math.round(pak * 0.55 / 10) * 10; }   // produkty „odsączone”: waga na puszce to waga z zalewą, w przepisach liczy się po odsączeniu (ok. 55%)
+  if (u === 'g' && baza === 'ml') u = 'ml';
+  if (u === 'ml' && baza === 'g') u = 'g';
+  if (baza === 'szt.' && u === 'g') { q = Math.max(1, Math.round(q / (G_SZT[prod] || 120))); u = 'szt.'; }
+  else if ((baza === 'g' || baza === 'ml') && u === 'szt.') return { q: null, u: baza };
+  else if (u !== baza && ['g', 'ml', 'szt.'].includes(baza)) u = baza;
+  return { q: Math.round(q * 10) / 10, u, pak };
+}
+function zapiszCene(prod, sklep, netto, brutto, q, u, data) {
+  if (!(q > 0) || !(netto > 0)) return;
+  const kg = (u === 'g' || u === 'ml') ? 1000 : 1, e = (ceny[prod] = ceny[prod] || {}), x = (e[sklep] = e[sklep] || { u, n: 0, h: [] });
+  const c = netto / q * kg, cb = brutto / q * kg;
+  x.u = u; x.ost = Math.round(c * 100) / 100; x.cb = Math.round(cb * 100) / 100; x.t = data; x.n = (x.n || 0) + 1;
+  x.h = (x.h || []).concat([[data, x.ost]]).slice(-6); x.sr = Math.round(sum(x.h, y => y[1]) / x.h.length * 100) / 100;
+}
+let cenyTryb = LS.get('cenyTryb', 'polkowe');                // porównania: ceny półkowe (bez rabatów) albo po rabatach z paragonu
+const cenaX = x => cenyTryb === 'rabaty' ? x.ost : (x.cb || x.ost);
+const cenaJedn = (prod, sklep) => { const e = ceny[prod] && ceny[prod][sklep]; return e && (Date.now() - new Date(e.t)) / 864e5 <= 180 ? e : null; };
+const jednCeny = u => u === 'g' ? 'kg' : u === 'ml' ? 'l' : 'szt.';
+// koszt zakupu q (g/ml/szt.) w danym sklepie albo w najtańszym znanym
+function kosztProduktu(prod, q, u, sklep) {
+  const e = ceny[prod]; if (!e) return null;
+  let naj = null;
+  for (const [sk, x] of Object.entries(e)) {
+    if (sklep && sk !== sklep) continue; if (!cenaJedn(prod, sk)) continue;
+    let qq = q;
+    if (x.u === 'g' && u === 'szt.') qq = q * (G_SZT[prod] || 120);          // cena za kg, ilość w sztukach
+    else if (x.u === 'szt.' && u === 'g') qq = q / (G_SZT[prod] || 120);     // cena za sztukę, ilość w gramach
+    const kw = cenaX(x) * ((x.u === 'g' || x.u === 'ml') ? qq / 1000 : qq);
+    if (!naj || kw < naj.zl) naj = { zl: kw, sklep: sk };
+  }
+  return naj;
+}
+const sklepyZnane = () => [...new Set(Object.values(ceny).flatMap(e => Object.keys(e)))].sort();
+
+let parag = null;
+const SKLEPY_DOM = ['Lidl', 'Biedronka', 'Kaufland', 'Auchan', 'Carrefour', 'Netto', 'Żabka', 'Inny sklep'];
+function oknoParagonWklej() {
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Dodaj paragon</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+    <p class="mute">Skopiuj tekst paragonu (np. z aplikacji Lidl Plus albo Biedronki) i wklej tutaj. Zapamiętam ceny produktów i sklep, żeby podpowiadać, gdzie taniej zrobić zakupy.</p>
+    <button class="btn glowny szeroki" id="parSchowek">Wklej ze schowka</button>
+    <label class="pole"><span>…albo wklej ręcznie</span><textarea id="par-tekst" rows="8" placeholder="Wklej tu cały tekst paragonu"></textarea></label>
+    <button class="btn szeroki" id="parWczytaj">Wczytaj paragon</button>`;
+  $('#modal').hidden = false;
+}
+function wczytajParagon(tekst) {
+  const w = parsujParagon(tekst);
+  if (!w.poz.length) { pokazToast(w.ostrz[0] || 'Nie rozpoznałem paragonu'); return; }
+  const sumaP = w.suma != null ? w.suma : w.sumaPoz;
+  const dubel = paragony.some(x => x.data === w.data && Math.abs(x.suma - sumaP) < 0.01 && (!w.sklep || x.sklep === w.sklep));
+  const wiersze = w.poz.map((x, i) => { const d = dopasujProdukt(x.raw), prod = d.produkt || '', il = prod ? ilosciPozycji(x, prod) : { q: null, u: 'g' }; return { i, produkt: prod, pomin: !!d.pomin, powod: d.powod || '', pew: d.pew || 0, q: il.q, u: il.u, wlacz: !d.pomin && !!prod && (d.pew || 0) >= 1 && il.q > 0, zmieniony: false, pak: il.pak || null }; });
+  const juzOdh = Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).filter(k => k.startsWith('zak|')).map(k => k.slice(4));
+  parag = { w, wiersze, sklep: w.sklep, data: w.data, lod: !juzOdh.length, juzOdh, dubel };
+  oknoParagon();
+}
+const opisPozycji = x => (x.waga ? `${String(Math.round(x.waga * 1000) / 1000).replace('.', ',')} kg × ${zl(x.cenaJ)}/kg` : `${x.ilosc} × ${zl(x.cenaJ)}`) + (x.rabat ? ` · rabat −${zl(-x.rabat).replace('-', '')}` : '');
+function oknoParagon() {
+  const { w, wiersze } = parag;
+  const wiersz = r => { const x = w.poz[r.i];
+    return `<div class="par-w ${r.wlacz ? '' : 'wyl'}"><label class="par-wl"><input type="checkbox" data-par-wl="${r.i}" ${r.wlacz ? 'checked' : ''}><span class="zk-ptak"></span></label>
+      <div class="par-tx"><b>${esc(x.raw)}</b><small>${esc(opisPozycji(x))}</small>
+      <button class="par-prod ${r.produkt ? '' : 'brak'}" data-par-prod="${r.i}">${r.produkt ? '→ ' + esc(r.produkt) + (r.pew === 0.5 ? ' (sprawdź)' : '') : 'Wybierz produkt'}</button>
+      ${r.produkt ? `${r.pak && r.q > 0 ? `<small class="par-pak">${fmtPak(r.q / r.pak)} × opakowanie ${r.pak} ${r.u} (zapamiętam rozmiar)</small>` : ''}<div class="par-q"><input type="text" inputmode="decimal" data-par-q="${r.i}" value="${r.q == null ? '' : String(r.q).replace('.', ',')}" placeholder="ile?" aria-label="Ilość"><select data-par-u="${r.i}">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<option ${r.u === u ? 'selected' : ''}>${u}</option>`).join('')}</select></div>` : ''}</div>
+      <b class="par-cena">${zl(x.netto)}</b></div>`; };
+  const doSpr = wiersze.filter(r => !r.pomin && (!r.produkt || r.pew < 1 || !(r.q > 0))), rozp = wiersze.filter(r => !r.pomin && r.produkt && r.pew >= 1 && r.q > 0), pom = wiersze.filter(r => r.pomin);
+  const sklepy = SKLEPY_DOM.includes(parag.sklep) || !parag.sklep ? SKLEPY_DOM : [parag.sklep].concat(SKLEPY_DOM);
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Sprawdź paragon</h2><button class="btn maly" data-zamknij>Anuluj</button></div>
+    ${parag.dubel ? '<div class="uwaga">Ten paragon wygląda na już dodany (ta sama data, sklep i suma).</div>' : ''}
+    ${w.ostrz.map(o => `<div class="uwaga">${esc(o)}</div>`).join('')}
+    <div class="dwa"><label class="pole"><span>Sklep</span><select id="par-sklep">${!parag.sklep ? '<option value="">— wybierz —</option>' : ''}${sklepy.map(k => `<option ${parag.sklep === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></label>
+    <label class="pole"><span>Data</span><input type="date" id="par-data" value="${esc(parag.data)}" max="${isoDzis()}"></label></div>
+    <p class="mute" style="margin:0 0 6px">${w.lokal ? esc(w.lokal) + ' · ' : ''}Suma paragonu: <b>${zl(w.suma != null ? w.suma : w.sumaPoz)}</b> · rozpoznano ${rozp.length + doSpr.length} pozycji do sprawdzenia i zapisania, ${pom.length} pominiętych</p>
+    ${doSpr.length ? `<h3>Do sprawdzenia (${doSpr.length})</h3>${doSpr.map(wiersz).join('')}` : ''}
+    ${rozp.length ? `<h3>Rozpoznane (${rozp.length})</h3>${rozp.map(wiersz).join('')}` : ''}
+    ${pom.length ? `<details class="faq"><summary>Pominięte (${pom.length}) — napoje, alkohol, nie jedzenie</summary><div style="padding-bottom:10px">${pom.map(r => `<div class="par-pom"><span>${esc(w.poz[r.i].raw)}<br><span class="mute">${esc(r.powod)}</span></span><button class="btn maly" data-par-prod="${r.i}">Zmień</button></div>`).join('')}</div></details>` : ''}
+    <label class="adapt-auto" style="margin:14px 0 4px"><input type="checkbox" id="par-lod" ${parag.lod ? 'checked' : ''}><span>Dopisz kupione produkty do lodówki${parag.juzOdh.length ? ' (na liście zakupów masz już odhaczone pozycje, więc domyślnie nie dopisuję, żeby ich nie zdublować)' : ''}</span></label>
+    <button class="btn glowny szeroki" id="parZapisz" style="margin-top:12px">Zapisz paragon i ceny</button>`;
+  $('#modal').hidden = false;
+}
+function oknoWyborProduktu(i, q) {
+  const x = parag.w.poz[i];
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Co to za produkt?</h2><button class="btn maly" data-par-wroc>Wróć</button></div>
+    <p class="mute"><b>${esc(x.raw)}</b> · ${esc(opisPozycji(x))}</p>
+    <label class="pole"><span>Szukaj w produktach apki</span><input id="pw-szukaj" type="search" autocomplete="off" placeholder="np. ser, szynka" value="${esc(q || '')}"></label>
+    <div id="pw-lista"></div>`;
+  $('#modal').hidden = false; listaProduktowPar(i, q || '');
+}
+function listaProduktowPar(i, q) {
+  const zn = znorm(q.trim()), lista = [...DB.produkty.keys()].filter(k => !zn || znorm(k).includes(zn)).sort((a, b) => a.localeCompare(b, 'pl')).slice(0, 60);
+  $('#pw-lista').innerHTML = `<button class="btn szeroki" data-par-pomin-poz="${i}" style="margin-bottom:8px">Pomiń tę pozycję (nie jedzenie / poza planem)</button>`
+    + (q.trim().length >= 2 && !lista.some(k => znorm(k) === zn) ? `<button class="btn glowny szeroki" data-par-nowy-prod="${i}|${esc(q.trim())}" style="margin-bottom:8px">＋ Nowy produkt: „${esc(q.trim())}”</button>` : '')
+    + lista.map(k => `<button class="wybor" data-par-wybrany="${i}|${esc(k)}" style="margin:6px 0"><span class="tx"><b>${esc(k)}</b><span class="mute">${esc((DB.produkty.get(k) || {}).u || '')}</span></span></button>`).join('');
+}
+function zapiszParagon() {
+  const { w, wiersze } = parag, sklep = ($('#par-sklep') || {}).value || parag.sklep, data = ($('#par-data') || {}).value || parag.data;
+  if (!sklep) { pokazToast('Wybierz sklep'); return; }
+  if (parag.dubel && !confirm('Ten paragon wygląda na już dodany. Dodać jeszcze raz?')) return;
+  const lod = !!($('#par-lod') || {}).checked, poz = []; let nCen = 0, nLod = 0;
+  for (const r of wiersze) {
+    const x = w.poz[r.i], k = kluczPar(x.raw);
+    if (r.pomin) { if (r.zmieniony) mapaPar[k] = ''; continue; }
+    if (!r.produkt || !r.wlacz) continue;
+    if (r.zmieniony || r.pew < 1) mapaPar[k] = r.produkt;
+    if (!DB.produkty.has(r.produkt)) DB.produkty.set(r.produkt, { kat: 'zapas', u: r.u || 'g' });
+    if (r.pak && r.u && !x.waga) uczPak(r.produkt, r.pak, r.u);
+    if (r.q > 0) { if (x.waga) zapiszCene(r.produkt, sklep, x.netto, x.wartosc, x.waga * 1000, 'g', data); else zapiszCene(r.produkt, sklep, x.netto, x.wartosc, r.q, r.u, data); nCen++; if (lod) { zmienLodowke(r.produkt, r.u, r.q); nLod++; } }
+    poz.push({ n: x.raw, p: r.produkt, q: r.q || 0, u: r.u, c: x.netto, b: x.wartosc });
+  }
+  paragony.unshift({ id: Date.now().toString(36), data, sklep, lokal: w.lokal || '', suma: w.suma != null ? w.suma : w.sumaPoz, poz });
+  paragony = paragony.slice(0, 40);
+  LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
+  Z([[['paragony'], paragony], [['ceny'], ceny], [['mapaPar'], mapaPar], [['pakiety'], pakiety]]);
+  parag = null; $('#modal').hidden = true; rysuj();
+  pokazToast(`Zapisano paragon z ${sklep}: ${nCen} cen${nLod ? `, ${nLod} produktów w lodówce` : ''}`);
+}
+function widokParagony() {
+  const teraz = isoDzis().slice(0, 7), mies = paragony.filter(x => x.data.startsWith(teraz)), sumaM = sum(mies, x => x.suma);
+  const wSkl = {}; paragony.forEach(x => { const e = (wSkl[x.sklep] = wSkl[x.sklep] || { n: 0, suma: 0 }); e.n++; e.suma += x.suma; });
+  let h = `<h1>Paragony i ceny</h1>` + wskazowka('paragony', 'Dodaj paragon po zakupach: skopiuj jego tekst i wklej. Zapamiętam ceny i sklep, a na liście zakupów podpowiem, gdzie wyjdzie taniej.');
+  h += `<div class="lod-kafle"><div><b>${zl(sumaM).replace(' zł', '')}</b><small>zł wydane w tym miesiącu</small></div><div><b>${paragony.length}</b><small>zapisanych paragonów</small></div></div>
+    <button class="btn glowny szeroki" data-par-nowy>＋ Dodaj paragon</button>`;
+  if (Object.keys(wSkl).length) h += `<div class="chips" style="margin-top:12px">${Object.entries(wSkl).map(([k, e]) => `<span class="chip stat">${esc(k)} · ${e.n}× · ${zl(e.suma)}</span>`).join('')}</div>`;
+  h += `<h2>Ostatnie paragony</h2>` + (paragony.length ? paragony.map(x => `<details class="karta par-karta"><summary><span><b>${esc(x.sklep)}</b><small>${new Date(x.data + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })} · ${x.poz.length} pozycji</small></span><b>${zl(x.suma)}</b></summary>
+      ${x.poz.map(q => `<div class="par-pw"><span>${esc(q.n)}${q.p ? `<br><span class="mute">→ ${esc(q.p)}${q.q ? ' · ' + String(q.q).replace('.', ',') + ' ' + esc(q.u) : ''}</span>` : ''}</span><b>${zl(q.c)}</b></div>`).join('')}
+      <button class="btn maly" data-par-usun="${esc(x.id)}" style="margin:10px 0 14px">Usuń paragon</button></details>`).join('') : '<div class="karta pusta-karta"><b>Brak paragonów</b><p class="mute">Dodaj pierwszy, a apka zacznie pamiętać ceny.</p></div>');
+  const prod = Object.keys(ceny).sort((a, b) => a.localeCompare(b, 'pl'));
+  h += `<h2>Ceny produktów (${prod.length})</h2>`;
+  if (prod.length) h += `<div class="lod-filtr"><div class="lod-rzad"><input id="cena-szukaj" type="search" placeholder="Szukaj produktu…" autocomplete="off"></div></div><div class="karta ceny-karta">${prod.slice(0, 300).map(pr => { const e = ceny[pr], naj = Math.min(...Object.values(e).map(v => cenaX(v))); return `<div class="cena-w" data-nm="${esc(znorm(pr))}"><b>${esc(pr)}</b><div class="cena-sk">${Object.entries(e).map(([sk, v]) => `<span class="${cenaX(v) === naj && Object.keys(e).length > 1 ? 'naj' : ''}">${esc(sk)}: <b>${zl(cenaX(v))}</b>/${jednCeny(v.u)}${v.ost !== v.cb && v.cb ? `<small>po rabatach ${zl(v.ost)}</small>` : ''}<small>${new Date(v.t + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</small></span>`).join('')}</div></div>`; }).join('')}</div>`;
+  else h += `<div class="karta pusta-karta"><p class="mute">Ceny pojawią się po dodaniu pierwszego paragonu.</p></div>`;
+  $('#view').innerHTML = h;
+}
+// Porównanie sklepów dla listy zakupów (ceny z paragonów, do 180 dni wstecz).
+function porownajSklepy(z) {
+  const poz = ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]).map(p => { const u = Object.keys(p.kupno || {})[0]; return u ? { produkt: p.produkt, q: p.kupno[u], u } : null; }).filter(Boolean);
+  const sk = sklepyZnane(), info = {};
+  poz.forEach(x => { x.c = {}; for (const s of sk) { const k = kosztProduktu(x.produkt, x.q, x.u, s); if (k) x.c[s] = k.zl; } info[x.produkt] = x; });
+  const uzyte = sk.filter(s => poz.filter(x => x.c[s] != null).length >= 3);
+  const wspolne = uzyte.length >= 2 ? poz.filter(x => uzyte.every(s => x.c[s] != null)) : [];
+  const razem = Object.fromEntries(uzyte.map(s => [s, sum(wspolne, x => x.c[s])]));
+  const podzial = sum(wspolne, x => Math.min(...uzyte.map(s => x.c[s])));
+  const naj = uzyte.length ? uzyte.slice().sort((a, b) => razem[a] - razem[b])[0] : null;
+  const znane = poz.filter(x => Object.keys(x.c).length), szac = sum(znane, x => Math.min(...Object.values(x.c)));
+  const okazje = wspolne.map(x => { const sorted = uzyte.slice().sort((a, b) => x.c[a] - x.c[b]); return { x, tani: sorted[0], drogi: sorted[sorted.length - 1], roznica: x.c[sorted[sorted.length - 1]] - x.c[sorted[0]] }; }).filter(o => o.roznica >= 0.5).sort((a, b) => b.roznica - a.roznica);
+  return { poz, info, uzyte, wspolne, razem, podzial, naj, szac, znane: znane.length, okazje };
+}
+function kartaSklepy(c) {
+  if (!c.poz.length || !sklepyZnane().length) return '';
+  const kosztTxt = c.znane ? `<p class="mute" style="margin:0 0 8px">Szacowany koszt listy: <b>ok. ${zl(c.szac)}</b> <span class="mute">(ceny znane dla ${c.znane} z ${c.poz.length} pozycji, wg najtańszego znanego sklepu)</span></p>` : '';
+  let h = `<details class="karta zk-zwin sklepy-karta" open><summary>Gdzie taniej? ${c.naj ? `<span class="licznik">${esc(c.naj)}</span>` : ''}</summary><div class="seg mini" style="margin:0 0 10px"><button data-ceny-tryb="polkowe" class="${cenyTryb === 'rabaty' ? '' : 'akt'}">Ceny półkowe</button><button data-ceny-tryb="rabaty" class="${cenyTryb === 'rabaty' ? 'akt' : ''}">Po rabatach</button></div>${kosztTxt}`;
+  if (c.uzyte.length >= 2 && c.wspolne.length >= 3) {
+    const max = Math.max(...Object.values(c.razem)), min = Math.min(...Object.values(c.razem));
+    h += `<div class="sk-slupki">${c.uzyte.slice().sort((a, b) => c.razem[a] - c.razem[b]).map(s => `<div class="sk-sl ${s === c.naj ? 'naj' : ''}"><span>${esc(s)}</span><div class="pasek"><i style="width:${Math.round(c.razem[s] / max * 100)}%"></i></div><b>${zl(c.razem[s])}</b></div>`).join('')}</div>
+      <p class="mute" style="margin:6px 0">Porównanie na ${c.wspolne.length} produktach, które mają ceny w każdym z tych sklepów. <b>${esc(c.naj)}</b> wychodzi taniej o <b>${zl(max - min)}</b> (${Math.round((max - min) / max * 100)}%).</p>`;
+    const zysk = c.razem[c.naj] - c.podzial;
+    if (zysk >= 2 && c.okazje.length) h += `<p class="mute" style="margin:6px 0">Jeśli kupisz każdą rzecz tam, gdzie taniej, zaoszczędzisz jeszcze ok. <b>${zl(zysk)}</b>. Największe różnice:</p>${c.okazje.slice(0, 5).map(o => `<div class="okazja"><span>${esc(o.x.produkt)}</span><span>tanio: <b>${esc(o.tani)}</b> <small>−${zl(o.roznica)}</small></span></div>`).join('')}`;
+  } else h += `<p class="mute" style="margin:0">Za mało wspólnych cen, żeby porównać sklepy (potrzebuję min. 3 produktów z listy z cenami w co najmniej dwóch sklepach). Dodaj więcej paragonów.</p>`;
+  return h + `</details>`;
+}
+function kosztDania(g) {
+  let zlk = 0, zn = 0, raz = 0;
+  for (const i of g.dish.skladniki) { if (!i.ilosc || !i.produkt) continue; raz++; const k = kosztProduktu(i.produkt, i.ilosc * skala(g, i), i.jednostka); if (k) { zlk += k.zl; zn++; } }
+  return raz && zn ? { zl: zlk, zn, raz } : null;
+}
+
+// ---------- smak: oceny dań przez osoby (0 nie, 1 może być, 2 super); uczą plan ----------
+const OCENY_SMAKU = [[2, 'Super'], [1, 'Może być'], [0, 'Nie']];
+function ocenSmak(id, pp, v) {
+  smaki[id] = smaki[id] || {};
+  const st = smaki[id][pp];
+  if (st && st.v === v && st.t === isoDzis()) { delete smaki[id][pp]; LS.set('smaki', smaki); Z([[['smaki', id, pp], undefined]]); return; }   // drugi klik tej samej oceny cofa
+  smaki[id][pp] = { v, t: isoDzis(), n: (st ? st.n : 0) + 1 };
+  LS.set('smaki', smaki); Z([[['smaki', id, pp], smaki[id][pp]]]);
+}
+const smakWiersze = (id, osoby) => osoby.map(pp => `<div class="smak-w"><b class="${pp}">${ETY[pp]}</b><div class="seg mini">${OCENY_SMAKU.map(([v, et]) => `<button data-smak="${esc(id)}:${pp}:${v}" class="${smaki[id] && smaki[id][pp] && smaki[id][pp].v === v ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`).join('');
+function odswiezSmak() {
+  if (got) rysujGot();
+  document.querySelectorAll('.smak-blok[data-dish]').forEach(el => { el.innerHTML = smakWiersze(el.dataset.dish, OS); });
+  const o = $('#smak-okno'); if (o) o.innerHTML = smakWiersze(o.dataset.dish, JSON.parse(o.dataset.osoby));
+}
+function oknoSmak(id, osoby) {
+  const d = DB.dania.get(id); if (!d) return;
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Jak smakowało?</h2><button class="btn maly" data-zamknij>Gotowe</button></div><p class="mute">${esc(d.nazwa)}. Dania, które lubicie, będą wracać częściej, a te, które Wam nie smakują, rzadziej.</p><div id="smak-okno" data-dish="${esc(id)}" data-osoby='${JSON.stringify(osoby)}'>${smakWiersze(id, osoby)}</div>`;
+  $('#modal').hidden = false;
+}
+function zapytajSmak(g, d) {
+  const os = [...new Set(g.porcje.filter(q => q.d === d).map(q => q.p))], id = g.dish.id;
+  const trzeba = os.filter(pp => { const x = smaki[id] && smaki[id][pp]; return !x || (Date.now() - new Date(x.t)) > 45 * 864e5; });
+  if (trzeba.length) pokazToast('Zjedzone. Jak smakowało?', 'Oceń', () => oknoSmak(id, trzeba));
+}
+function smakTagi(id) {
+  const x = smaki[id]; if (!x) return '';
+  const lub = OS.filter(pp => x[pp] && x[pp].v === 2), nie = OS.filter(pp => x[pp] && x[pp].v === 0);
+  return (lub.length ? `smakuje: ${lub.map(pp => ETY[pp]).join(', ')} · ` : '') + (nie.length ? `nie smakowało: ${nie.map(pp => ETY[pp]).join(', ')} · ` : '');
+}
+// Kara / bonus do oceny planu za zebrane smaki (kto je dany posiłek).
+function smakKara(pl) {
+  let k = 0;
+  pl.dni.forEach(day => {
+    const sl = [['sn', day.sn], day.m13.wsp ? ['m13', day.m13.wsp] : null, !day.m13.wsp ? ['m13ona', day.m13.ona] : null, !day.m13.wsp ? ['m13on', day.m13.on] : null, day.ob ? ['ob', day.ob] : null, ['k18', day.k18]].filter(Boolean);
+    for (const [slot, id] of sl) { const x = smaki[id]; if (!x) continue; osobySlotu(slot).forEach(pp => { if (x[pp]) k += x[pp].v === 2 ? -4 : x[pp].v === 0 ? 30 : 0; }); }
+  });
+  return k;
+}
+// ---------- tryb gotowania ----------
+let got = null, timery = [], timeryInt = null, wakeLock = null, audioCtx = null, timerSeq = 0;
+const TIMER_RE = new RegExp(`(\\d+(?:[.,]\\d+)?)(?:\\s?[–-]\\s?(\\d+(?:[.,]\\d+)?))?\\s*(godz\\w*|min\\w*|sek\\w*|s)(?!${PL})`, 'gi');
+function wykryjTimery(tekst) {
+  const out = [], widziane = new Set();
+  for (const m of tekst.matchAll(TIMER_RE)) {
+    const v = parseFloat(m[1].replace(',', '.')), j = m[3].toLowerCase(), sek = Math.round(v * (/^g/.test(j) ? 3600 : /^m/.test(j) ? 60 : 1));
+    if (!(sek >= 10 && sek <= 6 * 3600) || widziane.has(sek)) continue;
+    widziane.add(sek); out.push({ et: m[0].trim(), sek });
+  }
+  return out.slice(0, 3);
+}
+const fmtCzas = sek => { sek = Math.max(0, Math.round(sek)); const h = Math.floor(sek / 3600), m = Math.floor(sek % 3600 / 60), x = sek % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+function podswietl(t) { return esc(t).replace(new RegExp(`(\\d+(?:[.,]\\d+)?(?:\\s?[–-]\\s?\\d+)?\\s?(?:g|ml|kg|l|min|s|sek|°C|szt\\.?|krom${PL}*|łyż${PL}*)(?!${PL}))`, 'gi'), '<mark>$1</mark>'); }
+function skladnikiKroku(g, tekst) {
+  const t = znorm(tekst), slowa = new Set(t.split(/[^a-z0-9]+/).filter(Boolean)), out = [];
+  for (const i of g.dish.skladniki) {
+    if (!i.ilosc || !i.produkt) continue;
+    const tok = znorm(i.produkt).split(/[^a-z0-9]+/).filter(x => x.length >= 4 && !['swieze', 'naturalny', 'pelnoziarnista', 'sloiku', 'puszka', 'odsaczona', 'konserwowa', 'sosie', 'wlasnym', 'mrozone', 'mrozona'].includes(x));
+    if (tok.some(x => [...slowa].some(w => w.startsWith(x.slice(0, Math.min(5, x.length)))))) out.push(`${i.produkt} — ${fq(i.ilosc * skala(g, i), i.jednostka)}`);
+  }
+  return out.slice(0, 4);
+}
+async function blokujEkran() { try { if ('wakeLock' in navigator && got) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* nic */ } }
+document.addEventListener('visibilitychange', () => { if (got && !document.hidden) blokujEkran(); });
+function pikniecie() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    [0, 0.35, 0.7].forEach(dt => { const o = audioCtx.createOscillator(), gn = audioCtx.createGain(); o.type = 'sine'; o.frequency.value = 880; gn.gain.value = 0.25; o.connect(gn); gn.connect(audioCtx.destination); o.start(audioCtx.currentTime + dt); o.stop(audioCtx.currentTime + dt + 0.22); });
+  } catch (e) { /* nic */ }
+  try { navigator.vibrate && navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) { /* nic */ }
+}
+function startTimer(et, sek) {
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) { /* nic */ }
+  timery.push({ id: ++timerSeq, et, ile: sek, koniec: Date.now() + sek * 1000, pauza: null, zrobiony: false });
+  if (!timeryInt) timeryInt = setInterval(tykTimerow, 500);
+  rysujGot();
+}
+function tykTimerow() {
+  let zmiana = false;
+  for (const t of timery) {
+    if (t.zrobiony || t.pauza) continue;
+    if (Date.now() >= t.koniec) { t.zrobiony = true; zmiana = true; pikniecie(); }
+    else { const el = document.querySelector(`[data-tid="${t.id}"]`); if (el) el.textContent = fmtCzas((t.koniec - Date.now()) / 1000); }
+  }
+  if (zmiana) rysujGot();
+  if (!timery.length) { clearInterval(timeryInt); timeryInt = null; }
+}
+function otworzGotowanie(g, spont) {
+  if (!g || !g.dish.kroki || !g.dish.kroki.length) return;
+  got = { g, spont: !!spont, kroki: g.dish.kroki.map(k => krokPrzeliczony(g, k)), i: 0, odhacz: {}, skl: false, zjedzone: false };
+  timery = []; $('#gotuj').hidden = false; document.body.classList.add('got-otwarte');
+  blokujEkran(); rysujGot(); const m = $('#gotuj .got-main'); if (m) m.scrollTop = 0;
+}
+function zamknijGotowanie(bezPytania) {
+  if (!bezPytania && timery.some(t => !t.zrobiony) && !confirm('Timery jeszcze działają. Zamknąć tryb gotowania i je wyłączyć?')) return;
+  got = null; timery = []; clearInterval(timeryInt); timeryInt = null;
+  try { wakeLock && wakeLock.release(); } catch (e) { /* nic */ }
+  wakeLock = null; $('#gotuj').hidden = true; document.body.classList.remove('got-otwarte');
+}
+function gotIdz(n) { if (!got) return; got.i = Math.max(0, Math.min(got.kroki.length + 1, n)); rysujGot(); const m = $('#gotuj .got-main'); if (m) m.scrollTop = 0; }
+function rysujGot() {
+  if (!got) return;
+  const { g, kroki, i } = got, N = kroki.length, dish = g.dish;
+  const pasek = `<div class="got-postep">${Array.from({ length: N + 2 }, (_, k) => `<i class="${k < i ? 'zrob' : k === i ? 'akt' : ''}"></i>`).join('')}</div>`;
+  const aktywne = timery.filter(t => !t.zrobiony).length;
+  const tim = timery.length ? `<div class="got-timery">${timery.map(t => `<div class="got-t ${t.zrobiony ? 'koniec' : ''}"><span class="got-t-et">${esc(t.et)}</span><b data-tid="${t.id}">${t.zrobiony ? 'Czas minął!' : fmtCzas(t.pauza ? (t.koniec - t.pauza) / 1000 : (t.koniec - Date.now()) / 1000)}</b>${t.zrobiony ? `<button data-got-tx="${t.id}">OK</button>` : `<button data-got-tp="${t.id}" aria-label="${t.pauza ? 'Wznów' : 'Pauza'}">${t.pauza ? '▶' : '❚❚'}</button><button data-got-t1="${t.id}" aria-label="Dodaj minutę">+1′</button><button data-got-tx="${t.id}" aria-label="Usuń">✕</button>`}</div>`).join('')}</div>` : '';
+  let tresc = '';
+  if (i === 0) {
+    const spr = przyprawyWiersze(dish);
+    tresc = `<p class="got-et">Przed startem</p><h2 class="got-tyt">${esc(dish.nazwa)}</h2><p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) + '. ' : ''}${dish.sprzet ? 'Sprzęt: ' + esc(dish.sprzet) + '. ' : ''}Ekran nie będzie się wygaszał podczas gotowania${'wakeLock' in navigator ? '' : ' (ta przeglądarka tego nie obsługuje — wyłącz automatyczną blokadę ekranu)'}.</p>
+      <h3>Przygotuj składniki — ${opisGarnka(g)}</h3><div class="got-lista">${dish.skladniki.filter(x => x.ilosc || x.nazwa).map((x, k) => `<label class="got-sk ${got.odhacz[k] ? 'ok' : ''}"><input type="checkbox" data-got-odh="${k}" ${got.odhacz[k] ? 'checked' : ''}><span class="zk-ptak"></span><span class="got-sk-tx">${esc(x.nazwa)}${stala(x) ? '<small>woreczek z zamrażarki — rozmroź wcześniej</small>' : ''}</span><b>${x.ilosc ? fq(x.ilosc * skala(g, x), x.jednostka) : ''}</b></label>`).join('')}${spr.length ? `<p class="mute" style="margin:10px 0 2px">Przyprawy: ${esc(spr.map(x => x.nazwa + (x.ilosc ? ' ' + x.ilosc : '')).join(', '))}</p>` : ''}</div>`;
+  } else if (i <= N) {
+    const t = kroki[i - 1], wiecz = /^WIECZOREM/i.test(t), tm = wykryjTimery(t), sk = skladnikiKroku(g, t);
+    tresc = `<p class="got-et">Krok ${i} z ${N}${wiecz ? ' · przygotowanie wcześniej' : ''}</p><p class="got-tekst">${podswietl(t.replace(/^WIECZOREM:\s*/i, ''))}</p>
+      ${tm.length ? `<div class="got-tm">${tm.map(x => `<button class="btn" data-got-timer="${x.sek}|${esc(x.et)}">⏱ Timer ${esc(x.et)}</button>`).join('')}</div>` : ''}
+      ${sk.length ? `<div class="got-sk-krok"><b>W tym kroku</b>${sk.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`;
+  } else {
+    const dzien = dniGarnka(g).find(x => !zuzyte[kluczZ(x, g.slot)]), os = dzien !== undefined ? [...new Set(g.porcje.filter(q => q.d === dzien).map(q => q.p))] : [];
+    tresc = `<div class="got-koniec"><div class="intro-ik"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h2>Smacznego!</h2><p class="mute">${esc(dish.nazwa)}</p>
+      ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
+      ${got.spont ? `<button class="btn glowny szeroki" data-got-spont="1">Ugotowaliśmy — zdejmij z lodówki</button>` : (dzien !== undefined && !got.zjedzone ? `<button class="btn glowny szeroki" data-got-zjedz="${dzien}">Oznacz jako zjedzone (${DNI_KR[dzien]})</button>` : '')}
+      ${os.length ? `<h3 style="margin-top:18px">Jak smakowało?</h3>${os.map(pp => `<div class="smak-w"><b class="${pp}">${ETY[pp]}</b><div class="seg mini">${[[2, 'Super'], [1, 'Może być'], [0, 'Nie']].map(([v, et]) => `<button data-smak="${esc(dish.id)}:${pp}:${v}" class="${smaki[dish.id] && smaki[dish.id][pp] && smaki[dish.id][pp].v === v ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`).join('')}` : ''}
+      <button class="btn szeroki" data-got-zamknij style="margin-top:18px">Zamknij</button></div>`;
+  }
+  $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div><button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
+    <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fq(x.ilosc * skala(g, x), x.jednostka)}</b></div>`).join('')}</div>` : ''}${tresc}</div>
+    <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe' : 'Dalej'} ›</button>` : ''}</div>`;
+}
+document.addEventListener('paste', e => { if (e.target && e.target.id === 'par-tekst') setTimeout(() => { const v = e.target.value; if (v && v.length > 40) wczytajParagon(v); }, 30); });
+document.addEventListener('keydown', e => { if (!got) return; if (e.key === 'ArrowRight') gotIdz(got.i + 1); else if (e.key === 'ArrowLeft') gotIdz(got.i - 1); else if (e.key === 'Escape') zamknijGotowanie(); });
+(function () {   // przesunięcie palcem: w lewo = dalej, w prawo = wstecz
+  let x0 = null, y0 = null;
+  document.addEventListener('touchstart', e => { if (!got || !e.target.closest('#gotuj .got-main')) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchend', e => { if (x0 === null || !got) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null; if (Math.abs(dx) > 70 && Math.abs(dy) < 45) gotIdz(got.i + (dx < 0 ? 1 : -1)); }, { passive: true });
+})();
 function przyciskiOceny(id) {
   return `<button class="btn maly ocena ${oceny[id] === 1 ? 'wl' : ''}" data-ocena="${esc(id)}:1">${oceny[id] === 1 ? '★ ulubione' : '☆ ulubione'}</button><button class="btn maly ocena ${ukryte(id) ? 'wl' : ''}" data-ocena="${esc(id)}:-1">${ukryte(id) ? 'ukryte — przywróć' : 'ukryj'}</button>`;
 }
@@ -774,10 +1264,11 @@ function listaWyboru(q) {
   const { d, slot, teraz, pula } = zmienCtx;
   const slowa = slowaZ(q);
   const rang = x => oceny[x.id] === 1 ? 0 : ukryte(x.id) ? 2 : 1;
-  const lista = pula.filter(x => slowa.every(w => szukany(x).includes(w))).sort((x, y) => rang(x) - rang(y) || x.nazwa.localeCompare(y.nazwa, 'pl'));
-  $('#lista-wyboru').innerHTML = lista.length ? lista.map(x => `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${esc((x.kod ? x.kod + ' ' : '') + x.nazwa)}</b>
-      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${x.tylko_wybor && slot !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
-      <div class="oceny">${przyciskiOceny(x.id)}</div></div>`).join('') : '<p class="pusty">Nic nie pasuje do tych słów.</p>';
+  const kto = osobySlotu(slot), zakazane = pula.filter(x => !dopuszcza(x, kto)), pokaz = !!zmienCtx.pokazZakazane;
+  const lista = pula.filter(x => (pokaz || dopuszcza(x, kto) || x.id === teraz) && slowa.every(w => szukany(x).includes(w))).sort((x, y) => rang(x) - rang(y) || x.nazwa.localeCompare(y.nazwa, 'pl'));
+  $('#lista-wyboru').innerHTML = (zakazane.length ? `<p class="mute" style="margin:4px 0">${pokaz ? 'Pokazuję też' : 'Ukryłem'} ${zakazane.length} ${zakazane.length === 1 ? 'danie' : 'dań'} z wykluczonymi składnikami. <button class="btn maly" data-pokaz-zakazane>${pokaz ? 'Ukryj je' : 'Pokaż mimo to'}</button></p>` : '') + (lista.length ? lista.map(x => `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${esc((x.kod ? x.kod + ' ' : '') + x.nazwa)}</b>
+      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${smakTagi(x.id)}${x.tylko_wybor && slot !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
+      <div class="oceny">${przyciskiOceny(x.id)}</div></div>`).join('') : '<p class="pusty">Nic nie pasuje do tych słów.</p>');
 }
 function ocen(id, v) {
   if (oceny[id] === v) delete oceny[id]; else oceny[id] = v;
@@ -889,7 +1380,7 @@ function opcjeZuzycia(prod, reszta) {
     for (const [slot, teraz] of sloty) {
       if (t.zuz[kluczZ(d, slot, t.start)] || (slot === 'm13ona' && nieob(day, 'ona')) || (slot === 'm13on' && nieob(day, 'on'))) continue;
       for (const dish of pulaSlotu(day, slot)) {
-        if (dish.id === teraz || ukryte(dish.id)) continue;
+        if (dish.id === teraz || ukryte(dish.id) || !dopuszcza(dish, osobySlotu(slot))) continue;
         const i = dish.skladniki.find(x => x.produkt === prod && x.jednostka === reszta.u && x.ilosc > 0);
         if (!i || i.ilosc > reszta.q * 1.15) continue;
         const uzycie = Math.min(i.ilosc, reszta.q) / reszta.q;
@@ -955,7 +1446,7 @@ function dzialSklepu(p) {
 function widokZakupy() {
   const dost = dniDostepne(), wyb = wybraneDni(), z = zakupyDni(wyb), dzis = isoDzis();
   const klucz = kluczKup, wszystkie = ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]);
-  const razemPoz = wszystkie.length, kupione = wszystkie.filter(p => odhK(klucz(p.produkt))).length;
+  const razemPoz = wszystkie.length, kupione = wszystkie.filter(p => odhK(klucz(p.produkt))).length, cmp = porownajSklepy(z);
   let h = `<h1>Zakupy</h1>${wskazowka('zakupy', 'Zaznacz dni, na które kupujecie — lista sama się policzy i jest ułożona jak w sklepie. Odhaczone pozycje trafiają do lodówki i spadają na koniec działu.')}`;
   h += `<details class="zk-hero" data-zakdni ${zakOtw || !wyb.size ? 'open' : ''}><summary><span class="wd-tx"><small>Zakupy na</small><b>${zakresDni(wyb)}</b></span><span class="wd-zmien">Zmień dni</span>
     <span class="zk-prog"><span class="pasek"><i id="zkPasek" style="width:${razemPoz ? Math.round(kupione / razemPoz * 100) : 0}%"></i></span><small id="zkLicz">${razemPoz ? `Kupione ${kupione} z ${razemPoz}` : 'Brak pozycji'}</small></span></summary><div class="zk-wybor">
@@ -972,6 +1463,7 @@ function widokZakupy() {
     }).join('');
   }
   h += `</div></details>`;
+  h += kartaSklepy(cmp);
   if (!wyb.size) h += `<div class="karta pusta-karta"><b>Zaznacz przynajmniej jeden dzień</b><p class="mute">Kliknij „Zmień dni” powyżej.</p></div>`;
   const wDzial = {}; wszystkie.forEach(p => { (wDzial[dzialSklepu(p)] = wDzial[dzialSklepu(p)] || []).push(p); });
   for (const [kod, nazwa, ikona] of DZIALY) {
@@ -980,7 +1472,8 @@ function widokZakupy() {
     h += `<section class="zk-sek"><div class="zk-sek-gora"><span class="zk-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ikona}"/></svg></span><b>${nazwa}</b><em data-licznik>${kup}/${l.length}</em></div><div class="karta zk-karta">`
       + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
         const k = klucz(p.produkt), on = !!odhK(k);
-        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : ''].filter(Boolean).join(' · ');
+        const ci = cmp.info[p.produkt], cenyTxt = ci && Object.keys(ci.c).length > 1 ? Object.entries(ceny[p.produkt] || {}).filter(([sk]) => ci.c[sk] != null).sort((a, b) => cenaX(a[1]) - cenaX(b[1])).map(([sk, v]) => `${sk} ${zl(cenaX(v))}/${jednCeny(v.u)}`).join(' · ') : '';
+        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', cenyTxt ? `taniej: ${cenyTxt}` : ''].filter(Boolean).join(' · ');
         const zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zużyj resztkę (${p.reszta.q} ${p.reszta.u}) ›</button>` : '';
         return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
       }).join('') + `</div></section>`;
@@ -992,7 +1485,7 @@ function widokZakupy() {
   if (z.inne.length) h += zwin('Bez gramatury', z.inne.length, z.inne.map(t => `<p class="mute" style="margin:6px 0">${esc(t)}</p>`).join(''));
   h += `<div class="zk-akcje">`;
   if (wszystkie.some(p => !odhK(klucz(p.produkt)))) h += `<button class="btn glowny szeroki" id="kupWszystko">Kupione wszystko — dopisz do lodówki</button>`;
-  h += `<div class="rzad"><button class="btn" id="udostepnij">Udostępnij listę</button>${Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).some(k => k.startsWith('zak|')) ? `<button class="btn" id="odznaczWszystko">Odznacz wszystko</button>` : ''}</div></div>`;
+  h += `<button class="btn" data-par-nowy>Dodaj paragon z tych zakupów</button><div class="rzad"><button class="btn" id="udostepnij">Udostępnij listę</button>${Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).some(k => k.startsWith('zak|')) ? `<button class="btn" id="odznaczWszystko">Odznacz wszystko</button>` : ''}</div></div>`;
   $('#view').innerHTML = h;
   window._z = z;
 }
@@ -1181,20 +1674,68 @@ function widokDzis() {
     const wi = wieczorem(w, d), kar = [];
     if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
     const idx = dzienTyg();
-    if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista na ${idx === 0 ? 'wtorek–piątek' : 'sobotę–poniedziałek'} jest gotowa.</p><button class="btn glowny szeroki" id="doZakupow">Otwórz listę zakupów</button></div>`);
+    if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista jest gotowa na: <b>${zakresDni(new Set(domyslneDni(dniDostepne())))}</b>.</p><button class="btn glowny szeroki" id="doZakupowDzis">Otwórz listę zakupów</button></div>`);
     const lastW = p => Object.keys(waga[p] || {}).sort().pop();
     if (OS.some(p => !lastW(p) || (new Date(dzis) - new Date(lastW(p))) / 864e5 >= 7)) kar.push(`<div class="karta zad"><b>Czas na ważenie</b><p class="mute">Raz w tygodniu, rano. Wynik pomaga ocenić, czy kalorie są dobre.</p><button class="btn szeroki" data-tab="waga">Zapisz wagę</button></div>`);
+    const prop = OS.filter(pp => propozycjaKorekty(pp).stan === 'propozycja'); if (prop.length) kar.push(`<div class="karta zad"><b>Propozycja korekty kalorii</b><p class="mute">Trend wagi sugeruje małą zmianę kalorii dla: ${prop.map(pp => ETY[pp]).join(', ')}.</p><button class="btn szeroki" data-tab="waga">Zobacz w Wadze</button></div>`);
     const pr = przypomnieniaDzis(w); if (pr) kar.push(pr);
     return o + (kar.length ? `<h2>Co dalej</h2>${kar.join('')}` : '') + `<button class="btn szeroki" data-tab="tydzien" style="margin-top:12px">Cały plan</button></div></section>`;
   });
   $('#view').innerHTML = h;
   window._w = window._wBy[t.start];
 }
+let wyklOsoba = 'ona';
+const zapiszWykl = () => { LS.set('wyklucz', wyklucz); Z([[['wyklucz'], wyklucz]]); };
+const naruszeniaDwochTygodni = () => tygodnieZapisane().flatMap(t => naruszeniaPlanu({ start: t.start, dni: t.dni }, isoDzis()).map(n => Object.assign({ start: t.start }, n)));
+function puleDlaSlotu(day, slot) { return slot === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : slot === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : DB.pula[slot]; }
+// Zamienia w obecnym i następnym tygodniu (od dziś, bez zjedzonych) dania z wykluczonymi składnikami na podobne: ten sam rodzaj, najbliższe białko na kcal.
+function zamienNiepasujace() {
+  const orig = plan.start, dzis = isoDzis(); let zmieniono = 0, brak = 0;
+  for (const t of tygodnieZapisane()) {
+    if (t.start !== plan.start) { if (inny && inny.start === t.start) przelaczTydzien(); else continue; }
+    for (const n of naruszeniaPlanu(plan, dzis)) {
+      if (zuzyte[kluczZ(n.d, n.slot)]) continue;
+      const day = plan.dni[n.d], stary = DB.dania.get(n.id), kto = osobySlotu(n.slot), pula = puleDlaSlotu(day, n.slot);
+      let kand = pula.filter(x => x.id !== n.id && !ukryte(x.id) && dopuszcza(x, kto) && (n.slot !== 'm13on' || !x.tylko_wybor));
+      const tenSam = kand.filter(x => x.typ === stary.typ); if (tenSam.length) kand = tenSam;
+      if (!kand.length) { brak++; continue; }
+      const dens = x => x.razem.bialko / x.razem.kcal, d0 = dens(stary);
+      kand.sort((a, b) => Math.abs(dens(a) - d0) - Math.abs(dens(b) - d0));
+      const nowy = los(kand.slice(0, 3)), g = oblicz(plan, cele()).garnki.find(x => x.d === n.d && x.slot === n.slot);
+      ustawDanie(n.d, n.slot, nowy.id, g ? g.P / g.K : null); zmieniono++;
+    }
+  }
+  if (plan.start !== orig && inny && inny.start === orig) przelaczTydzien();
+  otwartyDzien = null; rysuj();
+  pokazToast(zmieniono ? `Zamieniono ${zmieniono} ${zmieniono === 1 ? 'danie' : zmieniono < 5 ? 'dania' : 'dań'}${brak ? `, ${brak} bez zamiennika` : ''}` : (brak ? `Brak zamienników dla ${brak} posiłków — poluzuj wykluczenia` : 'Plan jest zgodny z listą'));
+}
+function widokWykluczone() {
+  const p = wyklOsoba, l = wyklucz[p] || [], wlasne = l.filter(w => !w.startsWith('g:'));
+  const pule = [['sn', 'Śniadania'], ['m13ona', '13:00 · ONA'], ['m13on', '13:00 · ON'], ['k18', 'Koktajle ~18:00'], ['ob1', 'Obiady na 1 dzień'], ['ob2', 'Zupy i obiady na 2 dni']];
+  const dost = pule.map(([k, et]) => { const wsz = DB.pula[k].filter(d => !ukryte(d.id)); const ok = wsz.filter(d => dopuszcza(d, KTO_PULI[k] || OS)); return { et, ok: ok.length, wsz: wsz.length }; });
+  const nar = naruszeniaDwochTygodni().length;
+  let h = `<h1>Czego nie jecie</h1><p class="mute">Plan, zamiana dania i „co ugotować z lodówki” będą omijać dania z tymi składnikami. W daniach wspólnych liczy się lista obojga.</p>
+    <div class="seg">${OS.map(x => `<button data-wosoba2="${x}" class="${p === x ? 'akt' : ''}">${ETY[x]}${(wyklucz[x] || []).length ? ` · ${(wyklucz[x] || []).length}` : ''}</button>`).join('')}</div>
+    <h3>Szybki wybór</h3><div class="chips">${Object.entries(GRUPY_WYKL).map(([k, [et]]) => `<button class="chip ${l.includes('g:' + k) ? 'akt' : ''}" data-wgrupa="${p}:${k}">${esc(et)}</button>`).join('')}</div>
+    <h3>Własne słowa</h3><div class="lod-rzad"><input id="wykl-nowe" type="text" placeholder="np. kolendra, tuńczyk, rodzynki" autocomplete="off" autocapitalize="off"><button class="btn glowny maly" data-wdodaj="${p}">Dodaj</button></div>
+    ${wlasne.length ? `<div class="chips" style="margin-top:10px">${wlasne.map(w => `<button class="chip akt" data-wusun="${p}|${esc(w)}">${esc(w)} ✕</button>`).join('')}</div>` : '<p class="mute" style="margin-top:8px">Wpisz składnik albo słowo z nazwy dania. Wystarczy początek słowa (np. „kurcz”).</p>'}
+    ${(() => { const nie = Object.entries(smaki).filter(([id, x]) => DB.dania.has(id) && OS.some(pp => x[pp] && x[pp].v === 0)); return nie.length ? `<h2>Nie smakowało</h2><div class="karta"><p class="mute" style="margin:0 0 6px">Takie dania wracają rzadziej. Możesz je ukryć całkiem albo wyczyścić ocenę.</p>${nie.map(([id, x]) => `<div class="wpis"><span>${esc(DB.dania.get(id).nazwa)}<br><span class="mute">${OS.filter(pp => x[pp] && x[pp].v === 0).map(pp => ETY[pp]).join(', ')}</span></span><span class="rzad" style="flex:none;flex-wrap:nowrap"><button class="btn maly" data-smak-ukryj="${esc(id)}">Ukryj</button><button class="btn maly" data-smak-czysc="${esc(id)}">Wyczyść</button></span></div>`).join('')}</div>` : ''; })()}
+    <h2>Ile dań zostaje</h2><div class="karta wykl-stat">${dost.map(x => `<div class="wykl-w ${x.ok < 2 ? 'zle' : x.ok < 4 ? 'malo' : ''}"><span>${x.et}</span><b>${x.ok} z ${x.wsz}</b>${x.ok < 2 ? '<small>za mało — użyję też dań z wykluczonymi składnikami</small>' : x.ok < 4 ? '<small>mało — plan będzie się powtarzał</small>' : ''}</div>`).join('')}</div>
+    ${nar ? `<div class="przyp"><b>${nar} ${nar === 1 ? 'posiłek w planie zawiera' : 'posiłków w planie zawiera'} wykluczone składniki.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button></div>` : ''}`;
+  $('#view').innerHTML = h;
+}
+function zmienWykl(fn) {
+  fn(); zapiszWykl(); rysuj();
+  const n = naruszeniaDwochTygodni().length;
+  if (n) pokazToast(`${n} ${n === 1 ? 'posiłek' : 'posiłków'} w planie do zamiany`, 'Zamień', zamienNiepasujace);
+}
 function widokWiecej() {
   const kafel = (tab, tytul, opis, ik) => `<button class="kafel" data-tab="${tab}"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ik}"/></svg></span><span class="kafel-tx"><b>${tytul}</b><small>${opis}</small></span><span class="kafel-str">›</span></button>`;
   const q = (pyt, odp) => `<details class="faq"><summary>${pyt}</summary><p>${odp}</p></details>`;
   $('#view').innerHTML = `<h1>Więcej</h1>
     ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
+    ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} paragonów · ceny ${Object.keys(ceny).length} produktów` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
+    ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
     ${kafel('ustawienia', 'Ustawienia', 'Profile, cele, wspólny plan, ulubione dania', 'M4 7h9M17 7h3M4 17h3M11 17h9')}
     <button class="kafel" data-intro="0"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span><span class="kafel-tx"><b>Jak to działa</b><small>Krótkie wprowadzenie krok po kroku</small></span><span class="kafel-str">›</span></button>
     <h2>Najczęstsze pytania</h2>
@@ -1218,6 +1759,7 @@ function rysuj() {
   }
   if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
   naprawBrakujace();
+  if (!window._migrPusz) { window._migrPusz = true; zastosujPakiety(); migrujPuszki(); }
   if (inny && inny.start < poniedzialek()) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
@@ -1228,9 +1770,9 @@ function rysuj() {
     ulozTydzien();
   }
   $('#tabs').hidden = false;
-  const pod = ['waga', 'ustawienia'].includes(zakladka);
+  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony'].includes(zakladka);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('akt', b.dataset.tab === (pod ? 'wiecej' : zakladka)));
-  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else widokWiecej();
+  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else widokWiecej();
   if (pod) $('#view').insertAdjacentHTML('afterbegin', `<button class="wstecz" data-tab="wiecej">‹ Więcej</button>`);
   if (!LS.get('intro', false) && profil && plan) { LS.set('intro', true); pokazIntro(0); }
 }
@@ -1274,6 +1816,64 @@ function wykresWagi(e, p) {
     <g transform="translate(${lx.toFixed(1)},${(ostP[1] - 20).toFixed(1)})"><rect x="-26" y="-12" width="52" height="20" rx="10" fill="currentColor"/><text x="0" y="2.5" text-anchor="middle" class="bab">${kgTxt(ostV)} kg</text></g>
     <text x="${L}" y="${H - 8}">${f(t0)}</text><text x="${W - R}" y="${H - 8}" text-anchor="end">${f(t1)}</text></svg>`;
 }
+// Adaptacyjne kalorie: z trendu wagi (regresja z ostatnich 4 tygodni) porównuję realne tempo z celem diety i proponuję małą korektę kcal (maks. 150 na raz, ±400 łącznie).
+const TEMPO_CEL = { redukcja: { cel: -0.5, min: -0.9, max: -0.25 }, utrzymanie: { cel: 0, min: -0.15, max: 0.15 }, masa: { cel: 0.25, min: 0.1, max: 0.5 } };   // % masy ciała na tydzień
+function trendWagi(p, okno = 28) {
+  const e = Object.entries(waga[p] || {}).sort(); if (!e.length) return null;
+  const ms = d => new Date(d + 'T12:00:00').getTime() / 864e5, ost = ms(e[e.length - 1][0]);
+  const kor = korekta[p], od = kor.od ? Math.max(ms(kor.od) + 5, ost - okno) : ost - okno;   // po korekcie czekam 5 dni, aż waga zareaguje
+  const pt = e.filter(([d]) => ms(d) >= od).map(([d, v]) => [ms(d), v]);
+  const rozp = pt.length ? pt[pt.length - 1][0] - pt[0][0] : 0;
+  if (pt.length < 3 || rozp < 10) return { zaMalo: true, n: pt.length, dni: Math.round(rozp) };
+  const n = pt.length, mx = sum(pt, q => q[0]) / n, my = sum(pt, q => q[1]) / n, sxx = sum(pt, q => (q[0] - mx) ** 2), sxy = sum(pt, q => (q[0] - mx) * (q[1] - my));
+  const nach = sxy / sxx;   // kg na dobę
+  return { zaMalo: false, n, dni: Math.round(rozp), tydz: nach * 7, proc: nach * 7 / my * 100, masa: my, ostWiek: Math.round(new Date(isoDzis() + 'T12:00:00').getTime() / 864e5 - ost) };
+}
+function propozycjaKorekty(p) {
+  const pr = profilEf(p), t = trendWagi(p);
+  if (!pr || !profil[p]) return { stan: 'brak' };
+  if (profil[p].wlasne) return { stan: 'wlasne' };
+  if (!t || t.zaMalo) return { stan: 'dane', t };
+  if (t.ostWiek > 10) return { stan: 'stare', t };
+  const cel = TEMPO_CEL[pr.cel] || TEMPO_CEL.utrzymanie, kor = korekta[p];
+  const bmi = pr.waga / ((pr.wzrost / 100) ** 2);
+  if (pr.cel === 'redukcja' && bmi < 18.5 && t.proc < cel.min) return { stan: 'ok', t, cel, uwaga: 'Przy niskim BMI nie proponuję dalszego obniżania kalorii.' };
+  if (t.proc >= cel.min && t.proc <= cel.max) return { stan: 'ok', t, cel };
+  if (kor.odloz && kor.odloz > isoDzis()) return { stan: 'odlozone', t, cel };
+  if (kor.od && (new Date(isoDzis()) - new Date(kor.od)) / 864e5 < 14) return { stan: 'czekaj', t, cel };
+  let delta = Math.round(((cel.cel - t.proc) / 100 * t.masa * 7700 / 7) / 10) * 10;
+  delta = Math.max(-150, Math.min(150, delta));
+  const cc = cele()[p], bmr = zapotrzebowanie(pr).bmr, podloga = Math.max(pr.plec === 'm' ? 1500 : 1200, Math.round(bmr / 10) * 10);
+  if (cc.kcal + delta < podloga) delta = podloga - cc.kcal;
+  if (Math.abs(kor.kcal + delta) > 400) delta = Math.sign(delta) * 400 - kor.kcal;
+  if (Math.abs(delta) < 40) return { stan: 'granica', t, cel };
+  return { stan: 'propozycja', t, cel, delta };
+}
+function zastosujKorekte(p, delta, auto) {
+  const kor = korekta[p]; kor.kcal += delta; kor.od = isoDzis(); kor.odloz = null; kor.hist = (kor.hist || []).concat([{ d: isoDzis(), delta }]).slice(-12);
+  LS.set('korekta', korekta); Z([[['korekta', p], kor]]);
+  rysuj(); pokazToast(`${auto ? 'Automatyczna korekta' : 'Zastosowano'}: ${ETY[p]} ${delta > 0 ? '+' : ''}${delta} kcal dziennie. Plan przeliczony.`);
+}
+function kartaAdaptacyjna(p) {
+  const pr = propozycjaKorekty(p), kor = korekta[p], t = pr.t, z1 = v => (v > 0 ? '+' : '') + v.toFixed(2).replace('.', ',');
+  let tr = '';
+  if (pr.stan === 'dane') tr = `<p class="mute">Zbieram dane. Potrzebuję co najmniej 3 pomiarów z ostatnich 4 tygodni rozłożonych na min. 10 dni (masz ${t ? t.n : 0}${t && t.dni ? ', rozpiętość ' + t.dni + ' dni' : ''}).${kor.od ? ' Po ostatniej korekcie liczę dopiero od 5 dni później.' : ''}</p>`;
+  else if (pr.stan === 'wlasne') tr = `<p class="mute">Masz ustawiony własny cel kalorii, więc nie proponuję korekt. Usuń go w Ustawieniach, żeby włączyć adaptację.</p>`;
+  else if (pr.stan === 'stare') tr = `<p class="mute">Ostatni pomiar jest sprzed ponad 10 dni. Zważ się, a ocenię trend.</p>`;
+  else if (pr.stan === 'brak') tr = '';
+  else {
+    tr = `<div class="adapt-liczby"><div><small>Tempo wagi</small><b>${z1(t.tydz)} kg/tydz.</b><small>${z1(t.proc)}% masy ciała</small></div><div><small>Cel diety</small><b>${z1(pr.cel.min)}…${z1(pr.cel.max)}%</b><small>na tydzień</small></div></div>`;
+    if (pr.stan === 'ok') tr += `<p class="adapt-ok">Tempo mieści się w celu. Nic nie zmieniam.${pr.uwaga ? ' ' + esc(pr.uwaga) : ''}</p>`;
+    else if (pr.stan === 'odlozone') tr += `<p class="mute">Korekta odłożona do ${new Date(kor.odloz + 'T12:00:00').toLocaleDateString('pl-PL')}.</p>`;
+    else if (pr.stan === 'czekaj') tr += `<p class="mute">Ostatnia korekta była niedawno. Dam znać po 14 dniach, gdy waga zdąży zareagować.</p>`;
+    else if (pr.stan === 'granica') tr += `<p class="mute">Tempo odbiega od celu, ale korekta byłaby poniżej bezpiecznej granicy lub zbyt mała, żeby ją proponować.</p>`;
+    else tr += `<div class="adapt-prop"><b>Proponuję ${pr.delta > 0 ? '+' : ''}${pr.delta} kcal dziennie</b><p class="mute" style="margin:4px 0 10px">${pr.cel.cel < 0 ? (t.proc > 0.05 ? 'Waga rośnie, a cel to redukcja' : t.proc > pr.cel.max ? 'Waga spada wolniej' : 'Waga spada szybciej') : pr.cel.cel > 0 ? (t.proc < pr.cel.min ? 'Waga rośnie wolniej' : 'Waga rośnie szybciej') : (t.proc > pr.cel.max ? 'Waga rośnie' : 'Waga spada')} niż zakłada cel „${esc(CEL[profil[p].cel] ? CEL[profil[p].cel][0] : profil[p].cel)}”. Zakładam, że jecie według planu.</p><div class="rzad"><button class="btn glowny" data-kor-zastosuj="${p}:${pr.delta}">Zastosuj</button><button class="btn" data-kor-odloz="${p}">Nie teraz</button></div></div>`;
+  }
+  return `<div class="karta adapt"><h3 style="margin:0 0 8px">Adaptacyjne kalorie · ${ETY[p]}</h3>${tr}
+    ${kor.kcal ? `<p class="mute" style="margin-top:10px">Aktywna korekta: <b>${kor.kcal > 0 ? '+' : ''}${kor.kcal} kcal</b> dziennie${kor.od ? ' (od ' + new Date(kor.od + 'T12:00:00').toLocaleDateString('pl-PL') + ')' : ''}. <button class="btn maly" data-kor-reset="${p}">Wyzeruj</button></p>` : ''}
+    <label class="adapt-auto"><input type="checkbox" data-kor-auto="${p}" ${kor.auto ? 'checked' : ''}><span>Stosuj korekty automatycznie po zapisaniu wagi</span></label>
+    <p class="mute" style="font-size:12.5px;margin:8px 0 0">To szacunek, nie zalecenie medyczne. Zmiany są małe (maks. 150 kcal na raz, 400 łącznie) i nigdy poniżej bezpiecznej granicy. Przy chorobach, ciąży lub zaburzeniach odżywiania skonsultuj dietę ze specjalistą.</p></div>`;
+}
 function tempoWagi(p) {
   const e = Object.entries(waga[p] || {}).sort();
   if (e.length < 2) return null;
@@ -1304,6 +1904,7 @@ function widokWaga() {
   }
   if (x.t !== null) h += `<p class="mute" style="margin:10px 0 0">${esc((t => t.charAt(0).toUpperCase() + t.slice(1))(opisTempa((profil[p] || {}).cel, x.t).replace(/^tempo [^—]*— /, '')))}.</p>`;
   h += `</div>`;
+  h += kartaAdaptacyjna(p);
   const start = ost ? ost[1] : ((profil[p] || {}).waga || 70);
   h += `<div class="karta"><h3 style="margin:0 0 10px">Nowy pomiar</h3>
     <div class="wpisz"><button class="strz" data-wkstep="${p}:-0.1" aria-label="Mniej">−</button><label class="wpisz-pole"><input type="text" inputmode="decimal" id="wk-${p}" value="${kgTxt(start)}" aria-label="Waga w kg"><span>kg</span></label><button class="strz" data-wkstep="${p}:0.1" aria-label="Więcej">+</button></div>
@@ -1324,6 +1925,7 @@ function zapiszWage(p) {
   rysuj();
   const po = cele()[p];
   pokazToast(przed && po && przed.kcal !== po.kcal ? `Zapisano. Plan przeliczony: ${ETY[p]} ${przed.kcal} → ${po.kcal} kcal` : 'Zapisano pomiar');
+  if (korekta[p].auto) { const pr = propozycjaKorekty(p); if (pr.stan === 'propozycja') setTimeout(() => zastosujKorekte(p, pr.delta, true), 600); }
 }
 
 // ---------- lodówka ----------
@@ -1400,7 +2002,7 @@ function widokLodowka() {
     if (lodKat !== 'wszystko' && lodKat !== k) continue;
     const l = [...grupy[k].entries()].sort((a, b) => a[0].localeCompare(b[0], 'pl')); if (!l.length) continue; ile += l.length;
     h += `<div class="lod-grupa"><h3>${katNazwa[k]} · ${l.length}</h3><div class="karta">${l.map(([pp, jed]) => { const n = niskie.get(pp); return `<div class="stan2 ${n ? 'nisko' : ''}" data-nm="${esc(znorm(pp))}"><span class="stan-ik k-${k === 'zamrażarka' ? 'zam' : k === 'zapas' ? 'zap' : 'swi'}">${esc(pp.charAt(0).toUpperCase())}</span>
-      <div class="stan-nm"><b>${esc(pp)}</b>${n ? `<small class="ostrz-txt">kończy się · od ${DNI_KR[n.d]}</small>` : ''}</div>
+      <div class="stan-nm"><b>${esc(pp)}</b>${n ? `<small class="ostrz-txt">kończy się · od ${DNI_KR[n.d]}</small>` : ''}${(() => { const pk = pakProd(pp), jp = pk && jed.find(([u]) => u === pk.u); if (!pk || !jp) return ''; return `<small class="pak-info">${jp[1] >= 0.5 ? `≈ ${fmtPak(jp[1] / pk.r)} × ${esc(pk.et)} ${pk.r} ${esc(pk.u)} · ` : ''}<button class="link" data-stpak="${esc(pp)}|${esc(pk.u)}|${pk.r}">＋ opak.</button></small>`; })()}</div>
       <div class="stan-kol">${jed.sort((a, b) => a[0].localeCompare(b[0])).map(([u, q]) => kontrolka(pp, u, q)).join('')}</div></div>`; }).join('')}</div></div>`;
   }
   h += `<div class="karta pusta-karta" id="lod-brak" hidden><b>Nic nie pasuje</b><p class="mute">Spróbuj innego słowa albo dodaj ten produkt przyciskiem „＋ Dodaj”.</p></div>`;
@@ -1417,7 +2019,7 @@ function oknoDodaj(tryb) {
     <div class="chips" id="dod-sug"></div>
     <label class="pole"><span>Ilość</span><input id="dod-q" type="text" inputmode="decimal" placeholder="np. 500"></label>
     <div class="chips" id="dod-ilosci"></div>
-    <div class="seg mini" id="dod-jedn" style="margin-top:10px">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<button data-dodu="${u}" class="${dodU === u ? 'akt' : ''}">${u}</button>`).join('')}</div>
+    <div class="seg mini" id="dod-jedn" style="margin-top:10px"></div><p class="mute" id="dod-info" style="margin:8px 0 0"></p>
     <button class="btn glowny szeroki" id="dodajStan" style="margin-top:14px">Dodaj do lodówki</button>` : `
     <p class="mute">Po jednej w linii, np. „kurczak 500 g”, „jajka 6”, „ryż”. Bez ilości wstawię typową paczkę.</p>
     <textarea id="szybkie-tekst" rows="6" placeholder="kurczak 500 g&#10;jajka 6&#10;ryż"></textarea><button class="btn glowny szeroki" id="szybkie">Dodaj wszystko</button>`);
@@ -1446,25 +2048,30 @@ function zapiszPoprawke(zero) {
   pokazToast(v === 0 ? `Usunięto z lodówki: ${pp}` : `Poprawiono: ${pp} ${fmtStan(v, uu)}`);
 }
 function odswiezDodawanie() {
-  const wpis = ($('#dod-p') || {}).value || '', zn = znorm(wpis.trim());
+  const wpis = ($('#dod-p') || {}).value || '', zn = znorm(wpis.trim()), nazwa = [...DB.produkty.keys()].find(k => znorm(k) === zn) || wpis.trim();
   const sug = zn ? [...DB.produkty.keys()].filter(k => znorm(k).includes(zn) && znorm(k) !== zn).sort((a, b) => a.length - b.length).slice(0, 6) : [];
   if ($('#dod-sug')) $('#dod-sug').innerHTML = sug.map(k => `<button class="chip" data-dodp="${esc(k)}">${esc(k)}</button>`).join('');
-  const op = DB.opak[wpis.trim()], il = ILOSCI_LOD(dodU).map(x => [x, '']);
-  if (op && op.jednostka === dodU && !il.some(x => x[0] === op.wielkosc)) il.push([op.wielkosc, ' (opak.)']);
+  const pk = pakProd(nazwa);
+  if (dodU === 'opak.' && !pk) dodU = 'g';
+  const il = dodU === 'opak.' ? [1, 2, 3, 4, 6].map(x => [x, '']) : ILOSCI_LOD(dodU).map(x => [x, '']);
+  if (dodU !== 'opak.' && pk && pk.u === dodU && !il.some(x => x[0] === pk.r)) il.push([pk.r, ' (opak.)']);
   if ($('#dod-ilosci')) $('#dod-ilosci').innerHTML = il.map(([x, et]) => `<button class="chip" data-dodq="${x}">${x}${et}</button>`).join('');
-  document.querySelectorAll('[data-dodu]').forEach(b => b.classList.toggle('akt', b.dataset.dodu === dodU));
+  if ($('#dod-jedn')) $('#dod-jedn').innerHTML = ['g', 'ml', 'szt.', 'krom.'].concat(pk ? ['opak.'] : []).map(u => `<button data-dodu="${u}" class="${dodU === u ? 'akt' : ''}">${u === 'opak.' ? esc(pk.et) : u}</button>`).join('');
+  const q = parseFloat(String(($('#dod-q') || {}).value).replace(',', '.'));
+  if ($('#dod-info')) $('#dod-info').innerHTML = pk ? `1 ${esc(pk.et)} = <b>${pk.r} ${esc(pk.u)}</b> (z paragonów)${dodU === 'opak.' && q > 0 ? ` → ${fmtPak(q)} × ${pk.r} = <b>${fmtPak(q * pk.r)} ${esc(pk.u)}</b>` : ''}` : '';
 }
 function dodajStanReczny() {
   const n = (($('#dod-p') || {}).value || '').trim(), q = parseFloat(String(($('#dod-q') || {}).value).replace(',', '.'));
   if (!n) { pokazToast('Wpisz nazwę produktu'); const i = $('#dod-p'); if (i) i.focus(); return; }
   if (!(q > 0)) { pokazToast('Wpisz ilość, np. 500'); const i = $('#dod-q'); if (i) i.focus(); return; }
   const znany = [...DB.produkty.keys()].find(k => znorm(k) === znorm(n)) || n;
-  zmienLodowke(znany, dodU, q); rysuj();
-  pokazToast(`Dodano: ${znany} ${fmtStan(q, dodU)}`);
+  const pk = dodU === 'opak.' ? pakProd(znany) : null, qb = pk ? q * pk.r : q, ub = pk ? pk.u : dodU;
+  zmienLodowke(znany, ub, qb); rysuj();
+  pokazToast(pk ? `Dodano: ${znany} ${fmtPak(q)} × ${pk.et} ${pk.r} ${pk.u} = ${fmtStan(qb, ub)}` : `Dodano: ${znany} ${fmtStan(q, dodU)}`);
   $('#dod-p').value = ''; $('#dod-q').value = ''; odswiezDodawanie(); $('#dod-p').focus();
 }
 function szybkieDodanie(tekst) {
-  const mapa = { g: 'g', gr: 'g', kg: 'kg', ml: 'ml', l: 'l', szt: 'szt.', 'szt.': 'szt.', sztuk: 'szt.', sztuki: 'szt.', krom: 'krom.', 'krom.': 'krom.', pusz: 'pusz.', 'pusz.': 'pusz.', puszka: 'pusz.', puszki: 'pusz.', łyżka: 'łyż.', łyżki: 'łyż.', łyżeczka: 'łyżecz.', łyżeczki: 'łyżecz.' };
+  const mapa = { g: 'g', gr: 'g', kg: 'kg', ml: 'ml', l: 'l', szt: 'szt.', 'szt.': 'szt.', sztuk: 'szt.', sztuki: 'szt.', krom: 'krom.', 'krom.': 'krom.', pusz: 'opak.', 'pusz.': 'opak.', puszka: 'opak.', puszki: 'opak.', puszek: 'opak.', opak: 'opak.', 'opak.': 'opak.', opakowanie: 'opak.', opakowania: 'opak.', kostka: 'opak.', kostki: 'opak.', słoik: 'opak.', słoiki: 'opak.', butelka: 'opak.', butelki: 'opak.', łyżka: 'łyż.', łyżki: 'łyż.', łyżeczka: 'łyżecz.', łyżeczki: 'łyżecz.' };
   let n = 0;
   for (const lin of tekst.split(/[\n;]+/)) {
     const m = lin.trim().match(/^(.+?)(?:\s+(\d+(?:[.,]\d+)?)\s*([a-ząćęłńóśźż.]*))?$/i);
@@ -1477,6 +2084,7 @@ function szybkieDodanie(tekst) {
     if (q !== null && !u) u = znany ? znany.u : (q >= 20 ? 'g' : 'szt.');
     if (q === null) { if (op) { q = op.wielkosc; u = op.jednostka; } else { u = znany ? znany.u : 'g'; q = u === 'g' || u === 'ml' ? 500 : 4; } }
     if (u === 'kg') { q *= 1000; u = 'g'; } else if (u === 'l') { q *= 1000; u = 'ml'; } else if (u === 'łyż.' || u === 'łyżecz.') { q *= gNaLyzke(nazwa || wpis, u); u = 'g'; }
+    else if (u === 'opak.') { const pk = pakProd(nazwa || wpis); if (pk) { q *= pk.r; u = pk.u; } else u = znany ? znany.u : 'szt.'; }
     zmienLodowke(nazwa || wpis, u, q); n++;
   }
   if (n) { rysuj(); pokazToast(`Dodano ${n} ${n === 1 ? 'pozycję' : n < 5 ? 'pozycje' : 'pozycji'} do lodówki`); const t = $('#szybkie-tekst'); if (t) t.value = ''; } else pokazToast('Nie rozpoznałem żadnej linii');
@@ -1487,7 +2095,7 @@ const ZAKLADANE = /oliw|olej|\bsol\b|pieprz|przypraw|cukier|ocet|woda|bulion|czo
 function mozliwosci() {
   const out = [];
   for (const d of DB.dania.values()) {
-    if (ukryte(d.id)) continue;
+    if (ukryte(d.id) || !dopuszcza(d, OS)) continue;
     const brak = []; let ma = 0, razem = 0, min = Infinity;
     for (const i of d.skladniki) {
       if (!i.produkt || !i.ilosc) continue;
@@ -1572,6 +2180,17 @@ document.addEventListener('click', e => {
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
   if (t.dataset.toast !== undefined) { const f = toastFn; $('#toast').hidden = true; toastFn = null; if (f) f(); return; }
+  if (t.dataset.gotuj) { otworzGotowanie(window._przepisG, !!spontG); return; }
+  if ('gotZamknij' in t.dataset) { zamknijGotowanie(); return; }
+  if (t.dataset.gotIdz !== undefined) { gotIdz(+t.dataset.gotIdz); return; }
+  if ('gotSkl' in t.dataset) { got.skl = !got.skl; rysujGot(); return; }
+  if (t.dataset.gotTimer) { const [sek, ...et] = t.dataset.gotTimer.split('|'); startTimer(et.join('|'), +sek); return; }
+  if (t.dataset.gotTp) { const tm = timery.find(x => x.id === +t.dataset.gotTp); if (tm) { if (tm.pauza) { tm.koniec += Date.now() - tm.pauza; tm.pauza = null; } else tm.pauza = Date.now(); rysujGot(); } return; }
+  if (t.dataset.gotT1) { const tm = timery.find(x => x.id === +t.dataset.gotT1); if (tm) { tm.koniec += 60000; rysujGot(); } return; }
+  if (t.dataset.gotTx) { timery = timery.filter(x => x.id !== +t.dataset.gotTx); rysujGot(); return; }
+  if (t.dataset.gotZjedz !== undefined) { const g0 = got.g; zjedz(g0, +t.dataset.gotZjedz, true); got.zjedzone = true; rysujGot(); pokazToast('Oznaczono jako zjedzone'); return; }
+  if ('gotSpont' in t.dataset) { const g0 = got.g; for (const [pp, , q, uu] of skladGarnka(g0)) if (lodowka[pp] && lodowka[pp][uu] != null) zmienLodowke(pp, uu, -ileZuzyto(q, uu)); spontWroc = false; spontG = null; zamknijGotowanie(true); $('#modal').hidden = true; rysuj(); pokazToast('Składniki zdjęte z lodówki'); return; }
+  if (t.dataset.smak) { const [id, pp, v] = t.dataset.smak.split(':'); ocenSmak(id, pp, +v); odswiezSmak(); return; }
   if (t.dataset.pomin) { const [d, sl] = t.dataset.pomin.split(':'); oknoPomin(+d, sl); return; }
   if (t.dataset.pominKto) { const [d, sl, k] = t.dataset.pominKto.split(':'); pominPosilek(+d, sl, k === 'oboje' ? OS : [k]); return; }
   if (t.dataset.pominShake) { const [d, pp] = t.dataset.pominShake.split(':'); zapiszPom(+d, pp, 'shake', true); otwartyDzien = +d; rysuj(); pokazToast(infoPrzeniesienia(+d, [pp]), 'Cofnij', () => { zapiszPom(+d, pp, 'shake', false); rysuj(); }); return; }
@@ -1606,6 +2225,24 @@ document.addEventListener('click', e => {
     LS.set('plan', plan); Z([[['dni', +d, 'nb'], day.nb]]); otwartyDzien = +d; rysuj();
   }
   else if (t.dataset.pdzien !== undefined) { if (t.dataset.pdzien) { const [st, d] = t.dataset.pdzien.split(':'); otwartyTyg = st; otwartyDzien = +d; rysuj(); } }
+  else if ('parNowy' in t.dataset) oknoParagonWklej()
+  else if (t.id === 'parSchowek') { (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject()).then(tx => { if (!tx || tx.length < 20) { pokazToast('Schowek jest pusty lub za krótki'); return; } const a = $('#par-tekst'); if (a) a.value = tx; wczytajParagon(tx); }).catch(() => pokazToast('Nie mogę odczytać schowka — wklej tekst ręcznie w pole poniżej')); }
+  else if (t.id === 'parWczytaj') wczytajParagon(($('#par-tekst') || {}).value || '')
+  else if (t.dataset.parProd !== undefined) oknoWyborProduktu(+t.dataset.parProd)
+  else if ('parWroc' in t.dataset) oknoParagon()
+  else if (t.dataset.parWybrany) { const [i, ...pr] = t.dataset.parWybrany.split('|'), r = parag.wiersze[+i], prod = pr.join('|'); Object.assign(r, { produkt: prod, pomin: false, wlacz: true, pew: 1, zmieniony: true }); const il = ilosciPozycji(parag.w.poz[+i], prod); r.q = il.q; r.u = il.u; r.pak = il.pak || null; oknoParagon(); }
+  else if (t.dataset.parNowyProd) { const [i, ...pr] = t.dataset.parNowyProd.split('|'), r = parag.wiersze[+i], prod = pr.join('|').toLowerCase(); Object.assign(r, { produkt: prod, pomin: false, wlacz: true, pew: 1, zmieniony: true }); const il = ilosciPozycji(parag.w.poz[+i], prod); r.q = il.q; r.u = il.u === 'g' && !il.q ? 'g' : il.u; oknoParagon(); }
+  else if (t.dataset.parPominPoz) { const r = parag.wiersze[+t.dataset.parPominPoz]; Object.assign(r, { pomin: true, wlacz: false, powod: 'pomijasz tę pozycję', zmieniony: true }); oknoParagon(); }
+  else if (t.id === 'parZapisz') zapiszParagon()
+  else if (t.dataset.cenyTryb) { cenyTryb = t.dataset.cenyTryb; LS.set('cenyTryb', cenyTryb); rysuj(); }
+  else if (t.dataset.parUsun) { if (confirm('Usunąć ten paragon z historii? Zapamiętane ceny zostaną.')) { paragony = paragony.filter(x => x.id !== t.dataset.parUsun); LS.set('paragony', paragony); Z([[['paragony'], paragony]]); rysuj(); } }
+  else if (t.dataset.smakUkryj) { oceny[t.dataset.smakUkryj] = -1; LS.set('oceny', oceny); Z([[['oceny', t.dataset.smakUkryj], -1]]); rysuj(); pokazToast('Danie ukryte'); }
+  else if (t.dataset.smakCzysc) { delete smaki[t.dataset.smakCzysc]; LS.set('smaki', smaki); Z([[['smaki', t.dataset.smakCzysc], undefined]]); rysuj(); }
+  else if (t.dataset.wosoba2) { wyklOsoba = t.dataset.wosoba2; rysuj(); }
+  else if (t.dataset.wgrupa) { const [pp, k] = t.dataset.wgrupa.split(':'); zmienWykl(() => { const a = wyklucz[pp], i = a.indexOf('g:' + k); if (i >= 0) a.splice(i, 1); else a.push('g:' + k); }); }
+  else if (t.dataset.wdodaj) { const pp = t.dataset.wdodaj, v = (($('#wykl-nowe') || {}).value || '').trim().toLowerCase(); if (v.length < 2) { pokazToast('Wpisz co najmniej 2 litery'); return; } if (!wyklucz[pp].includes(v)) zmienWykl(() => wyklucz[pp].push(v)); else pokazToast('To słowo już jest na liście'); }
+  else if (t.dataset.wusun) { const [pp, ...w] = t.dataset.wusun.split('|'), v = w.join('|'); zmienWykl(() => { wyklucz[pp] = wyklucz[pp].filter(x => x !== v); }); }
+  else if ('zamienWykl' in t.dataset) zamienNiepasujace()
   else if (t.dataset.zakdzien) {
     const s = wybraneDni(); s.has(t.dataset.zakdzien) ? s.delete(t.dataset.zakdzien) : s.add(t.dataset.zakdzien);
     zakDni = [...s].sort(); LS.set('zakDni', zakDni); rysuj();
@@ -1616,6 +2253,7 @@ document.addEventListener('click', e => {
   }
   else if (t.dataset.zakpreset) { zakDni = t.dataset.zakpreset === 'auto' ? null : []; if (zakDni) LS.set('zakDni', zakDni); else LS.del('zakDni'); rysuj(); }
   else if ('nowy' in t.dataset) { if (confirm('Ułożyć ten tydzień od nowa? Twoje zamiany w nim przepadną.')) { ulozTydzien(plan.start); rysuj(); } }
+  else if (t.id === 'doZakupowDzis') { zakDni = null; LS.del('zakDni'); zakOtw = false; zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }   // z przypomnienia: od razu najbliższa wyprawa (pon: wt–pt, pt: sob–pon)
   else if (t.id === 'doZakupow') { zakladka = 'zakupy'; rysuj(); window.scrollTo(0, 0); }
   else if (t.id === 'udostepnij') {
     const tekst = tekstListy();
@@ -1623,6 +2261,7 @@ document.addEventListener('click', e => {
     else if (navigator.clipboard) navigator.clipboard.writeText(tekst).then(() => alert('Lista skopiowana — wklej ją do notatek albo SMS-a.'), () => alert(tekst));
     else alert(tekst);
   }
+  else if ('pokazZakazane' in t.dataset && zmienCtx) { zmienCtx.pokazZakazane = !zmienCtx.pokazZakazane; listaWyboru(($('#szukaj') || {}).value || ''); }
   else if (t.dataset.tryb && zmienCtx) {
     zmienCtx.pula = t.dataset.tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania;
     document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('akt', b === t));
@@ -1653,6 +2292,9 @@ document.addEventListener('click', e => {
     }
   }
   else if (t.dataset.ocena) { const k = t.dataset.ocena.lastIndexOf(':'); ocen(t.dataset.ocena.slice(0, k), +t.dataset.ocena.slice(k + 1)); }
+  else if (t.dataset.korZastosuj) { const [pp, dl] = t.dataset.korZastosuj.split(':'); zastosujKorekte(pp, +dl, false); }
+  else if (t.dataset.korOdloz) { korekta[t.dataset.korOdloz].odloz = dodajDni(isoDzis(), 7); LS.set('korekta', korekta); Z([[['korekta', t.dataset.korOdloz], korekta[t.dataset.korOdloz]]]); rysuj(); pokazToast('Dam znać za tydzień'); }
+  else if (t.dataset.korReset) { const pp = t.dataset.korReset; korekta[pp].kcal = 0; korekta[pp].od = null; korekta[pp].odloz = null; LS.set('korekta', korekta); Z([[['korekta', pp], korekta[pp]]]); rysuj(); pokazToast('Korekta wyzerowana. Plan przeliczony.'); }
   else if (t.dataset.wosoba) { wagaOsoba = t.dataset.wosoba; rysuj(); }
   else if (t.dataset.wzakres) { wagaZakres = +t.dataset.wzakres; rysuj(); }
   else if (t.dataset.wkstep) { const [pp, dl] = t.dataset.wkstep.split(':'), el = $('#wk-' + pp); const v = parseFloat(String(el.value).replace(',', '.')) || 70; el.value = kgTxt(Math.max(25, v + +dl)); }
@@ -1669,6 +2311,7 @@ document.addEventListener('click', e => {
   else if (t.dataset.dodu) { dodU = t.dataset.dodu; odswiezDodawanie(); }
   else if (t.dataset.dodq) { $('#dod-q').value = t.dataset.dodq; }
   else if (t.dataset.dodp) { $('#dod-p').value = t.dataset.dodp; const k = DB.produkty.get(t.dataset.dodp); if (k && ['g', 'ml', 'szt.', 'krom.', 'pusz.'].includes(k.u)) dodU = k.u; odswiezDodawanie(); $('#dod-q').focus(); }
+  else if (t.dataset.stpak) { const [pp, uu, r] = t.dataset.stpak.split('|'); zmienLodowke(pp, uu, +r); rysuj(); pokazToast(`Dodano opakowanie: ${pp} ${r} ${uu}`); }
   else if (t.dataset.stpm) { const [pp, uu, dl] = t.dataset.stpm.split('|'), cur = (lodowka[pp] || {})[uu] || 0, st = KROK_LOD(uu); zmienLodowke(pp, uu, +dl > 0 ? st : -Math.min(st, cur)); rysuj(); }
   else if (t.dataset.stanusun) { const [pp, uu] = t.dataset.stanusun.split('|'), byl = (lodowka[pp] || {})[uu] || 0; if (lodowka[pp]) { delete lodowka[pp][uu]; if (!Object.keys(lodowka[pp]).length) delete lodowka[pp]; } LS.set('lodowka', lodowka); Z([[['lodowka', pp, uu], undefined]]); rysuj(); pokazToast(`Usunięto: ${pp}`, 'Cofnij', () => { zmienLodowke(pp, uu, byl > 0.5 ? byl : 0.01); rysuj(); }); }
   else if (t.id === 'dodajStan') dodajStanReczny();
@@ -1682,14 +2325,23 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'szukaj' && zmienCtx) listaWyboru(t.value);
+  else if (t.id === 'pw-szukaj' && parag) { const i = [...document.querySelectorAll('[data-par-pomin-poz]')][0]; listaProduktowPar(+(i ? i.dataset.parPominPoz : 0), t.value); }
+  else if (t.id === 'cena-szukaj') { const q = znorm(t.value.trim()); document.querySelectorAll('.cena-w').forEach(r => { r.hidden = !!q && !r.dataset.nm.includes(q); }); }
   else if (t.id === 'lod-szukaj') { lodSzukaj = t.value; filtrujLodowke(); }
-  else if (t.id === 'dod-p') odswiezDodawanie()
+  else if (t.id === 'dod-p' || t.id === 'dod-q') odswiezDodawanie()
   else if (t.id === 'szukaj-sp') { spontFiltr.q = t.value; listaSpont(); }
   else if (t.id === 'nowy-p') { const k = DB.produkty.get(t.value); if (k && $('#nowy-u')) $('#nowy-u').value = ['g', 'ml', 'szt.', 'krom.', 'pusz.'].includes(k.u) ? k.u : 'g'; }
 });
 document.addEventListener('change', e => {
   const t = e.target;
   przygotujTydzien(e);
+  if (t.dataset.parWl !== undefined && parag) { parag.wiersze[+t.dataset.parWl].wlacz = t.checked; const w = t.closest('.par-w'); if (w) w.classList.toggle('wyl', !t.checked); return; }
+  if (t.dataset.parQ !== undefined && parag) { const v = liczbaZ(t.value), r = parag.wiersze[+t.dataset.parQ]; r.q = v > 0 ? v : null; if (r.q && r.produkt) { r.wlacz = true; r.pew = 1; r.zmieniony = true; } const w = t.closest('.par-w'); if (w) { w.classList.toggle('wyl', !r.wlacz); const c = w.querySelector('[data-par-wl]'); if (c) c.checked = r.wlacz; } return; }
+  if (t.dataset.parU !== undefined && parag) { parag.wiersze[+t.dataset.parU].u = t.value; return; }
+  if (t.id === 'par-sklep' && parag) { parag.sklep = t.value; return; }
+  if (t.id === 'par-data' && parag) { parag.data = t.value; return; }
+  if (t.dataset.korAuto) { korekta[t.dataset.korAuto].auto = t.checked; LS.set('korekta', korekta); Z([[['korekta', t.dataset.korAuto], korekta[t.dataset.korAuto]]]); return; }
+  if (t.dataset.gotOdh !== undefined && got) { got.odhacz[t.dataset.gotOdh] = t.checked; const w = t.closest('.got-sk'); if (w) w.classList.toggle('ok', t.checked); return; }
   if (t.dataset.nb) {
     const [d, pp] = t.dataset.nb.split(':'), day = plan.dni[+d];
     day.nb = Object.assign({ ona: false, on: false }, day.nb); day.nb[pp] = t.checked;
@@ -1700,6 +2352,7 @@ document.addEventListener('change', e => {
     const [d, sl] = t.dataset.zuz.split(':'), g = window._w.garnki.find(x => x.slot === sl && x.porcje.some(q => q.d === +d));
     if (!g) return;
     zjedz(g, +d, t.checked); otwartyDzien = +d; rysuj();
+    if (t.checked) zapytajSmak(g, +d);
   }
   else if (t.dataset.sp) {
     const v = parseFloat(String(t.value).replace(',', '.')), cur = (lodowka[t.dataset.sp] || {})[t.dataset.su] || 0;
@@ -1719,7 +2372,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny) }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -1731,9 +2384,13 @@ window.App = {
     const przed = stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny });
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
+    wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; zastosujPakiety(); migrujPuszki();
+    korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza

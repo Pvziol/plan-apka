@@ -43,6 +43,7 @@ let korekta = LS.get('korekta', { ona: { kcal: 0, od: null, hist: [] }, on: { kc
 let paragony = LS.get('paragony', []);                     // ostatnie paragony: [{ id, data, sklep, lokal, suma, poz: [{ n, p, q, u, c, b }] }]; wspólne
 let ceny = LS.get('ceny', {});                             // ceny[produkt][sklep] = { u, ost, sr, cb, n, t, h }: zł za kg / l / szt. po rabatach; wspólne
 let mapaPar = LS.get('mapaPar', {});                       // nazwa z paragonu (bez liczb) -> produkt albo '' (pomiń); wspólne
+let kody = LS.get('kody', {});                               // zeskanowane kody kreskowe: kody[ean] = { p: produkt, r: rozmiar opakowania, u }; wspólne
 let wlasneProd = LS.get('wlasneProd', {});                   // produkty dodane z paragonów: wlasneProd[nazwa] = { kat, u }; wspólne
 let pakiety = LS.get('pakiety', {});                       // pakiety[produkt] = { r, u, et, w: [rozmiary], t }: standardowe opakowania poznane z paragonów; wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
@@ -762,6 +763,7 @@ function widokTydzien() {
   if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
   const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
+  h += paskAkcji(['prep', 'wykl', 'zakupy']);
   { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${nar.length === 1 ? 'posiłek zawiera' : 'posiłków zawiera'} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
@@ -1023,6 +1025,139 @@ function kosztProduktu(prod, q, u, sklep) {
 }
 const sklepyZnane = () => [...new Set(Object.values(ceny).flatMap(e => Object.keys(e)))].sort();
 
+// ---------- szybkie akcje: najważniejsze funkcje zawsze pod ręką (nie tylko w „Więcej”) ----------
+const AKCJE = {
+  skan: ['Skanuj kod', 'M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M12 8v8M16 8v8'],
+  paragon: ['Dodaj paragon', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6'],
+  prep: ['Meal prep', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6'],
+  spont: ['Co ugotować', 'M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z'],
+  waga: ['Zważ się', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5'],
+  wykl: ['Czego nie jecie', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12'],
+  dodaj: ['Dodaj ręcznie', 'M12 5v14M5 12h14'],
+  zakupy: ['Zakupy', 'M5 8.5h14l-1.2 11.5H6.2zM9 8.5a3 3 0 0 1 6 0']
+};
+const paskAkcji = lista => `<div class="szybkie" role="group" aria-label="Szybkie akcje">${lista.map(k => `<button class="szybka" data-szybka="${k}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE[k][1]}"/></svg><span>${AKCJE[k][0]}</span></button>`).join('')}</div>`;
+function szybkaAkcja(k) {
+  if (k === 'skan') oknoSkaner(); else if (k === 'paragon') oknoParagonWklej(); else if (k === 'spont') oknoSpont(); else if (k === 'dodaj') oknoDodaj('jeden');
+  else { zakladka = { prep: 'prep', waga: 'waga', wykl: 'wykluczone', zakupy: 'zakupy' }[k]; rysuj(); window.scrollTo(0, 0); }
+}
+// ---------- skaner kodów kreskowych (aparat + Open Food Facts) ----------
+let skan = null, skanWynik = null;
+const kodWazny = k => /^\d{8}$|^\d{12,14}$/.test(k);
+function zaladujZxing() {
+  return window.ZXing ? Promise.resolve() : new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js'; sc.onload = ok; sc.onerror = () => err(new Error('zxing')); document.head.appendChild(sc); });
+}
+function zatrzymajSkan(wszystko) {
+  if (!skan) return;
+  clearInterval(skan.loop); skan.loop = null;
+  if (skan.reader) { try { skan.reader.reset(); } catch (e) { /* nic */ } skan.reader = null; }
+  if (wszystko) { try { skan.stream && skan.stream.getTracks().forEach(t => t.stop()); } catch (e) { /* nic */ } skan = null; }
+}
+function oknoSkaner(komunikat) {
+  zatrzymajSkan();
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Skanuj produkt</h2><button class="btn maly" data-skan-zamknij>Gotowe</button></div>
+    <div class="skan-ramka"><video id="skan-video" playsinline muted autoplay></video><div class="skan-celownik"></div></div>
+    <p class="mute" id="skan-info">${esc(komunikat || 'Naprowadź kod kreskowy na ramkę. Rozpoznam go sam.')}</p>
+    <label class="pole"><span>Albo wpisz numer kodu</span></label><div class="lod-rzad" style="margin-top:-6px"><input id="skan-reczny" type="text" inputmode="numeric" placeholder="np. 5900497011211" autocomplete="off"><button class="btn glowny maly" data-skan-szukaj>Szukaj</button></div>`;
+  $('#modal').hidden = false; startSkan();
+}
+async function startSkan() {
+  const info = $('#skan-info'), v = $('#skan-video');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { info.textContent = 'Ta przeglądarka nie udostępnia kamery. Wpisz kod ręcznie poniżej.'; return; }
+  try {
+    skan = skan || { stream: null, ostatni: '', t: 0 };
+    if ('BarcodeDetector' in window) {
+      if (!skan.stream || !skan.stream.active) skan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      v.srcObject = skan.stream; await v.play();
+      const det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+      skan.loop = setInterval(async () => { try { const r = await det.detect(v); if (r && r[0]) znalezionyKod(r[0].rawValue); } catch (e) { /* klatka bez kodu */ } }, 280);
+    } else {
+      info.textContent = 'Ładuję moduł rozpoznawania kodów…'; await zaladujZxing();
+      const hints = new Map(); hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E]);
+      const reader = new ZXing.BrowserMultiFormatReader(hints); skan.reader = reader;
+      reader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } }, audio: false }, 'skan-video', (res) => { if (res) znalezionyKod(res.getText()); });
+      info.textContent = 'Naprowadź kod kreskowy na ramkę. Rozpoznam go sam.';
+    }
+  } catch (e) {
+    info.textContent = e && e.name === 'NotAllowedError' ? 'Brak zgody na kamerę. Zezwól w ustawieniach przeglądarki albo wpisz kod ręcznie.' : 'Nie udało się uruchomić kamery. Wpisz kod ręcznie poniżej.';
+  }
+}
+function znalezionyKod(kod) {
+  if (!kodWazny(kod) || !skan || (kod === skan.ostatni && Date.now() - skan.t < 3000)) return;
+  skan.ostatni = kod; skan.t = Date.now();
+  try { navigator.vibrate && navigator.vibrate(60); } catch (e) { /* nic */ }
+  wynikSkanu(kod);
+}
+// Rozmiar opakowania z tekstu Open Food Facts („500 g”, „1,5 l”, „6 x 100 g”) w jednostce bazowej (g / ml / szt.).
+function rozmiarZTekstu(t) {
+  const m = String(t || '').toLowerCase().replace(',', '.').match(/(?:(\d+)\s*[x×]\s*)?(\d+(?:\.\d+)?)\s*(kg|g|ml|cl|l|szt)\b/);
+  if (!m) return null;
+  const n = m[1] ? +m[1] : 1, v = parseFloat(m[2]), j = m[3];
+  return j === 'kg' ? { r: v * 1000 * n, u: 'g' } : j === 'g' ? { r: v * n, u: 'g' } : j === 'l' ? { r: v * 1000 * n, u: 'ml' } : j === 'cl' ? { r: v * 10 * n, u: 'ml' } : j === 'ml' ? { r: v * n, u: 'ml' } : { r: v * n, u: 'szt.' };
+}
+async function szukajOFF(kod) {
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${kod}.json?fields=product_name,product_name_pl,generic_name_pl,brands,quantity,product_quantity,product_quantity_unit`, { signal: ctl.signal });
+    const j = await r.json();
+    if (j.status !== 1 || !j.product) return { brak: true };
+    const x = j.product, nazwa = (x.product_name_pl || x.product_name || x.generic_name_pl || '').trim();
+    let roz = x.product_quantity ? { r: +x.product_quantity, u: /ml|l/i.test(x.product_quantity_unit || '') ? 'ml' : 'g' } : rozmiarZTekstu(x.quantity);
+    return { nazwa, marka: (x.brands || '').split(',')[0].trim(), ilosc: String(x.quantity || '').replace(/\s*[℮e]\s*$/i, '').trim(), roz };
+  } catch (e) { return { blad: true }; } finally { clearTimeout(tm); }
+}
+async function wynikSkanu(kod) {
+  clearInterval(skan && skan.loop); if (skan && skan.reader) { try { skan.reader.reset(); } catch (e) { /* nic */ } skan.reader = null; }
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Szukam produktu…</h2><button class="btn maly" data-skan-zamknij>Gotowe</button></div><p class="pusty" style="padding:40px 0">Kod ${esc(kod)}</p>`;
+  const rek = kody[kod], off = rek ? null : await szukajOFF(kod);
+  if (!$('#modal') || $('#modal').hidden) return;
+  let nazwa = '', produkt = '', r = null, u = 'g', kat = 'zapas', stan = '', info = '';
+  if (rek) { produkt = rek.p; r = rek.r; u = rek.u; info = 'Znam ten kod — zapamiętany wcześniej.'; stan = 'znany'; }
+  else if (off && off.nazwa) {
+    nazwa = off.nazwa + (off.marka ? ' (' + off.marka + ')' : ''); stan = 'off';
+    const d = dopasujProdukt(off.nazwa), sug = sugerujNowy({ raw: off.nazwa, waga: null, ilosc: 1 });
+    if (d && d.produkt && !d.pomin) { produkt = d.produkt; u = (DB.produkty.get(produkt) || {}).u || 'g'; }
+    else { produkt = sug.nazwa; kat = sug.kat; u = off.roz ? off.roz.u : sug.u; }
+    if (off.roz && (!DB.produkty.has(produkt) || off.roz.u === u || (u === 'g' && off.roz.u === 'ml') || (u === 'ml' && off.roz.u === 'g'))) { r = Math.round(off.roz.r * 10) / 10; if (DB.produkty.has(produkt)) u = off.roz.u === 'szt.' && u !== 'szt.' ? u : off.roz.u; else u = off.roz.u; }
+    info = 'Znaleziono w Open Food Facts. Sprawdź nazwę i rozmiar.';
+  } else { stan = off && off.blad ? 'blad' : 'brak'; info = stan === 'blad' ? 'Brak połączenia z bazą produktów. Wpisz nazwę i rozmiar ręcznie — zapamiętam kod.' : 'Nie ma tego kodu w bazie Open Food Facts. Wpisz nazwę i rozmiar — zapamiętam kod na przyszłość.'; }
+  skanWynik = { kod, stan, kat, ile: 1 };
+  const nowy = produkt && !DB.produkty.has(produkt);
+  let naLiscie = null;
+  try { const z = zakupyDni(wybraneDni()); naLiscie = ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]).find(x => x.produkt === produkt && !odhK(kluczKup(x.produkt))); window._z = z; } catch (e) { /* nic */ }
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>${stan === 'znany' || stan === 'off' ? 'Znaleziono produkt' : 'Nowy kod'}</h2><button class="btn maly" data-skan-zamknij>Gotowe</button></div>
+    ${nazwa ? `<p class="sk-nazwa">${esc(nazwa)}${off && off.ilosc ? `<small>${esc(off.ilosc)}</small>` : ''}</p>` : ''}<p class="mute" style="margin:4px 0 10px">Kod ${esc(kod)} · ${esc(info)}</p>
+    <label class="pole"><span>Produkt w apce</span><input id="sk-prod" list="produkty" type="text" autocomplete="off" value="${esc(produkt)}" placeholder="np. mleko 2%"></label>
+    <datalist id="produkty">${[...DB.produkty.keys()].sort((a, b) => a.localeCompare(b, 'pl')).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <div id="sk-nowy" ${nowy || !produkt ? '' : 'hidden'}><p class="mute" style="margin:0 0 6px">To nowy produkt — gdzie go trzymasz?</p><div class="seg mini" id="sk-kat">${[['świeże', 'Świeże'], ['zamrażarka', 'Mrożone'], ['zapas', 'Zapasy']].map(([k, et]) => `<button data-sk-kat="${k}" class="${kat === k ? 'akt' : ''}">${et}</button>`).join('')}</div></div>
+    <div class="dwa" style="margin-top:10px"><label class="pole"><span>Rozmiar opakowania</span><input id="sk-rozm" type="text" inputmode="decimal" value="${r == null ? '' : String(r).replace('.', ',')}" placeholder="np. 160"></label>
+    <label class="pole"><span>Jednostka</span><select id="sk-u">${['g', 'ml', 'szt.'].map(x => `<option ${u === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
+    <h3>Ile opakowań?</h3><div class="wpisz"><button class="strz" data-sk-ile="-1" aria-label="Mniej">−</button><label class="wpisz-pole"><input type="text" inputmode="numeric" id="sk-ile" value="1" aria-label="Liczba opakowań"><span>szt.</span></label><button class="strz" data-sk-ile="1" aria-label="Więcej">+</button></div>
+    <p class="mute" id="sk-info" style="text-align:center;margin:0 0 10px"></p>
+    <button class="btn glowny szeroki" data-sk-dodaj="1">Dodaj do lodówki</button>
+    ${naLiscie ? `<button class="btn szeroki" data-sk-odhacz="${esc(produkt)}" style="margin-top:8px">To jest na liście zakupów — odhacz zamiast dopisywać</button>` : ''}
+    <button class="btn szeroki" data-sk-dalej style="margin-top:8px">Skanuj kolejny</button>`;
+  $('#modal').hidden = false; odswiezSkan();
+}
+function odswiezSkan() {
+  const p = (($('#sk-prod') || {}).value || '').trim(), znany = [...DB.produkty.keys()].some(k => znorm(k) === znorm(p)), nw = $('#sk-nowy');
+  if (nw) nw.hidden = !p || znany;
+  const r = parseFloat(String(($('#sk-rozm') || {}).value).replace(',', '.')), n = parseInt(($('#sk-ile') || {}).value, 10) || 1, u = ($('#sk-u') || {}).value || 'g';
+  if ($('#sk-info')) $('#sk-info').innerHTML = r > 0 ? `${n} × ${fmtPak(r)} ${esc(u)} = <b>${fmtPak(n * r)} ${esc(u)}</b>` : 'Wpisz rozmiar opakowania, a policzę gramy.';
+}
+function skanDodaj() {
+  const w = skanWynik, nazwa = (($('#sk-prod') || {}).value || '').trim(), r = parseFloat(String(($('#sk-rozm') || {}).value).replace(',', '.')), n = parseInt(($('#sk-ile') || {}).value, 10) || 1, u = ($('#sk-u') || {}).value || 'g';
+  if (nazwa.length < 2) { pokazToast('Wpisz nazwę produktu'); return false; }
+  if (!(r > 0)) { pokazToast('Wpisz rozmiar opakowania, np. 160'); return false; }
+  const znany = [...DB.produkty.keys()].find(k => znorm(k) === znorm(nazwa)), kat = (document.querySelector('#sk-kat .akt') || {}).dataset ? document.querySelector('#sk-kat .akt').dataset.skKat : w.kat;
+  const prod = znany || dodajWlasnyProdukt(nazwa, kat, u);
+  kody[w.kod] = { p: prod, r, u }; LS.set('kody', kody);
+  uczPak(prod, r, u); LS.set('pakiety', pakiety); Z([[['kody', w.kod], kody[w.kod]], [['pakiety'], pakiety]]);
+  zmienLodowke(prod, u, n * r);
+  pokazToast(`Dodano: ${prod} ${n} × ${fmtPak(r)} ${u} = ${fmtStan(n * r, u)}`);
+  return prod;
+}
+
 // Własne produkty (z paragonów): wspólne dla pary, widoczne w lodówce, podpowiedziach i dopasowaniu paragonów.
 function zastosujWlasne() { for (const [n, x] of Object.entries(wlasneProd)) if (x && !DB.produkty.has(n)) DB.produkty.set(n, { kat: x.kat || 'zapas', u: x.u || 'g' }); }
 function dodajWlasnyProdukt(nazwa, kat, u) {
@@ -1083,19 +1218,128 @@ function oknoNowyProdukt(i, nazwaStart) {
   $('#modal').hidden = false;
 }
 
+const _skrypty = {};
+const zaladujSkrypt = url => _skrypty[url] || (_skrypty[url] = new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = url; sc.onload = ok; sc.onerror = () => { delete _skrypty[url]; err(new Error('Nie udało się pobrać modułu rozpoznawania (sprawdź internet).')); }; document.head.appendChild(sc); }));
+const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', TESS_LANG = 'https://tessdata.projectnaptha.com/4.0.0_fast';
+async function inflateBajty(u8) { return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer()); }
+function unfilterPng(dane, kol, kan) {
+  const rowLen = kol * kan, rows = Math.floor(dane.length / (rowLen + 1)), out = new Uint8Array(rows * rowLen);
+  for (let y = 0; y < rows; y++) {
+    const f = dane[y * (rowLen + 1)], src = y * (rowLen + 1) + 1, dst = y * rowLen;
+    for (let x = 0; x < rowLen; x++) {
+      const a = x >= kan ? out[dst + x - kan] : 0, b = y ? out[dst - rowLen + x] : 0, c = (x >= kan && y) ? out[dst - rowLen + x - kan] : 0; let v = dane[src + x];
+      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1; else if (f === 4) { const pp = a + b - c, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c); v += (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c); }
+      out[dst + x] = v & 255;
+    }
+  }
+  return out;
+}
+// E-paragon z aplikacji sklepu to zwykle PDF zawierający tylko obraz (bez warstwy tekstu): wyciągam obraz z PDF bez dodatkowych bibliotek (Flate / JPEG, z maską przezroczystości).
+async function pdfObrazy(buf) {
+  const u8 = new Uint8Array(buf), txt = new TextDecoder('latin1').decode(u8), obj = {}, re = /(\d+) 0 obj\s*<<([\s\S]*?)>>\s*stream\r?\n/g; let m;
+  while ((m = re.exec(txt))) { const start = m.index + m[0].length, koniec = txt.indexOf('endstream', start); obj[m[1]] = { d: m[2], raw: u8.subarray(start, koniec > 0 ? koniec : u8.length) }; }
+  const liczba = (d, k) => { const x = d.match(new RegExp('/' + k + '\\s+(\\d+)')); return x ? +x[1] : null; };
+  const rozpakuj = async o => {
+    const d = o.d, f = (d.match(/\/Filter\s*\[?\s*\/(\w+)/) || [])[1], w = liczba(d, 'Width'), h = liczba(d, 'Height'); let raw = o.raw;
+    if (raw[raw.length - 1] === 10) raw = raw.subarray(0, raw.length - (raw[raw.length - 2] === 13 ? 2 : 1));
+    if (f === 'DCTDecode') return { jpeg: raw, w, h };
+    if (f === 'FlateDecode' || !f) {
+      const kan = /DeviceRGB/.test(d) ? 3 : /DeviceGray/.test(d) ? 1 : null; if (!kan) return null;
+      let b = f ? await inflateBajty(raw) : raw; const pred = liczba(d, 'Predictor'); if (pred >= 10) b = unfilterPng(b, liczba(d, 'Columns') || w, kan);
+      return { px: b, w, h, kan };
+    }
+    return null;
+  };
+  const wyniki = [], maski = new Set(Object.values(obj).map(o => (o.d.match(/\/SMask\s+(\d+)\s+0\s+R/) || [])[1]).filter(Boolean));
+  for (const [id, o] of Object.entries(obj)) {
+    if (maski.has(id) || !/\/Subtype\s*\/Image/.test(o.d) || /\/ImageMask\s+true/.test(o.d)) continue;
+    const img = await rozpakuj(o); if (!img) continue;
+    if (img.jpeg) { const bm = await createImageBitmap(new Blob([img.jpeg], { type: 'image/jpeg' })), cv = document.createElement('canvas'); cv.width = bm.width; cv.height = bm.height; const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(bm, 0, 0); wyniki.push(cv); continue; }
+    let alfa = null; const sm = (o.d.match(/\/SMask\s+(\d+)\s+0\s+R/) || [])[1];
+    if (sm && obj[sm]) { const a = await rozpakuj(obj[sm]); if (a && a.kan === 1) alfa = a.px; }
+    const cv = document.createElement('canvas'); cv.width = img.w; cv.height = img.h; const cx = cv.getContext('2d'), dd = cx.createImageData(img.w, img.h), n = img.w * img.h;
+    for (let i = 0; i < n; i++) { const a = alfa ? alfa[i] / 255 : 1; for (let c = 0; c < 3; c++) dd.data[i * 4 + c] = Math.round((img.kan === 3 ? img.px[i * 3 + c] : img.px[i]) * a + 255 * (1 - a)); dd.data[i * 4 + 3] = 255; }
+    cx.putImageData(dd, 0, 0); wyniki.push(cv);
+  }
+  return wyniki;
+}
+let ocrWorker = null;
+// Obraz → skala szarości, powiększenie ×2 (drobny druk paragonu) → rozpoznanie tekstu (Tesseract, język polski).
+async function ocrObraz(cv, postep) {
+  const wi = cv.width * 2, he = cv.height * 2, c2 = document.createElement('canvas'); c2.width = wi; c2.height = he;
+  const cx = c2.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.filter = 'grayscale(1) contrast(1.4)'; cx.drawImage(cv, 0, 0, wi, he);
+  await zaladujSkrypt(TESS_URL);
+  if (!ocrWorker) ocrWorker = await Tesseract.createWorker('pol', 1, { langPath: TESS_LANG, logger: m => postep && postep(m) });
+  await ocrWorker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
+  return (await ocrWorker.recognize(c2)).data.text;
+}
+function oknoPostepu(tekst, proc) {
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Czytam paragon</h2><button class="btn maly" data-zamknij>Anuluj</button></div><p class="pusty" style="padding:26px 0 8px" id="postep-tx">${esc(tekst)}</p><div class="pasek" style="color:var(--zielony);margin:0 0 24px"><i id="postep-pas" style="width:${proc || 8}%"></i></div><p class="mute" style="text-align:center">Za pierwszym razem pobieram moduł rozpoznawania tekstu (kilka MB). Potem działa szybciej.</p>`;
+  $('#modal').hidden = false;
+}
+async function wczytajPlik(f) {
+  const typ = (f.type || '').toLowerCase(), nazwa = (f.name || '').toLowerCase();
+  try {
+    if (/json|text\/plain/.test(typ) || /\.(json|txt)$/.test(nazwa)) { wczytajParagon(await f.text()); return; }
+    oknoPostepu('Otwieram plik…', 5);
+    let obrazy;
+    if (/pdf/.test(typ) || /\.pdf$/.test(nazwa)) { obrazy = await pdfObrazy(await f.arrayBuffer()); if (!obrazy.length) throw new Error('W tym PDF-ie nie znalazłem obrazu paragonu.'); }
+    else if (/^image\//.test(typ)) { const bm = await createImageBitmap(f), cv = document.createElement('canvas'); cv.width = bm.width; cv.height = bm.height; cv.getContext('2d').drawImage(bm, 0, 0); obrazy = [cv]; }
+    else throw new Error('Ten typ pliku nie jest obsługiwany. Wybierz PDF, zdjęcie, JSON albo plik tekstowy.');
+    let tekst = '';
+    for (let i = 0; i < obrazy.length; i++) {
+      tekst += (i ? '\n' : '') + await ocrObraz(obrazy[i], m => { const t = $('#postep-tx'), pa = $('#postep-pas'); if (t) t.textContent = (m.status === 'recognizing text' ? 'Rozpoznaję tekst… ' : 'Pobieram moduł… ') + Math.round((m.progress || 0) * 100) + '%'; if (pa) pa.style.width = Math.max(8, Math.round((m.progress || 0) * 100)) + '%'; });
+    }
+    wczytajParagon(tekst, true);
+  } catch (e) { oknoParagonWklej(); pokazToast(e && e.message ? e.message : 'Nie udało się odczytać pliku'); }
+}
+async function schowekParagon() {
+  try {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      const it = await navigator.clipboard.read();
+      for (const x of it) { const im = x.types.find(t => /^image\//.test(t)); if (im) { wczytajPlik(new File([await x.getType(im)], 'schowek', { type: im })); return; } }
+      for (const x of it) if (x.types.includes('text/plain')) { const tx = await (await x.getType('text/plain')).text(); if (tx && tx.length > 20) { const a = $('#par-tekst'); if (a) a.value = tx; wczytajParagon(tx); return; } }
+    } else if (navigator.clipboard && navigator.clipboard.readText) { const tx = await navigator.clipboard.readText(); if (tx && tx.length > 20) { const a = $('#par-tekst'); if (a) a.value = tx; wczytajParagon(tx); return; } }
+    pokazToast('Schowek jest pusty albo nie zawiera paragonu');
+  } catch (e) { pokazToast('Nie mogę odczytać schowka. Użyj „Wybierz plik” albo wklej tekst w pole.'); }
+}
+// Paragon udostępniony z aplikacji sklepu (Android, zainstalowana aplikacja): service worker zapisuje go w pamięci, a ja go tu odczytuję.
+async function przyjmijUdostepnione() {
+  try {
+    const c = await caches.open('udostepnione'), m = await c.match('./udostepnione/meta'); if (!m) return null;
+    const meta = await m.json(), pliki = [];
+    for (const p of meta.pliki) { const r = await c.match(p.klucz); if (r) pliki.push(new File([await r.blob()], p.nazwa || 'paragon', { type: p.typ })); }
+    for (const k of await c.keys()) await c.delete(k);
+    return { tekst: meta.tekst || '', pliki };
+  } catch (e) { return null; }
+}
+async function wczytajUdostepnione() {
+  history.replaceState(null, '', location.pathname);
+  const d = await przyjmijUdostepnione();
+  if (!d) { pokazToast('Nie udało się odebrać udostępnionego paragonu'); return; }
+  zakladka = 'paragony'; rysuj();
+  if (d.pliki.length) wczytajPlik(d.pliki[0]);
+  else if (d.tekst && d.tekst.length > 20) wczytajParagon(d.tekst);
+  else pokazToast('Udostępniono coś, co nie wygląda jak paragon');
+}
+
 let parag = null;
 const SKLEPY_DOM = ['Lidl', 'Biedronka', 'Kaufland', 'Auchan', 'Carrefour', 'Netto', 'Żabka', 'Inny sklep'];
 function oknoParagonWklej() {
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Dodaj paragon</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <p class="mute">Skopiuj paragon (tekst z Lidl Plus albo plik JSON z Moja Biedronka) i wklej tutaj. Zapamiętam ceny produktów i sklep, żeby podpowiadać, gdzie taniej zrobić zakupy.</p>
     <button class="btn glowny szeroki" id="parSchowek">Wklej ze schowka</button>
+    <label class="btn szeroki plik-btn" style="margin-top:8px">Wybierz plik (PDF, zdjęcie, JSON)<input type="file" id="par-plik" accept=".pdf,.json,.txt,application/pdf,application/json,text/plain,image/*" hidden></label>
+    <p class="mute" style="margin:8px 0 0"><b>Z Lidla:</b> e-paragon to PDF z obrazem — w aplikacji Lidl wybierz „Udostępnij” i zapisz w Plikach (albo udostępnij do tej aplikacji na Androidzie), a tu wybierz plik. Odczytam go automatycznie.</p>
     <label class="pole"><span>…albo wklej ręcznie</span><textarea id="par-tekst" rows="8" placeholder="Wklej tu cały tekst albo JSON paragonu"></textarea></label>
     <button class="btn szeroki" id="parWczytaj">Wczytaj paragon</button>`;
   $('#modal').hidden = false;
 }
-function wczytajParagon(tekst) {
+function wczytajParagon(tekst, ocr) {
   const w = parsujParagon(tekst);
-  if (!w.poz.length) { pokazToast(w.ostrz[0] || 'Nie rozpoznałem paragonu'); return; }
+  if (!w.poz.length) { if (ocr) { oknoParagonWklej(); const a = $('#par-tekst'); if (a) a.value = tekst; pokazToast('Nie udało się odczytać pozycji. Popraw tekst poniżej albo spróbuj lepszego zdjęcia.'); } else pokazToast(w.ostrz[0] || 'Nie rozpoznałem paragonu'); return; }
+  if (ocr) w.poz.forEach(x => { x.raw = czyscNazwe(x.raw.replace(/\s*[\[\(|{][A-Za-z]?\s*$/, '')); });
+  if (ocr) w.ostrz.unshift('Paragon odczytany automatycznie z obrazu. Sprawdź nazwy i ceny (ceny możesz poprawić dotknięciem).');
   const sumaP = w.suma != null ? w.suma : w.sumaPoz;
   const dubel = paragony.some(x => x.data === w.data && Math.abs(x.suma - sumaP) < 0.01 && (!w.sklep || x.sklep === w.sklep));
   const wiersze = w.poz.map((x, i) => { const d = dopasujProdukt(x.raw), prod = d.produkt || '', il = prod ? ilosciPozycji(x, prod) : { q: null, u: 'g' }; return { i, produkt: prod, pomin: !!d.pomin, powod: d.powod || '', pew: d.pew || 0, q: il.q, u: il.u, wlacz: !d.pomin && !!prod && (d.pew || 0) >= 1 && il.q > 0, zmieniony: false, pak: il.pak || null }; });
@@ -1111,7 +1355,7 @@ function oknoParagon() {
       <div class="par-tx"><b>${esc(x.raw)}</b><small>${esc(opisPozycji(x))}</small>
       <button class="par-prod ${r.produkt ? '' : 'brak'}" data-par-prod="${r.i}">${r.produkt ? '→ ' + esc(r.produkt) + (r.pew < 1 ? ' (sprawdź)' : '') : 'Wybierz produkt'}</button>${r.produkt ? '' : ` <button class="par-prod nowy" data-par-nowy-formularz="${r.i}">＋ Nowy produkt</button>`}
       ${r.produkt ? `${r.pak && r.q > 0 ? `<small class="par-pak">${fmtPak(r.q / r.pak)} × opakowanie ${r.pak} ${r.u} (zapamiętam rozmiar)</small>` : ''}<div class="par-q"><input type="text" inputmode="decimal" data-par-q="${r.i}" value="${r.q == null ? '' : String(r.q).replace('.', ',')}" placeholder="ile?" aria-label="Ilość"><select data-par-u="${r.i}">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<option ${r.u === u ? 'selected' : ''}>${u}</option>`).join('')}</select></div>` : ''}</div>
-      <b class="par-cena">${zl(x.netto)}</b></div>`; };
+      <input class="par-cena" type="text" inputmode="decimal" data-par-cena="${r.i}" value="${String(x.netto.toFixed(2)).replace('.', ',')}" aria-label="Cena po rabatach"></div>`; };
   const doSpr = wiersze.filter(r => !r.pomin && (!r.produkt || r.pew < 1 || !(r.q > 0))), rozp = wiersze.filter(r => !r.pomin && r.produkt && r.pew >= 1 && r.q > 0), pom = wiersze.filter(r => r.pomin);
   const sklepy = SKLEPY_DOM.includes(parag.sklep) || !parag.sklep ? SKLEPY_DOM : [parag.sklep].concat(SKLEPY_DOM);
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Sprawdź paragon</h2><button class="btn maly" data-zamknij>Anuluj</button></div>
@@ -1119,7 +1363,7 @@ function oknoParagon() {
     ${w.ostrz.map(o => `<div class="uwaga">${esc(o)}</div>`).join('')}
     <div class="dwa"><label class="pole"><span>Sklep</span><select id="par-sklep">${!parag.sklep ? '<option value="">— wybierz —</option>' : ''}${sklepy.map(k => `<option ${parag.sklep === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></label>
     <label class="pole"><span>Data</span><input type="date" id="par-data" value="${esc(parag.data)}" max="${isoDzis()}"></label></div>
-    <p class="mute" style="margin:0 0 6px">${w.lokal ? esc(w.lokal) + ' · ' : ''}Suma paragonu: <b>${zl(w.suma != null ? w.suma : w.sumaPoz)}</b> · rozpoznano ${rozp.length + doSpr.length} pozycji do sprawdzenia i zapisania, ${pom.length} pominiętych</p>
+    <p class="mute" style="margin:0 0 6px">${w.lokal ? esc(w.lokal) + ' · ' : ''}Suma paragonu: <b>${zl(w.suma != null ? w.suma : w.sumaPoz)}</b> · suma pozycji: <b id="par-sumapoz">${zl(w.sumaPoz)}</b> · rozpoznano ${rozp.length + doSpr.length} pozycji do sprawdzenia i zapisania, ${pom.length} pominiętych</p>
     ${doSpr.length ? `<h3>Do sprawdzenia (${doSpr.length})</h3>${doSpr.map(wiersz).join('')}` : ''}
     ${rozp.length ? `<h3>Rozpoznane (${rozp.length})</h3>${rozp.map(wiersz).join('')}` : ''}
     ${pom.length ? `<details class="faq"><summary>Pominięte (${pom.length}) — napoje, alkohol, nie jedzenie</summary><div style="padding-bottom:10px">${pom.map(r => `<div class="par-pom"><span>${esc(w.poz[r.i].raw)}<br><span class="mute">${esc(r.powod)}</span></span><button class="btn maly" data-par-prod="${r.i}">Zmień</button></div>`).join('')}</div></details>` : ''}
@@ -1494,7 +1738,7 @@ function rysujGot() {
     <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fq(x.ilosc * skala(g, x), x.jednostka)}</b></div>`).join('')}</div>` : ''}${tresc}</div>
     <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe' : 'Dalej'} ›</button>` : ''}</div>`;
 }
-document.addEventListener('paste', e => { if (e.target && e.target.id === 'par-tekst') setTimeout(() => { const v = e.target.value; if (v && v.length > 40) wczytajParagon(v); }, 30); });
+document.addEventListener('paste', e => { if (e.target && e.target.id === 'par-tekst' && e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) { e.preventDefault(); wczytajPlik(e.clipboardData.files[0]); return; } if (e.target && e.target.id === 'par-tekst') setTimeout(() => { const v = e.target.value; if (v && v.length > 40) wczytajParagon(v); }, 30); });
 document.addEventListener('keydown', e => { if (!got) return; if (e.key === 'ArrowRight') gotIdz(got.i + 1); else if (e.key === 'ArrowLeft') gotIdz(got.i - 1); else if (e.key === 'Escape') zamknijGotowanie(); });
 (function () {   // przesunięcie palcem: w lewo = dalej, w prawo = wstecz
   let x0 = null, y0 = null;
@@ -1724,6 +1968,7 @@ function widokZakupy() {
   }
   h += `</div></details>`;
   h += kartaSklepy(cmp);
+  h += paskAkcji(['paragon', 'skan', 'prep']);
   if (!wyb.size) h += `<div class="karta pusta-karta"><b>Zaznacz przynajmniej jeden dzień</b><p class="mute">Kliknij „Zmień dni” powyżej.</p></div>`;
   const wDzial = {}; wszystkie.forEach(p => { (wDzial[dzialSklepu(p)] = wDzial[dzialSklepu(p)] || []).push(p); });
   for (const [kod, nazwa, ikona] of DZIALY) {
@@ -1871,6 +2116,7 @@ function wyslijZaproszenie() {
   else alert(tekst);
 }
 function zamknijOkno() {
+  zatrzymajSkan(true);
   zmienCtx = null;
   if (spontWroc) { spontWroc = false; spontG = null; oknoSpont(); return; }
   $('#modal').hidden = true;
@@ -1922,6 +2168,7 @@ function widokDzis() {
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     o += `<div class="postep">${OS.filter(p => !nieob(day, p)).map(p => { const cel = x[p].kcal, z = zjed(p), pr = cel ? Math.min(100, Math.round(z / cel * 100)) : 0; return `<div class="${p}"><b>${ETY[p]}</b><div class="pasek"><i style="width:${pr}%"></i></div><small>${r0(z)} / ${r0(cel)} kcal</small></div>`; }).join('')}</div>`;
+    o += paskAkcji(['skan', 'paragon', 'prep', 'spont', 'waga']);
     // lista posiłków
     o += `<h2>Dzisiejsze posiłki</h2><div class="karta posilki-dnia">` + sloty.map(({ g, odgrzewane }) => {
       const moje = g.porcje.filter(q => q.d === d), ez = zjedz_(g), gl = g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot];
@@ -1932,6 +2179,9 @@ function widokDzis() {
     if (sh.length) o += `<div class="karta"><b>Po treningu · shake</b><p class="mute">${sh.map(p => `${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml`).join(' · ')}</p></div>`;
     // co dalej
     const wi = wieczorem(w, d), kar = [];
+    { const maOdh = Object.keys(Object.assign({}, inny && inny.odhaczone, odhaczone)).some(k => k.startsWith('zak|')), raz = Object.values(lodowka).reduce((a, us) => a + Object.keys(us).length, 0);
+      if (maOdh && !paragony.some(x => x.data >= dodajDni(dzis, -2))) kar.push(`<div class="karta zad"><b>Masz paragon z zakupów?</b><p class="mute">Wklej go, a zapamiętam ceny i sklep, żeby podpowiadać, gdzie taniej.</p><button class="btn szeroki" data-szybka="paragon">Dodaj paragon</button></div>`);
+      else if (!raz) kar.push(`<div class="karta zad"><b>Lodówka jest pusta</b><p class="mute">Zeskanuj kody produktów albo dodaj paragon, a apka będzie liczyć, co jeszcze masz.</p><div class="rzad"><button class="btn glowny" data-szybka="skan">Skanuj kod</button><button class="btn" data-szybka="paragon">Dodaj paragon</button></div></div>`); }
     if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
     const idx = dzienTyg();
     if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista jest gotowa na: <b>${zakresDni(new Set(domyslneDni(dniDostepne())))}</b>.</p><button class="btn glowny szeroki" id="doZakupowDzis">Otwórz listę zakupów</button></div>`);
@@ -1995,6 +2245,7 @@ function widokWiecej() {
   const q = (pyt, odp) => `<details class="faq"><summary>${pyt}</summary><p>${odp}</p></details>`;
   $('#view').innerHTML = `<h1>Więcej</h1>
     ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
+    <button class="kafel" data-szybka="skan"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE.skan[1]}"/></svg></span><span class="kafel-tx"><b>Skanuj kod produktu</b><small>Dodaj do lodówki z aparatu</small></span><span class="kafel-str">›</span></button>
     ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
     ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} paragonów · ceny ${Object.keys(ceny).length} produktów` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
@@ -2252,6 +2503,7 @@ function widokLodowka() {
   const razem = Object.values(grupy).reduce((a, m) => a + m.size, 0);
   let h = `<h1>Lodówka</h1>` + wskazowka('lodowka', 'Lodówka liczy się sama: zakupy ją dopisują, a „zjedzone” odejmuje. Przyciskami − i + poprawisz ilość, a „＋ Dodaj” wpisze nowe produkty.');
   h += `<div class="lod-kafle"><div><b>${razem}</b><small>produktów w domu</small></div><div class="${pr.length ? 'ostrz' : ''}"><b>${pr.length}</b><small>zaczyna brakować</small></div></div>
+    <div class="rzad" style="margin:10px 0"><button class="btn glowny" data-szybka="skan">Skanuj kod</button><button class="btn" data-szybka="dodaj">＋ Dodaj ręcznie</button></div>
     <button class="spont-cta" id="spont"><span class="spont-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="spont-tx"><b>Co ugotować z tego, co mamy?</b><small>Spontaniczne gotowanie z Waszej lodówki</small></span><span class="spont-str">›</span></button>`;
   if (pr.length) h += `<h2>Zaczyna brakować</h2><div class="alerty">${pr.map(x => `<button class="alert ${x.pilne ? 'pilne' : ''}" data-popraw="${esc(x.produkt)}|${esc(x.u)}"><b>${esc(x.produkt)}</b><span>brakuje ${fmtStan(x.brakuje, x.u)}</span><small>od: ${esc(x.dish)} (${DNI_KR[x.d]})</small><em>Popraw ilość ›</em></button>`).join('')}</div><button class="btn szeroki" id="doZakupow" style="margin-top:10px">Otwórz listę zakupów</button><p class="mute">Kliknij kartę, jeśli ilość w lodówce się nie zgadza — poprawisz ją od razu. Prognoza zakłada, że jecie według planu i zaznaczacie „zjedzone”.</p>`;
   h += `<h2>W lodówce</h2><div class="lod-filtr"><div class="lod-rzad"><input id="lod-szukaj" type="search" placeholder="Szukaj w lodówce…" autocomplete="off" value="${esc(lodSzukaj)}"><button class="btn glowny maly" data-dodaj>＋ Dodaj</button></div>
@@ -2442,6 +2694,14 @@ document.addEventListener('click', e => {
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
   if (t.dataset.toast !== undefined) { const f = toastFn; $('#toast').hidden = true; toastFn = null; if (f) f(); return; }
+  if (t.dataset.szybka) { szybkaAkcja(t.dataset.szybka); return; }
+  if ('skanZamknij' in t.dataset) { zatrzymajSkan(true); $('#modal').hidden = true; rysuj(); return; }
+  if ('skanSzukaj' in t.dataset) { const k = (($('#skan-reczny') || {}).value || '').replace(/\D/g, ''); if (!kodWazny(k)) { pokazToast('Kod ma 8, 12 albo 13 cyfr'); return; } if (!skan) skan = { stream: null, ostatni: '', t: 0 }; wynikSkanu(k); return; }
+  if (t.dataset.skKat) { document.querySelectorAll('#sk-kat button').forEach(b => b.classList.toggle('akt', b === t)); return; }
+  if (t.dataset.skIle) { const el = $('#sk-ile'); el.value = Math.max(1, (parseInt(el.value, 10) || 1) + +t.dataset.skIle); odswiezSkan(); return; }
+  if (t.dataset.skDodaj) { if (skanDodaj()) { rysuj(); oknoSkaner('Dodano. Zeskanuj następny produkt albo naciśnij „Gotowe”.'); } return; }
+  if ('skDalej' in t.dataset) { oknoSkaner(); return; }
+  if (t.dataset.skOdhacz) { const pr = t.dataset.skOdhacz; odhaczKup(kluczKup(pr), true); LS.set('odhaczone', odhaczone); rysuj(); oknoSkaner(`Odhaczono na liście: ${pr}. Zeskanuj następny.`); return; }
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
   if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
   if (t.dataset.prepOtworz) { prepOd = t.dataset.prepOtworz; zakladka = 'prep'; rysuj(); window.scrollTo(0, 0); return; }
@@ -2496,7 +2756,8 @@ document.addEventListener('click', e => {
   }
   else if (t.dataset.pdzien !== undefined) { if (t.dataset.pdzien) { const [st, d] = t.dataset.pdzien.split(':'); otwartyTyg = st; otwartyDzien = +d; rysuj(); } }
   else if ('parNowy' in t.dataset) oknoParagonWklej()
-  else if (t.id === 'parSchowek') { (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject()).then(tx => { if (!tx || tx.length < 20) { pokazToast('Schowek jest pusty lub za krótki'); return; } const a = $('#par-tekst'); if (a) a.value = tx; wczytajParagon(tx); }).catch(() => pokazToast('Nie mogę odczytać schowka — wklej tekst ręcznie w pole poniżej')); }
+  else if (t.id === 'parSchowek') { schowekParagon(); }
+  else if (false) { (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject()).then(tx => { if (!tx || tx.length < 20) { pokazToast('Schowek jest pusty lub za krótki'); return; } const a = $('#par-tekst'); if (a) a.value = tx; wczytajParagon(tx); }).catch(() => pokazToast('Nie mogę odczytać schowka — wklej tekst ręcznie w pole poniżej')); }
   else if (t.id === 'parWczytaj') wczytajParagon(($('#par-tekst') || {}).value || '')
   else if (t.dataset.parProd !== undefined) oknoWyborProduktu(+t.dataset.parProd)
   else if ('parWroc' in t.dataset) oknoParagon()
@@ -2602,6 +2863,7 @@ document.addEventListener('input', e => {
   if (t.id === 'szukaj' && zmienCtx) listaWyboru(t.value);
   else if (t.id === 'pw-szukaj' && parag) { const i = [...document.querySelectorAll('[data-par-pomin-poz]')][0]; listaProduktowPar(+(i ? i.dataset.parPominPoz : 0), t.value); }
   else if (t.id === 'cena-szukaj') { const q = znorm(t.value.trim()); document.querySelectorAll('.cena-w').forEach(r => { r.hidden = !!q && !r.dataset.nm.includes(q); }); }
+  else if (t.id === 'sk-prod' || t.id === 'sk-rozm' || t.id === 'sk-ile') odswiezSkan()
   else if (t.id === 'lod-szukaj') { lodSzukaj = t.value; filtrujLodowke(); }
   else if (t.id === 'dod-p' || t.id === 'dod-q') odswiezDodawanie()
   else if (t.id === 'szukaj-sp') { spontFiltr.q = t.value; listaSpont(); }
@@ -2611,10 +2873,13 @@ document.addEventListener('change', e => {
   const t = e.target;
   przygotujTydzien(e);
   if (t.dataset.parWl !== undefined && parag) { parag.wiersze[+t.dataset.parWl].wlacz = t.checked; const w = t.closest('.par-w'); if (w) w.classList.toggle('wyl', !t.checked); return; }
+  if (t.dataset.parCena !== undefined && parag) { const v = liczbaZ(t.value); if (v >= 0) { const x = parag.w.poz[+t.dataset.parCena]; x.netto = Math.round(v * 100) / 100; parag.w.sumaPoz = Math.round(sum(parag.w.poz, q => q.netto) * 100) / 100; const e = $('#par-sumapoz'); if (e) e.textContent = zl(parag.w.sumaPoz); } return; }
+  if (t.id === 'par-plik' && t.files && t.files[0]) { const f = t.files[0]; t.value = ''; wczytajPlik(f); return; }
   if (t.dataset.parQ !== undefined && parag) { const v = liczbaZ(t.value), r = parag.wiersze[+t.dataset.parQ]; r.q = v > 0 ? v : null; if (r.q && r.produkt) { r.wlacz = true; r.pew = 1; r.zmieniony = true; } const w = t.closest('.par-w'); if (w) { w.classList.toggle('wyl', !r.wlacz); const c = w.querySelector('[data-par-wl]'); if (c) c.checked = r.wlacz; } return; }
   if (t.dataset.parU !== undefined && parag) { parag.wiersze[+t.dataset.parU].u = t.value; return; }
   if (t.id === 'par-sklep' && parag) { parag.sklep = t.value; return; }
   if (t.id === 'par-data' && parag) { parag.data = t.value; return; }
+  if (t.id === 'sk-u') { odswiezSkan(); return; }
   if (t.dataset.korAuto) { korekta[t.dataset.korAuto].auto = t.checked; LS.set('korekta', korekta); Z([[['korekta', t.dataset.korAuto], korekta[t.dataset.korAuto]]]); return; }
   if (t.dataset.gotOdh !== undefined && got) { got.odhacz[t.dataset.gotOdh] = t.checked; const w = t.closest('.got-sk'); if (w) w.classList.toggle('ok', t.checked); return; }
   if (t.dataset.nb) {
@@ -2647,7 +2912,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -2660,12 +2925,12 @@ window.App = {
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
-    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; wlasneProd = data.wlasneProd || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
-    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('wlasneProd', wlasneProd);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza
@@ -2703,6 +2968,7 @@ async function aktualizujApke() {
   try { await wczytajBaze(); }
   catch (e) { $('#view').innerHTML = '<p class="pusty">Nie udało się wczytać bazy dań. Sprawdź połączenie i odśwież.</p>'; return; }
   rysuj();
+  if (/[?&]udostepnione\b/.test(location.search)) wczytajUdostepnione();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // Aplikacja z ekranu głównego jest tylko wznawiana, nie ładowana od nowa — dlatego sama sprawdzam aktualizacje przy powrocie do niej.
     const mialKontroler = !!navigator.serviceWorker.controller;

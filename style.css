@@ -778,3 +778,19 @@ ol.kroki li.krok-prep small { display: block; color: var(--zielony); font-weight
 
 /* ───────── inteligentne dodawanie produktów (v49) ───────── */
 .par-prod.nowy { background: var(--bg); color: var(--ink); box-shadow: 0 0 0 1px var(--line) inset; }
+
+/* ───────── skaner kodów i szybkie akcje (v50) ───────── */
+.szybkie { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 10px; margin: 6px -16px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.szybkie::-webkit-scrollbar { display: none; }
+.szybka { flex: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--card); box-shadow: var(--cien-maly); color: var(--ink); font-weight: 700; font-size: 14px; white-space: nowrap; }
+.szybka svg { width: 20px; height: 20px; fill: none; stroke: var(--zielony); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.skan-ramka { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 22px; overflow: hidden; background: #0b1410; margin: 4px 0 8px; }
+.skan-ramka video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.skan-celownik { position: absolute; left: 12%; right: 12%; top: 30%; bottom: 30%; border: 3px solid rgba(255, 255, 255, .9); border-radius: 16px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .35); }
+.sk-nazwa { font-size: 19px; font-weight: 750; letter-spacing: -.01em; margin: 6px 0 0; line-height: 1.25; }
+.sk-nazwa small { display: block; color: var(--mute); font-size: 14px; font-weight: 600; margin-top: 2px; }
+
+/* v51: import paragonu z pliku / udostępnienia */
+.plik-btn { display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer; }
+input.par-cena { width: 84px; text-align: right; font-weight: 700; background: transparent; border: 1px dashed var(--linia, #8884); border-radius: 8px; padding: 4px 6px; color: inherit; font-family: inherit; }
+input.par-cena:focus { border-style: solid; outline: none; }

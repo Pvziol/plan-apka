@@ -8,7 +8,39 @@
   "theme_color": "#1f7045",
   "lang": "pl",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "./?udostepnione=1",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "paragon",
+          "accept": [
+            "application/pdf",
+            "image/*",
+            "application/json",
+            "text/plain",
+            ".pdf",
+            ".json",
+            ".txt"
+          ]
+        }
+      ]
+    }
+  }
 }

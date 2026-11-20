@@ -202,22 +202,45 @@ function migrujScalenia() {
   }
   if (zm.length) Z(zm);
 }
-// W sklepach trudno o mrożone pojedyncze owoce, zwykle są mieszanki — więc maliny, truskawki, jagody i wiśnie traktuję jako „owoce mrożone (mieszanka)”,
-// a mango i brzoskwinie jako „mieszankę tropikalną”. Kcal i białko wierszy zostają, powtórzone wiersze w daniu łączę.
-const MIX_LESNA = 'owoce mrożone (mieszanka)', MIX_TROP = 'mieszanka tropikalna mrożona (mango, ananas…)';
+// Jeden produkt „owoce mrożone”: w przepisach, zakupach i lodówce nie rozróżniam, jakie to owoce (maliny, jagody, mango, brzoskwinie…).
+// Nazwy dań zostają bez zmian (np. „Jagodowy klasyk”). Kcal i białko wierszy zostają, powtórzone wiersze w daniu łączę.
+const OWOCE_MROZ = 'owoce mrożone';
+const STARE_OWOCE = ['owoce mrożone (mieszanka)', 'mieszanka tropikalna mrożona (mango, ananas…)', 'maliny mrożone', 'truskawki mrożone', 'jagody mrożone', 'wiśnie mrożone', 'mango mrożone', 'brzoskwinie mrożone'];
+const owoceTekst = t => String(t)
+  .replace(/mrożon(?:ej|ych|e|ego) mieszank\w+ (?:owoców leśnych|tropikaln\w+)(?: \([^)]*\))?/gi, 'mrożonych owoców')
+  .replace(/mrożon(?:ych|e) (?:malin|jagód|truskawek|wiśni|brzoskwiń)/gi, 'mrożonych owoców')
+  .replace(/mrożon(?:ego|e) mango/gi, 'mrożonych owoców')
+  .replace(/mieszank\w+ owoców leśnych/gi, 'owoców')
+  .replace(/owoce mrożone \(mieszanka(?: leśna)?\)/gi, 'owoce mrożone');
 function normalizujOwoce(d) {
-  const mix = p => /^(maliny|truskawki|jagody|wiśnie) mrożone$/.test(p) ? MIX_LESNA : /^(mango|brzoskwinie) mrożone$/.test(p) ? MIX_TROP : null;
-  const widziane = new Map();
+  const widziane = new Map(); let bylo = false;
   d.skladniki = d.skladniki.filter(i => {
-    const m = mix(i.produkt || '');
-    if (!m) return true;
-    i.produkt = m; i.nazwa = m === MIX_LESNA ? 'owoce mrożone (mieszanka leśna)' : m;
-    const k = (i.grupa || '') + '|' + m + '|' + i.jednostka, p = widziane.get(k);
+    if (!STARE_OWOCE.includes(i.produkt || '')) return true;
+    bylo = true; i.produkt = OWOCE_MROZ; i.nazwa = OWOCE_MROZ;
+    const k = (i.grupa || '') + '|' + i.jednostka, p = widziane.get(k);
     if (!p) { widziane.set(k, i); return true; }
     p.ilosc += i.ilosc; p.kcal = (p.kcal || 0) + (i.kcal || 0); p.bialko = (p.bialko || 0) + (i.bialko || 0);
     return false;
   });
-  d.kroki = (d.kroki || []).map(k => k.replace(/mrożon(ych|e) (malin|jagód|truskawek|wiśni|brzoskwiń)/g, 'mrożonej mieszanki owoców leśnych').replace(/mrożon(ego|e) mango/g, 'mrożonej mieszanki tropikalnej'));
+  for (const pole of ['kroki', 'wieczorem']) if (Array.isArray(d[pole])) d[pole] = d[pole].map(owoceTekst);
+}
+// Dane zapisane na telefonie (lodówka, ceny, paragony, kody) przenoszę na jeden produkt „owoce mrożone”.
+function migrujOwoceMroz() {
+  const zm = [], lacz = (a, b) => Math.round(((a || 0) + b) * 10) / 10;
+  for (const stary of STARE_OWOCE) {
+    if (stary === OWOCE_MROZ) continue;
+    const us = lodowka[stary];
+    if (us) { lodowka[OWOCE_MROZ] = lodowka[OWOCE_MROZ] || {}; for (const [u, q] of Object.entries(us)) { lodowka[OWOCE_MROZ][u] = lacz(lodowka[OWOCE_MROZ][u], q); zm.push([['lodowka', OWOCE_MROZ, u], lodowka[OWOCE_MROZ][u]]); } delete lodowka[stary]; zm.push([['lodowka', stary], undefined]); LS.set('lodowka', lodowka); }
+    if (lodData && lodData[stary]) { if (!lodData[OWOCE_MROZ] || lodData[stary] > lodData[OWOCE_MROZ]) { lodData[OWOCE_MROZ] = lodData[stary]; zm.push([['lodData', OWOCE_MROZ], lodData[OWOCE_MROZ]]); } delete lodData[stary]; zm.push([['lodData', stary], undefined]); LS.set('lodData', lodData); }
+    if (ceny[stary]) { if (!ceny[OWOCE_MROZ]) { ceny[OWOCE_MROZ] = ceny[stary]; zm.push([['ceny', OWOCE_MROZ], ceny[OWOCE_MROZ]]); } delete ceny[stary]; zm.push([['ceny', stary], undefined]); LS.set('ceny', ceny); }
+    if (pakiety[stary]) { if (!pakiety[OWOCE_MROZ]) { pakiety[OWOCE_MROZ] = pakiety[stary]; zm.push([['pakiety', OWOCE_MROZ], pakiety[OWOCE_MROZ]]); } delete pakiety[stary]; zm.push([['pakiety', stary], undefined]); LS.set('pakiety', pakiety); }
+    if (wlasneProd[stary]) { delete wlasneProd[stary]; zm.push([['wlasneProd', stary], undefined]); LS.set('wlasneProd', wlasneProd); }
+    for (const [k, v] of Object.entries(mapaPar)) if (v === stary) { mapaPar[k] = OWOCE_MROZ; zm.push([['mapaPar', k], OWOCE_MROZ]); LS.set('mapaPar', mapaPar); }
+    for (const [k, v] of Object.entries(kody)) if (v && v.p === stary) { v.p = OWOCE_MROZ; zm.push([['kody', k, 'p'], OWOCE_MROZ]); LS.set('kody', kody); }
+    const ok = 'zak|' + stary;
+    if (odhaczone[ok] !== undefined) { if (odhaczone['zak|' + OWOCE_MROZ] === undefined) { odhaczone['zak|' + OWOCE_MROZ] = odhaczone[ok]; zm.push([['odhaczone', 'zak|' + OWOCE_MROZ], odhaczone[ok]]); } delete odhaczone[ok]; zm.push([['odhaczone', ok], undefined]); LS.set('odhaczone', odhaczone); }
+  }
+  if (zm.length) Z(zm);
 }
 // Wszystko w gramach: łyżki i łyżeczki z przepisów zamieniam na gramy (wg produktu), a opis „≈ 1 łyżka” zostaje jako podpowiedź.
 const G_LYZKA = { 'oliwa / olej': 10, 'miód': 20, 'sos sojowy': 15, 'sezam': 10, 'koncentrat pomidorowy': 15, 'dżem': 20, 'ketchup': 20, 'pesto bazyliowe': 15 };
@@ -236,11 +259,21 @@ function krokiNaGramy(t) {
     const hit = KROK_LYZKI.find(([re]) => re.test(prod));
     if (!v || !hit) return c;
     const g = Math.round(v * (ecz ? hit[2] : hit[1]) * 10) / 10;
-    return `${String(g).replace('.', ',')} g ${prod} (≈ ${ul(v)} ${ecz ? 'łyżeczk' : 'łyżk'}${v === 1 ? 'a' : 'i'})`;
+    return `${String(g).replace('.', ',')} g ${prod}`;
+  });
+}
+const KROK_PRZED = [[/(masł(?:em|o|a))\b/i, 'masło'], [/(ketchup(?:em|u)?)\b/i, 'ketchup'], [/(sezam(?:em|u)?)\b/i, 'sezam'], [/(miod(?:em|u)?|miód|miodem)\b/i, 'miód'], [/(musztard(?:ą|a|y))\b/i, 'musztarda'], [/(dżem(?:em|u)?)\b/i, 'dżem'], [/(chrzan(?:em|u)?)\b/i, 'chrzan'], [/(pesto)\b/i, 'pesto'], [/(kakao)\b/i, 'kakao gorzkie'], [/(skrob[a-ząćęłńóśźż]*)/i, 'skrobia ziemniaczana'], [/(syrop[a-ząćęłńóśźż]*)/i, 'syrop'], [/(koncentrat[a-ząćęłńóśźż]*)/i, 'koncentrat pomidorowy'], [/(ocet|octu|octem)\b/i, 'ocet'], [/(olej[a-ząćęłńóśźż]*|oliw[a-ząćęłńóśźż]*)/i, 'oliwa / olej']];
+// „masłem (po ½ łyżeczki = 3 g)” → „masłem (po 3 g)”: nawiasy z łyżką po nazwie produktu też zamieniam na gramy.
+function krokiNaGramyPrzed(t) {
+  return String(t).replace(/(masł(?:em|o|a)|ketchup(?:em|u)?|sezam(?:em|u)?|miód|miodem|miodu|musztard(?:ą|a|y)|dżem(?:em|u)?|chrzan(?:em|u)?|pesto|kakao|skrob[a-ząćęłńóśźż]*|syrop[a-ząćęłńóśźż]*|koncentrat[a-ząćęłńóśźż]*|ocet|octu|octem|olej[a-ząćęłńóśźż]*|oliw[a-ząćęłńóśźż]*)(\s*)\((po |razem |ok\. )?(\d+(?:,\d+)?\s?[½¼¾]?|[½¼¾]|1)\s*(łyżk[a-ząćęłńóśźż]*|łyżecz[a-ząćęłńóśźż]*)(?:\s+łącznie)?(?:\s*=\s*\d+(?:,\d+)?\s*g(?:\s+łącznie)?)?\)/gi, (c, prod, sp, przed, l, sl) => {
+    const hit = KROK_PRZED.find(([re]) => re.test(prod)), n = String(l).trim(), v = (parseFloat(n.replace(/[½¼¾]/g, '').replace(',', '.')) || 0) + ({ '½': .5, '¼': .25, '¾': .75 }[(n.match(/[½¼¾]/) || [''])[0]] || 0);
+    if (!hit || !v) return c;
+    const ecz = /^łyżecz/i.test(sl), g = Math.round(v * gNaLyzke(hit[1], ecz ? 'łyżecz.' : 'łyż.') * 10) / 10;
+    return `${prod}${sp}(${przed || ''}${String(g).replace('.', ',')} g)`;
   });
 }
 function normalizujLyzki(d) {
-  if (Array.isArray(d.kroki)) d.kroki = d.kroki.map(krokiNaGramy);
+  if (Array.isArray(d.kroki)) d.kroki = d.kroki.map(k => krokiNaGramyPrzed(krokiNaGramy(k)).replace(/(drugiej|pierwszej|kolejnej) (łyżce|łyżeczce) (oliwy|masła|oleju)/gi, (c, ktora, sl, prod) => `${ktora} porcji ${prod} (${/oliw|olej/i.test(prod) ? 10 : 5} g)`));
   for (const i of d.skladniki) if (i.ilosc && (i.jednostka === 'łyż.' || i.jednostka === 'łyżecz.')) {
     const per = gNaLyzke(i.produkt, i.jednostka);
     i.orig = { ilosc: i.ilosc, jednostka: i.jednostka, g: per };
@@ -272,6 +305,24 @@ function migrujPuszki() {
     zm.push([['lodowka', k, 'pusz.'], undefined], [['lodowka', nowy, 'g'], lodowka[nowy].g]);
   }
   if (zm.length) { LS.set('lodowka', lodowka); Z(zm); }
+}
+// Stare stany w łyżkach i łyżeczkach (lodówka, kupione ilości przy odhaczonych zakupach) → gramy albo ml, zależnie od tego, w czym liczy się dany produkt.
+// Wartości ustawiam, nie dodaję, żeby dwa telefony dały ten sam wynik.
+function migrujLyzkiStanow() {
+  const jedn = u => /^łyżecz/.test(u) ? 'łyżecz.' : /^łyż/.test(u) ? 'łyż.' : null, zm = [];
+  const przelicz = (obj, prod, sciezka) => {
+    let ruszone = false;
+    for (const u of Object.keys(obj)) {
+      const j = jedn(u); if (!j || typeof obj[u] !== 'number') continue;
+      const info = DB.produkty && DB.produkty.get(prod), cel = info && info.u === 'ml' ? 'ml' : 'g', q = obj[u];
+      delete obj[u]; obj[cel] = Math.round(((obj[cel] || 0) + q * gNaLyzke(prod, j)) * 10) / 10; ruszone = true;
+      zm.push([[...sciezka, u], undefined], [[...sciezka, cel], obj[cel]]);
+    }
+    return ruszone;
+  };
+  for (const [prod, us] of Object.entries(lodowka)) if (us && typeof us === 'object') przelicz(us, prod, ['lodowka', prod]);
+  for (const [k, v] of Object.entries(odhaczone)) if (v && typeof v === 'object' && k.startsWith('zak|')) przelicz(v, k.slice(4), ['odhaczone', k]);
+  if (zm.length) { LS.set('lodowka', lodowka); LS.set('odhaczone', odhaczone); Z(zm); pokazToast('Przeliczyłem łyżki w lodówce i zakupach na gramy.'); }
 }
 // ---------- standardowe opakowania: z paragonów („Ciecierzyca 540g”, „Tortilla 6szt”) do zasady zero waste ----------
 function etykietaPaku(prod) {
@@ -921,7 +972,7 @@ function pokazPrzepis(g, spont) {
   let wiersze = '', grupa = null;
   for (const i of dish.skladniki) {
     if (i.grupa && i.grupa !== grupa) { grupa = i.grupa; wiersze += `<tr class="grupa"><td colspan="2">${esc(grupa)}</td></tr>`; }
-    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fqS(i, i.ilosc * skala(g, i)) : ''}${i.orig ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${i.gSzt && i.ilosc ? (i.ilosc * skala(g, i) > 30 ? `<br><span class="mute">≈ ${Math.round(i.ilosc * skala(g, i))} szt. (${Math.ceil(i.ilosc * skala(g, i) * i.gSzt / 250)} opak. po 250 g)</span>` : `<br><span class="mute">≈ ${Math.max(5, Math.round(i.ilosc * skala(g, i) * i.gSzt / 5) * 5)} g</span>`) : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
+    wiersze += `<tr><td>${esc(i.nazwa)}${i.uwaga ? `<br><span class="mute">${esc(i.uwaga)}</span>` : ''}</td><td>${i.ilosc ? fqS(i, i.ilosc * skala(g, i)) : ''}${i.orig && i.orig.jednostka === 'pusz.' ? `<br><span class="mute">≈ ${(n => ulamek(n) + ' ' + (i.orig.jednostka === 'pusz.' ? (n === 1 ? 'puszka' : n < 5 ? 'puszki' : 'puszek') : n === 1 ? (i.orig.jednostka === 'łyż.' ? 'łyżka' : 'łyżeczka') : (i.orig.jednostka === 'łyż.' ? 'łyżki' : 'łyżeczki')))(Math.max(0.5, Math.round(i.ilosc * skala(g, i) / (i.orig.jednostka === 'pusz.' && pakProd(i.produkt) ? pakProd(i.produkt).r : i.orig.g) * 2) / 2))}</span>` : ''}${i.gSzt && i.ilosc ? (i.ilosc * skala(g, i) > 30 ? `<br><span class="mute">≈ ${Math.round(i.ilosc * skala(g, i))} szt. (${Math.ceil(i.ilosc * skala(g, i) * i.gSzt / 250)} opak. po 250 g)</span>` : `<br><span class="mute">≈ ${Math.max(5, Math.round(i.ilosc * skala(g, i) * i.gSzt / 5) * 5)} g</span>`) : ''}${stala(i) ? '<br><span class="mute">woreczek z zamrażarki</span>' : ''}</td></tr>`;
   }
   // przyprawy i dodatki: osobne wiersze tabeli, z ilością albo „do smaku”
   const spr = przyprawyWiersze(dish);
@@ -1050,7 +1101,7 @@ const ALIASY = [
   ['marchew', /marchew/], ['ziemniaki', /ziemniak/], ['bataty', /batat/], ['por', /^por\b/], ['seler korzeniowy', /^seler/], ['pietruszka (korzeń)', /pietruszk/], ['brokuł', /brokul/], ['kalafior', /kalafior/], ['cukinia', /cukini/],
   ['sałata', /^salat|rukola|roszponka|mix salat/], ['szpinak świeży', /szpinak/], ['pieczarki', /pieczark/], ['awokado', /awokad/], ['banan', /banan/], ['jabłko', /jablk/], ['dynia piżmowa', /^dyni/], ['rzodkiewka (pęczek)', /rzodkiew/],
   ['tortilla pełnoziarnista', /tortill/], ['chleb żytni', /chleb|pieczywo (zytnie|razowe)/], ['bułka pełnoziarnista', /^bulk/], ['pieczywo chrupkie', /chrupk/], ['paluszki rybne', /paluszki rybne/],
-  ['owoce mrożone (mieszanka)', /maliny|truskawk|jagod|owoce mrozon|mrozone owoce|mieszanka owocow mrozon/], ['mieszanka tropikalna mrożona (mango, ananas…)', /^mango|tropikaln/], ['ananas z puszki (mała 230 g)', /ananas/],
+  ['owoce mrożone', /maliny|truskawk|jagod|owoce mrozon|mrozone owoce|mieszanka owocow mrozon|^mango|tropikaln/], ['ananas z puszki (mała 230 g)', /ananas/],
   ['orzechy włoskie', /orzechy wloskie|orzech wloski/], ['orzeszki ziemne', /orzeszki/], ['sezam', /^sezam/], ['chia', /^chia|nasiona chia/], ['pesto bazyliowe', /pesto/], ['chrzan', /chrzan/], ['mąka pszenna', /make pszenna|^maka\b/],
   ['kakao gorzkie', /kakao/], ['skrobia ziemniaczana', /skrobia/], ['odżywka białkowa', /odzywka|\bwpc\b|protein/]
 ];
@@ -1837,7 +1888,7 @@ function dodajDoBazy(d) {
   _nutri = null;
 }
 function usunZBazy(id) { DB.dania.delete(id); for (const a of Object.values(DB.pula)) { const i = a.findIndex(x => x.id === id); if (i >= 0) a.splice(i, 1); } }
-function zastosujWlasneDania() { for (const d of wlasneDania) if (!DB.dania.has(d.id) && DB.pula) { const k = JSON.parse(JSON.stringify(d)); normalizujPomidory(k); normalizujScalone(k); dodajDoBazy(k); } for (const id of [...DB.dania.keys()]) if (id.startsWith('wlasne-') && !wlasneDania.some(x => x.id === id)) usunZBazy(id); }
+function zastosujWlasneDania() { for (const d of wlasneDania) if (!DB.dania.has(d.id) && DB.pula) { const k = JSON.parse(JSON.stringify(d)); normalizujPomidory(k); normalizujScalone(k); normalizujOwoce(k); normalizujLyzki(k); normalizujPuszki(k); dodajDoBazy(k); } for (const id of [...DB.dania.keys()]) if (id.startsWith('wlasne-') && !wlasneDania.some(x => x.id === id)) usunZBazy(id); }
 // Czyta wklejony przepis: pierwsza linia to nazwa, linie typu „kurczak 300 g” albo „300 g kurczaka” to składniki, reszta to kroki.
 function czytajPrzepis(tekst) {
   const linie = String(tekst || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean), skl = [], kroki = [];
@@ -1896,7 +1947,7 @@ function zapiszWlasneDanie() {
   const por = TYPY_WLASNE[wd.typ][1], k = sum(skl, x => x.kcal), b = sum(skl, x => x.bialko), id = 'wlasne-' + znorm(nazwa).replace(/[^a-z0-9]+/g, '-').slice(0, 40) + '-' + (Date.now() % 100000);
   const d = { id, typ: wd.typ, porcje: por, kod: null, nazwa, dodane: true, wlasne: true, czas: wd.czas ? wd.czas + ' min' : '', sprzet: '', skladniki: skl.map(x => ({ nazwa: x.nazwa, produkt: x.produkt, ilosc: x.ilosc, jednostka: x.jednostka, kcal: x.kcal, bialko: x.bialko, grupa: null, uwaga: null, kategoria: x.kategoria })), przyprawy: [], razem: { kcal: k, bialko: b }, na_porcje: { kcal: Math.round(k / por), bialko: Math.round(b / por) }, tytul_kcal: Math.round(k / por), tytul_bialko: Math.round(b / por), tylko_wybor: false, weekend: false, warianty: [], kroki, odgrzewanie: null, uwaga: null, wieczorem: [], podzial: wd.typ === 'drugie_on' ? { ona: '—', on: `całość · ${Math.round(k)} kcal`, ona_kcal: null, ona_bialko: null, on_kcal: Math.round(k), on_bialko: Math.round(b) } : {}, zrodlo: ['własne'], wystapienia: [] };
   wlasneDania.push(d); LS.set('wlasneDania', wlasneDania); Z([[['wlasneDania'], wlasneDania]]);
-  const kopia = JSON.parse(JSON.stringify(d)); normalizujPomidory(kopia); normalizujScalone(kopia); dodajDoBazy(kopia);
+  const kopia = JSON.parse(JSON.stringify(d)); normalizujPomidory(kopia); normalizujScalone(kopia); normalizujOwoce(kopia); normalizujLyzki(kopia); normalizujPuszki(kopia); dodajDoBazy(kopia);
   wd = null; zamknijOkno(); rysuj(); pokazToast('Danie dodane. Znajdziesz je przy zmianie dania');
 }
 function widokWlasne() {
@@ -3036,7 +3087,7 @@ function rysuj() {
   }
   if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
   naprawBrakujace();
-  if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); migrujScalenia(); }
+  if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); migrujScalenia(); migrujLyzkiStanow(); migrujOwoceMroz(); }
   if (inny && inny.start < poniedzialek()) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby

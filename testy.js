@@ -161,8 +161,8 @@
   });
 
   await test('Kroki', 'łyżki i łyżeczki znanych produktów w krokach są w gramach', async () => {
-    rowne(krokiNaGramy('Dodaj 1 łyżeczkę chrzanu i pieprz'), 'Dodaj 5 g chrzanu (≈ 1 łyżeczka) i pieprz');
-    rowne(krokiNaGramy('rozgrzej 1 łyżkę oliwy i 3 łyżeczki masła'), 'rozgrzej 10 g oliwy (≈ 1 łyżka) i 15 g masła (≈ 3 łyżeczki)');
+    rowne(krokiNaGramy('Dodaj 1 łyżeczkę chrzanu i pieprz'), 'Dodaj 5 g chrzanu i pieprz');
+    rowne(krokiNaGramy('rozgrzej 1 łyżkę oliwy i 3 łyżeczki masła'), 'rozgrzej 10 g oliwy i 15 g masła');
     rowne(krokiNaGramy('2 łyżki posiekanego szczypiorku'), '2 łyżki posiekanego szczypiorku', 'nieznany produkt zostaje');
     const lewe = []; for (const d of DB.dania.values()) for (const k of d.kroki || []) if (/(?<!≈ )\d\s?łyż[a-ząćęłńóśźż]*\s+(masła|chrzanu|dżemu|musztardy|miodu|ketchupu|oliwy|octu)/i.test(k)) lewe.push(d.nazwa); rowne(lewe, [], 'zostały łyżki w krokach');
   });
@@ -207,6 +207,32 @@
     r = rozdzielMieso(b, 350); rowne([r.pelne.length, r.czesc, r.brak.length, r.zostaje], [3, null, 0, 50], '350 g');
     r = rozdzielMieso(b, 100); rowne([r.pelne.length, r.brak.length], [1, 2], '100 g starcza na jeden dzień');
     r = rozdzielMieso(b, 2500); rowne([r.pelne.length, r.zostaje], [3, 2200], 'duża nadwyżka');
+  });
+  await test('Łyżki', 'olej, miód, chrzan, pesto, musztarda i inne mokre produkty nie mają łyżek w krokach', async () => {
+    const mokre = /(masł(?:em|o|a)\b|chrzan|dżem|musztard|mi[oó]d|ketchup|oliw|olej\b|oleju|ocet|octu|syrop|koncentrat|pesto|sezam|skrob|kakao|gochujang)/i, wyj = /(sosu|wody|ZIMNEJ|przyprawy|czubata|kleksy|majeranku|papryki|kminu|imbiru|soli\b)/i, lewe = [];
+    for (const d of DB.dania.values()) { const g = garnekSpont(d, 1); for (const k of d.kroki || []) for (const m of krokPrzeliczony(g, k).matchAll(/[^,.;]{0,45}łyż[a-ząćęłńóśźż]*[^,.;]{0,32}/gi)) if (mokre.test(m[0]) && !wyj.test(m[0])) lewe.push(d.nazwa + ': ' + m[0].trim()); }
+    rowne(lewe, [], 'łyżki przy mokrych produktach');
+    for (const d of DB.dania.values()) for (const i of d.skladniki) prawda(!/łyż/i.test(i.jednostka || ''), d.nazwa + ': składnik w łyżkach ' + i.produkt);
+  });
+  await test('Łyżki', 'stare stany w łyżkach w lodówce i zakupach są przeliczane na gramy', async () => {
+    const sl = JSON.stringify(lodowka), so = JSON.stringify(odhaczone), st = document.getElementById('toast') && document.getElementById('toast').innerText;
+    try {
+      lodowka = { 'oliwa / olej': { 'łyż.': 6 }, 'miód': { 'łyż.': 3, 'łyżecz.': 2 }, 'chrzan': { 'łyżecz.': 4 } }; odhaczone = {};
+      migrujLyzkiStanow(); rowne([lodowka['oliwa / olej'], lodowka['chrzan']], [{ g: 60 }, { g: 20 }]); rowne(lodowka['miód'], { g: 74 });
+      const raz = JSON.stringify(lodowka); migrujLyzkiStanow(); rowne(JSON.stringify(lodowka), raz, 'migracja powinna być idempotentna');
+    } finally { lodowka = JSON.parse(sl); odhaczone = JSON.parse(so); }
+    const kod = await tekst('app.js'); prawda(/normalizujLyzki\(kopia\)/.test(kod) && /normalizujLyzki\(k\)/.test(kod), 'dania dodane w sesji nie są normalizowane');
+  });
+  await test('Owoce mrożone', 'jeden produkt „owoce mrożone” w składnikach, zakupach i lodówce (nazwy dań bez zmian), stare wpisy są scalane', async () => {
+    const stare = ['owoce mrożone (mieszanka)', 'mieszanka tropikalna mrożona (mango, ananas…)', 'maliny mrożone', 'truskawki mrożone', 'jagody mrożone', 'wiśnie mrożone', 'mango mrożone', 'brzoskwinie mrożone'];
+    for (const d of DB.dania.values()) for (const i of d.skladniki) prawda(!stare.includes(i.produkt), d.nazwa + ': stary produkt ' + i.produkt);
+    prawda(DB.produkty.has('owoce mrożone') && ![...DB.produkty.keys()].some(p => stare.includes(p)), 'lodówka/zakupy mają kilka pozycji z owocami mrożonymi');
+    const kok = [...DB.dania.values()].filter(d => /^koktajl/.test(d.typ) && d.skladniki.some(i => i.produkt === 'owoce mrożone'));
+    prawda(kok.length >= 8, 'za mało koktajli z owocami mrożonymi'); prawda(kok.some(d => /Jagodowy|Truskawkowy|Malinowo|Mango/.test(d.nazwa)), 'nazwy dań powinny zostać bez zmian');
+    for (const d of DB.dania.values()) for (const t of [...(d.kroki || []), ...(d.wieczorem || [])]) prawda(!/mieszank\w* (owoców|tropik)|mrożon\w* (malin|jagód|truskawek|wiśni|brzoskwiń|mango)/i.test(t), d.nazwa + ': ' + t.slice(0, 60));
+    const sl = JSON.stringify(lodowka), sm = JSON.stringify(mapaPar);
+    try { lodowka = { 'owoce mrożone (mieszanka)': { g: 300 }, 'mieszanka tropikalna mrożona (mango, ananas…)': { g: 200 }, 'owoce mrożone': { g: 100 } }; mapaPar = { 'MROZONE MALINY': 'owoce mrożone (mieszanka)' }; migrujOwoceMroz(); rowne(lodowka, { 'owoce mrożone': { g: 600 } }); rowne(mapaPar['MROZONE MALINY'], 'owoce mrożone'); }
+    finally { lodowka = JSON.parse(sl); mapaPar = JSON.parse(sm); }
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

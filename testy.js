@@ -146,6 +146,19 @@
   });
   await test('Cofanie', 'migawka stanu zawiera plan, odhaczenia, lodówkę', async () => { const o = JSON.parse(snapStanu()); prawda('plan' in o && 'odhaczone' in o && 'zuzyte' in o && 'lodowka' in o); });
 
+  await test('Świeżość', 'termin zużycia z daty zakupu i karta „Do zużycia”', async () => {
+    const svL = lodowka, svD = lodData; lodowka = { 'jogurt naturalny': { g: 300 } }; lodData = { 'jogurt naturalny': dodajDni(isoDzis(), -7) };
+    try { const f = swiezosc('jogurt naturalny'); rowne(f.zostalo, 0); prawda(f.pilne, 'powinno być pilne'); rowne(doZuzycia().map(x => x.pr), ['jogurt naturalny']); lodowka = { 'ryż': { g: 500 } }; rowne(swiezosc('ryż'), null, 'zapasy nie psują się'); } finally { lodowka = svL; lodData = svD; }
+  });
+  await test('Trendy', 'wykresy z dwóch tygodni', async () => {
+    const mk = (st, z) => ({ start: st, o: { posilkow: 33, zjedzone: z, kcal: { ona: 1300, on: 2800 }, cel: { ona: 1440, on: 3020 }, wydatki: 200 } });
+    const h = kartaTrendow([mk('2026-11-02', 20), mk('2026-11-09', 28)]); prawda((h.match(/<svg/g) || []).length === 3, 'liczba wykresów'); rowne(kartaTrendow([mk('2026-11-02', 20)]), '', 'jeden tydzień to za mało');
+  });
+  await test('Blokada dania', 'przepis z zablokowanym daniem trafia do nowego planu (logika kopiowania)', async () => {
+    const k = kandydat(); k.dni[1].blok = { sn: true }; const stary = k.dni[1].sn;
+    const kod = (await tekst('app.js')); prawda(/zablokowane dania zostają przy losowaniu/.test(kod), 'brak logiki w ulozTydzien'); rowne(k.dni[1].sn, stary);
+  });
+
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

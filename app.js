@@ -50,6 +50,7 @@ let trasa = LS.get('trasa', {});                          // trasa[sklep][produk
 let sklepZak = LS.get('sklepZak', ''), trasaTryb = LS.get('trasaTryb', 'moja'), sesjaKup = LS.get('sesjaKup', null);
 let motyw = LS.get('motyw', 'auto');                        // wygląd: auto (jak system), jasny, ciemny — tylko na tym telefonie
 let wlasneDania = LS.get('wlasneDania', []);                // dania dodane przez Was w aplikacji (ten sam format co baza), wspólne
+let lodData = LS.get('lodData', {});                          // lodData[produkt] = data ostatniego dokupienia (dla ostrzeżeń „zużyj”), wspólne
 let historia = LS.get('historia', []);                     // zapisane podsumowania minionych tygodni (patrz zbierzTydzien), wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
 let prepOd = null, prepH = 3;
@@ -552,6 +553,13 @@ function ulozTydzien(start, zachowaj) {
   // zachowaj zaznaczone treningi z poprzedniego planu
   if (plan) naj.dni.forEach((d, i) => { d.tr = Object.assign({ ona: false, on: false }, plan.dni[i] && plan.dni[i].tr); });
   naj.start = start || (plan && plan.start && plan.start >= poniedzialek() ? plan.start : poniedzialek());
+  if (plan && plan.start === naj.start) naj.dni.forEach((d, i) => {   // zablokowane dania zostają przy losowaniu tego samego tygodnia
+    const st = plan.dni[i]; if (!st || !st.blok) return; d.blok = st.blok; d.ratio = d.ratio || {};
+    for (const sl of Object.keys(st.blok).filter(k => st.blok[k])) {
+      if (sl === 'm13') d.m13.wsp = st.m13.wsp; else if (sl === 'm13ona') d.m13.ona = st.m13.ona; else if (sl === 'm13on') d.m13.on = st.m13.on; else if (sl === 'ob') { d.ob = st.ob; d.ob2 = st.ob2; } else d[sl] = st[sl];
+      if (st.ratio && st.ratio[sl] !== undefined) d.ratio[sl] = st.ratio[sl];
+    }
+  });
   if (plan && plan.start === naj.start) naj.dni.forEach((d, i) => { if (plan.dni[i] && plan.dni[i].nb) d.nb = plan.dni[i].nb; if (plan.dni[i] && plan.dni[i].pom) d.pom = plan.dni[i].pom; });   // przy losowaniu tego samego tygodnia zostają dni „bez niego/niej”
   // układam drugi tydzień obok: obecny (bieżący lub przyszły) zostaje zapisany i da się do niego wrócić
   if (zachowaj && plan && plan.dni && plan.start >= poniedzialek() && plan.start !== naj.start) inny = paczka();
@@ -789,7 +797,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
     h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${g.slot === 'm13ona' ? ' · ONA' : g.slot === 'm13on' ? ' · ON' : ''}</div>
       <div class="pk-gora">${Obr.html(g.dish)}<div class="pk-tx"><button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button><div class="liczby">${liczby}</div></div></div>
       ${zn ? `<div class="pk-zn">${zn}</div>` : ''}
-      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
+      <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button><button class="btn maly blok ${day.blok && day.blok[g.slot] ? 'akt' : ''}" data-blok="${d}:${g.slot}" aria-pressed="${!!(day.blok && day.blok[g.slot])}">${day.blok && day.blok[g.slot] ? 'Zablokowane' : 'Zablokuj'}</button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
   });
   if (day.tr.ona || day.tr.on) h += OS.filter(p => day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake')).map(p => `<button class="pomin-shake" data-pomin-shake="${d}:${p}">Pomiń shake (${ETY[p]})</button>`).join('');
   const pomL = []; OS.forEach(p => { const pm = !nieob(day, p) && day.pom && day.pom[p]; if (pm) Object.keys(pm).filter(k => pm[k]).forEach(k => pomL.push([p, k])); });
@@ -813,8 +821,7 @@ function widokTydzien() {
   if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
   const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
-  h += paskAkcji(['swipe', 'prep', 'podsum', 'wykl', 'zakupy']);
-  h += kartaOpisTygodnia();
+  h += paskAkcji(['opisz', 'swipe', 'prep', 'podsum', 'wykl', 'zakupy']);
   { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${nar.length === 1 ? 'posiłek zawiera' : 'posiłków zawiera'} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
@@ -1085,6 +1092,7 @@ const AKCJE = {
   waga: ['Zważ się', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5'],
   wykl: ['Czego nie jecie', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12'],
   dodaj: ['Dodaj ręcznie', 'M12 5v14M5 12h14'],
+  opisz: ['Opisz tydzień', 'M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z'],
   czas: ['Nie mam czasu', 'M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'],
   swipe: ['Co lubicie?', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'],
   poza: ['Zjadłem coś innego', 'M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 2-3 4-3 7h3v11'],
@@ -1093,6 +1101,7 @@ const AKCJE = {
 };
 const paskAkcji = lista => `<div class="szybkie" role="group" aria-label="Szybkie akcje">${lista.map(k => `<button class="szybka" data-szybka="${k}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AKCJE[k][1]}"/></svg><span>${AKCJE[k][0]}</span></button>`).join('')}</div>`;
 function szybkaAkcja(k) {
+  if (k === 'opisz') { oknoOpisz(); return; }
   if (k === 'poza') { oknoPoza(); return; }
   if (k === 'czas') { const dz = isoDzis(), t = tygodnieZapisane().find(x => dz >= x.start && dz <= dodajDni(x.start, 6)); if (!t) { pokazToast('Na dziś nie ma planu'); return; } oknoDopasuj([{ start: t.start, d: Math.round((new Date(dz + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5), iso: dz, tryby: { szybko: true } }]); return; }
   if (k === 'skan') oknoSkaner(); else if (k === 'paragon') oknoParagonWklej(); else if (k === 'spont') oknoSpont(); else if (k === 'dodaj') oknoDodaj('jeden');
@@ -1939,6 +1948,7 @@ function dopasujDzien(start, d, tryby, o) {
   const ok = (dish, slot) => akt.every(k => TRYBY[k].ok(dish, slot, o || {}));
   for (const { g, odgrzewane } of w.dni[d].sloty) {
     if (odgrzewane || t.zuz[kluczZ(d, g.slot, start)]) continue;       // odgrzewane z wczoraj albo już zjedzone: nic do zmiany
+    if (day.blok && day.blok[g.slot]) { if (!akt.every(k => TRYBY[k].ok(g.dish, g.slot, o || {}))) uw.push(`${nazwaSlotu(g.slot)}: zablokowane, więc zostaje bez zmian.`); continue; }
     if (g.slot === 'ob' && day.ob2) { if (!ok(g.dish, g.slot)) uw.push('Obiad na dwa dni zostawiam bez zmian (garnek jest na dwa dni).'); continue; }
     if (ok(g.dish, g.slot)) continue;
     const kto = osobySlotu(g.slot), pula = puleDlaSlotu(day, g.slot);
@@ -2026,13 +2036,45 @@ function zastosujDopasowanie() {
   window._dop = null; zamknijOkno(); otwartyDzien = null; rysuj();
   toastCofnij(n ? `Zmieniono ${n} ${mn(n, 'posiłek', 'posiłki', 'posiłków')}` : 'Zapisano ustawienia dnia', sn);
 }
+function oknoOpisz() {
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Opisz tydzień</h2><button class="btn maly" data-zamknij>Zamknij</button></div>${kartaOpisTygodnia(true)}`;
+  $('#modal').hidden = false; setTimeout(() => { const i = $('#dop-tekst'); if (i) i.focus(); }, 120);
+}
 let dopOtw = false;
-function kartaOpisTygodnia() {
-  if (!dopOtw) return `<button class="kafel dop-zwin" data-dop-pokaz="1"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="kafel-tx"><b>Opisz tydzień</b><small>np. „wtorek lekki, piątek bez mięsa, sobota goście”</small></span><span class="kafel-str">›</span></button>`;
+function kartaOpisTygodnia(otwarta) {
+  if (!dopOtw && !otwarta) return `<button class="kafel dop-zwin" data-dop-pokaz="1"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg></span><span class="kafel-tx"><b>Opisz tydzień</b><small>np. „wtorek lekki, piątek bez mięsa, sobota goście”</small></span><span class="kafel-str">›</span></button>`;
   const ex = ['wtorek lekki', 'piątek bez mięsa', 'sobota goście 4 osoby', 'środa nie mam czasu'];
   return `<div class="karta dop-karta"><b>Opisz tydzień</b><p class="mute" style="margin:4px 0 10px">Napisz po swojemu, a dopasuję dania (kalorie zostają).</p>
     <div class="lod-rzad"><input id="dop-tekst" type="text" autocomplete="off" placeholder="np. wtorek lekki, piątek bez mięsa"><button class="btn glowny maly" data-dop-tekst="1">Dopasuj</button></div>
     <div class="chips" style="margin-top:10px">${ex.map(x => `<button class="chip" data-dop-przyklad="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`;
+}
+// ---------- świeżość produktów w lodówce ----------
+// Orientacyjna trwałość świeżych produktów (dni od zakupu). Mrożonki i zapasy się nie psują, więc ich nie liczę.
+const TRWALOSC = [[/kurczak|indyk|mielon|wolowin|wieprz|losos|dorsz|ryb|cwiartki|polendwic/, 3], [/szynk|kielbas|wedzon/, 6], [/mleko|jogurt|skyr|smietan|twarog|serek|maslo/, 7], [/(^| )ser |feta|parmezan|mozzarella/, 14], [/jaj/, 21],
+  [/salat|szpinak|rukol|natk|szczypior|koper/, 4], [/pieczark/, 5], [/pomidor|ogork|papryk|cukini|brokul|kalafior|awokado|rzodkiew/, 6], [/chleb|bulk|tortill|bagiet|pieczywo/, 4], [/banan|jablk|owoc|maliny|truskaw/, 6]];
+function swiezosc(prod) {
+  const info = DB.produkty.get(prod); if (!info || info.kat !== 'świeże' || !lodData[prod] || !lodowka[prod] || sum(Object.values(lodowka[prod]), v => v) < 0.5) return null;
+  const n = znorm(prod), dni = (TRWALOSC.find(([re]) => re.test(n)) || [0, 5])[1], wiek = Math.round((new Date(isoDzis() + 'T12:00:00') - new Date(lodData[prod] + 'T12:00:00')) / 864e5), zostalo = dni - wiek;
+  return { dni, wiek, zostalo, pilne: zostalo <= 1, po: zostalo < 0 };
+}
+const swiezoscTxt = f => f.po ? `po terminie o ${-f.zostalo} ${mn(-f.zostalo, 'dzień', 'dni', 'dni')}` : f.zostalo === 0 ? 'zużyj dziś' : f.zostalo === 1 ? 'zużyj do jutra' : `jeszcze ok. ${f.zostalo} ${mn(f.zostalo, 'dzień', 'dni', 'dni')}`;
+function doZuzycia() { return Object.keys(lodowka).map(pr => ({ pr, f: swiezosc(pr) })).filter(x => x.f && x.f.pilne).sort((a, b) => a.f.zostalo - b.f.zostalo); }
+// ---------- wykresy trendów ----------
+function wykresSlupki(wart, et, kolor, fmt) {
+  const w = 300, h = 86, n = wart.length, mx = Math.max(...wart, 1), sz = Math.min(34, (w - 10) / n - 8);
+  return `<svg viewBox="0 0 ${w} ${h + 22}" class="wykres" role="img" aria-label="Wykres słupkowy">${wart.map((v, i) => { const x = 6 + i * ((w - 12) / n) + ((w - 12) / n - sz) / 2, bh = Math.max(2, v / mx * h); return `<rect x="${x.toFixed(1)}" y="${(h - bh + 4).toFixed(1)}" width="${sz.toFixed(1)}" height="${bh.toFixed(1)}" rx="5" fill="${kolor}" opacity="${i === n - 1 ? 1 : .55}"/><text x="${(x + sz / 2).toFixed(1)}" y="${h + 18}" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">${esc(et[i])}</text><text x="${(x + sz / 2).toFixed(1)}" y="${(h - bh).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">${esc(fmt(v))}</text>`; }).join('')}</svg>`;
+}
+function wykresLinie(serie, et, fmt) {
+  const w = 300, h = 86, n = et.length, wsz = serie.flatMap(x => x.w.filter(v => v != null)), mn_ = Math.min(...wsz, 90), mx_ = Math.max(...wsz, 110), px = i => 14 + i * ((w - 28) / Math.max(1, n - 1)), py = v => 6 + (1 - (v - mn_) / ((mx_ - mn_) || 1)) * h;
+  return `<svg viewBox="0 0 ${w} ${h + 22}" class="wykres" role="img" aria-label="Wykres liniowy"><line x1="8" x2="${w - 8}" y1="${py(100).toFixed(1)}" y2="${py(100).toFixed(1)}" stroke="currentColor" opacity=".25" stroke-dasharray="3 4"/><text x="${w - 8}" y="${(py(100) - 3).toFixed(1)}" text-anchor="end" font-size="9" fill="currentColor" opacity=".6">cel</text>${serie.map(x => { const pts = x.w.map((v, i) => v == null ? null : [px(i), py(v)]).filter(Boolean); return pts.length ? `<polyline points="${pts.map(q => q.map(z => z.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${x.kolor}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>${pts.map(q => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="3.2" fill="${x.kolor}"/>`).join('')}` : ''; }).join('')}${et.map((e, i) => `<text x="${px(i).toFixed(1)}" y="${h + 18}" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">${esc(e)}</text>`).join('')}</svg>`;
+}
+function kartaTrendow(lista) {
+  const dane = lista.slice(-8).map(x => ({ et: (d => `${new Date(d + 'T12:00:00').getDate()}.${String(new Date(d + 'T12:00:00').getMonth() + 1).padStart(2, '0')}`)(x.start), o: x.o || zbierzTydzien(x.t) })).filter(x => x.o.posilkow);
+  if (dane.length < 2) return '';
+  const et = dane.map(x => x.et), proc = dane.map(x => Math.round(x.o.zjedzone / x.o.posilkow * 100)), kc = p => dane.map(x => x.o.kcal[p] != null && x.o.cel[p] ? Math.round(x.o.kcal[p] / x.o.cel[p] * 100) : null), wyd = dane.map(x => x.o.wydatki || 0);
+  return `<h2>Trendy</h2><div class="karta"><b>Zjedzone posiłki (% planu)</b>${wykresSlupki(proc, et, 'var(--zielony2)', v => v + '%')}</div>
+    <div class="karta"><b>Kalorie względem celu (%)</b><div class="wykres-leg"><span class="ona">ONA</span><span class="on">ON</span></div>${wykresLinie([{ w: kc('ona'), kolor: 'var(--ona)' }, { w: kc('on'), kolor: 'var(--on)' }], et, v => v + '%')}</div>
+    ${wyd.some(v => v > 0) ? `<div class="karta"><b>Wydatki z paragonów (zł)</b>${wykresSlupki(wyd, et, 'var(--on)', v => Math.round(v))}</div>` : ''}`;
 }
 // ---------- podsumowanie tygodnia ----------
 // Co się faktycznie stało w tygodniu: ile posiłków zjedzonych, średnio kcal i białka (tylko z dni z odhaczonym jedzeniem), zmiana wagi, wydatki z paragonów, ulubione danie.
@@ -2098,6 +2140,7 @@ function widokPodsumowanie() {
       <p class="ps-ocena">${esc(ocena)}</p></div>
     ${os ? `<div class="ps-osoby">${os}</div>` : ''}
     <div class="lod-kafle"><div><b>${o.nPar ? zl(o.wydatki).replace(' zł', '') : '—'}</b><small>${o.nPar ? `zł z ${o.nPar} ${mn(o.nPar, 'paragonu', 'paragonów', 'paragonów')}` : 'brak paragonów'}</small></div><div><b>${o.dniZ}</b><small>${mn(o.dniZ, 'dzień', 'dni', 'dni')} z odhaczonym jedzeniem</small></div></div>
+    ${kartaTrendow(lista)}
     ${o.ulub ? `<div class="karta"><b>Najlepiej smakowało</b><p class="mute" style="margin:4px 0 0">${esc(o.ulub)}</p></div>` : ''}
     <p class="mute" style="margin-top:10px">Średnie liczone tylko z dni, w których zaznaczono jedzenie. Podsumowania minionych tygodni zapisują się same.</p>`;
   setTimeout(animujLiczby, 150);
@@ -2709,6 +2752,7 @@ function widokDzis() {
       else if (!raz) kar.push(`<div class="karta zad"><b>Lodówka jest pusta</b><p class="mute">Zeskanuj kody produktów albo dodaj paragon, a apka będzie liczyć, co jeszcze masz.</p><div class="rzad"><button class="btn glowny" data-szybka="skan">Skanuj kod</button><button class="btn" data-szybka="paragon">Dodaj paragon</button></div></div>`); }
     { const brak = prognoza(w).filter(x => x.pilne); if (brak.length) kar.push(`<div class="karta zad ostrz-karta"><b>Zaraz zabraknie w lodówce</b><p class="mute">${brak.slice(0, 4).map(x => `${esc(x.produkt)} (${DNI_KR[x.d]})`).join(', ')}${brak.length > 4 ? ' i inne' : ''}.</p><div class="rzad"><button class="btn glowny" data-tab="zakupy">Lista zakupów</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
     if (wi.length) kar.push(`<div class="karta zad"><b>Wieczorem przygotuj na jutro</b><ul>${wi.map(tt => `<li>${esc(tt)}</li>`).join('')}</ul></div>`);
+    { const dz = doZuzycia(); if (dz.length) kar.push(`<div class="karta zad ostrz-karta"><b>Do zużycia w lodówce</b><ul>${dz.slice(0, 4).map(x => `<li>${esc(x.pr)} — ${swiezoscTxt(x.f)}</li>`).join('')}</ul><div class="rzad"><button class="btn glowny" data-szybka="spont">Co z tego ugotować</button><button class="btn" data-tab="lodowka">Lodówka</button></div></div>`); }
     const idx = dzienTyg();
     if (Object.keys(smaki).length < 12 && LS.get('swipeP', '') !== isoDzis().slice(0, 7)) kar.push(`<div class="karta zad"><b>Poznajmy Wasz smak</b><p class="mute">Przesuń kilka dań: te, które lubicie, będą wracać częściej, a te, których nie chcecie, zostaną w tle.</p><div class="rzad"><button class="btn glowny" data-szybka="swipe">Co lubicie?</button><button class="btn" data-swipe-pozniej="1">Później</button></div></div>`);
     if ((idx === 6 || idx === 0) && (historia.length || sum(Object.keys(zuzyte), () => 1) > 4)) kar.push(`<div class="karta zad"><b>${idx === 6 ? 'Koniec tygodnia' : 'Nowy tydzień'}</b><p class="mute">${idx === 6 ? 'Zobacz, jak Wam poszło w tym tygodniu.' : 'Zobacz podsumowanie poprzedniego tygodnia.'}</p><button class="btn szeroki" data-szybka="podsum">Podsumowanie tygodnia</button></div>`);
@@ -2995,9 +3039,12 @@ function zmienLodowke(p, u, delta) {
   delta = Math.round(delta * 100) / 100;
   if (!delta) return;
   lodowka[p] = lodowka[p] || {};
+  const bylo = sum(Object.values(lodowka[p]), v => v);
   lodowka[p][u] = Math.round(((lodowka[p][u] || 0) + delta) * 100) / 100;
   LS.set('lodowka', lodowka);
   Z([[['lodowka', p, u], { __inc: delta }]]);   // przyrost, nie wartość: dwa telefony dodają się do siebie
+  if (delta > 0 && (bylo < 0.5 || !lodData[p])) { lodData[p] = isoDzis(); LS.set('lodData', lodData); Z([[['lodData', p], lodData[p]]]); }   // data zakupu: od niej liczę świeżość
+  else if (delta < 0 && lodData[p] && sum(Object.values(lodowka[p]), v => v) < 0.5) { delete lodData[p]; LS.set('lodData', lodData); Z([[['lodData', p], undefined]]); }
 }
 function skladGarnka(g) {
   const out = [];
@@ -3091,7 +3138,7 @@ function widokLodowka() {
     if (lodKat !== 'wszystko' && lodKat !== k) continue;
     const l = [...grupy[k].entries()].sort((a, b) => a[0].localeCompare(b[0], 'pl')); if (!l.length) continue; ile += l.length;
     h += `<div class="lod-grupa"><h3>${katNazwa[k]} · ${l.length}</h3><div class="karta">${l.map(([pp, jed]) => { const n = niskie.get(pp); return `<div class="stan2 ${n ? 'nisko' : ''}" data-nm="${esc(znorm(pp))}"><span class="stan-ik k-${k === 'zamrażarka' ? 'zam' : k === 'zapas' ? 'zap' : 'swi'}">${esc(pp.charAt(0).toUpperCase())}</span>
-      <div class="stan-nm"><b>${esc(pp)}</b>${n ? `<small class="ostrz-txt">kończy się · od ${DNI_KR[n.d]}</small>` : ''}${(() => { const pk = pakProd(pp), jp = pk && jed.find(([u]) => u === pk.u); if (!pk || !jp) return ''; return `<small class="pak-info">${jp[1] >= 0.5 ? `≈ ${fmtPak(jp[1] / pk.r)} × ${esc(pk.et)} ${pk.r} ${esc(pk.u)} · ` : ''}<button class="link" data-stpak="${esc(pp)}|${esc(pk.u)}|${pk.r}">＋ opak.</button></small>`; })()}</div>
+      <div class="stan-nm"><b>${esc(pp)}</b>${(() => { const f = swiezosc(pp); return f ? `<small class="swiez ${f.pilne ? 'pilne' : ''}">kupione ${f.wiek === 0 ? 'dziś' : f.wiek + ' ' + mn(f.wiek, 'dzień', 'dni', 'dni') + ' temu'} · ${swiezoscTxt(f)}</small>` : ''; })()}${n ? `<small class="ostrz-txt">kończy się · od ${DNI_KR[n.d]}</small>` : ''}${(() => { const pk = pakProd(pp), jp = pk && jed.find(([u]) => u === pk.u); if (!pk || !jp) return ''; return `<small class="pak-info">${jp[1] >= 0.5 ? `≈ ${fmtPak(jp[1] / pk.r)} × ${esc(pk.et)} ${pk.r} ${esc(pk.u)} · ` : ''}<button class="link" data-stpak="${esc(pp)}|${esc(pk.u)}|${pk.r}">＋ opak.</button></small>`; })()}</div>
       <div class="stan-kol">${jed.sort((a, b) => a[0].localeCompare(b[0])).map(([u, q]) => kontrolka(pp, u, q)).join('')}</div></div>`; }).join('')}</div></div>`;
   }
   h += `<div class="karta pusta-karta" id="lod-brak" hidden><b>Nic nie pasuje</b><p class="mute">Spróbuj innego słowa albo dodaj ten produkt przyciskiem „＋ Dodaj”.</p></div>`;
@@ -3282,6 +3329,7 @@ document.addEventListener('click', e => {
   if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
+  if (t.dataset.blok) { const [dd, sl] = t.dataset.blok.split(':'), day = plan.dni[+dd]; day.blok = day.blok || {}; if (day.blok[sl]) delete day.blok[sl]; else day.blok[sl] = true; LS.set('plan', plan); Z([[['dni', +dd, 'blok'], Object.keys(day.blok).length ? day.blok : undefined]]); otwartyDzien = +dd; rysuj(); pokazToast(day.blok[sl] ? 'Zablokowane: zostanie przy ponownym losowaniu tygodnia' : 'Odblokowane'); return; }
   if (t.dataset.pozaGotowe) { const [n, k] = t.dataset.pozaGotowe.split('|'); const i = $('#poza-n'); if (i) i.value = n; const zazn = [...document.querySelectorAll('[data-poza-os]')].filter(c => c.checked); (zazn.length ? zazn : [...document.querySelectorAll('[data-poza-os]')]).forEach(c => { c.checked = true; const kk = $('#poza-k-' + c.dataset.pozaOs); if (kk) kk.value = k; }); return; }
   if (t.dataset.pozaZapisz) { zapiszPoza(+t.dataset.pozaZapisz); return; }
   if (t.dataset.pozaUsun) { const [dd, pp, ii] = t.dataset.pozaUsun.split('|'), day = plan.dni[+dd], sn = snapStanu(); (day.poza[pp] || []).splice(+ii, 1); if (!day.poza[pp].length) delete day.poza[pp]; LS.set('plan', plan); Z([[['dni', +dd, 'poza'], Object.keys(day.poza).length ? day.poza : undefined]]); rysuj(); toastCofnij('Wpis usunięty', sn); return; }
@@ -3518,7 +3566,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa, wlasneDania }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa, wlasneDania, lodData }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -3531,12 +3579,12 @@ window.App = {
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
-    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; trasa = data.trasa || {}; wlasneDania = data.wlasneDania || []; zastosujWlasneDania(); wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; trasa = data.trasa || {}; wlasneDania = data.wlasneDania || []; lodData = data.lodData || {}; zastosujWlasneDania(); wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
-    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneDania', wlasneDania); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneDania', wlasneDania); LS.set('lodData', lodData); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza

@@ -43,7 +43,10 @@ let korekta = LS.get('korekta', { ona: { kcal: 0, od: null, hist: [] }, on: { kc
 let paragony = LS.get('paragony', []);                     // ostatnie paragony: [{ id, data, sklep, lokal, suma, poz: [{ n, p, q, u, c, b }] }]; wspólne
 let ceny = LS.get('ceny', {});                             // ceny[produkt][sklep] = { u, ost, sr, cb, n, t, h }: zł za kg / l / szt. po rabatach; wspólne
 let mapaPar = LS.get('mapaPar', {});                       // nazwa z paragonu (bez liczb) -> produkt albo '' (pomiń); wspólne
+let wlasneProd = LS.get('wlasneProd', {});                   // produkty dodane z paragonów: wlasneProd[nazwa] = { kat, u }; wspólne
 let pakiety = LS.get('pakiety', {});                       // pakiety[produkt] = { r, u, et, w: [rozmiary], t }: standardowe opakowania poznane z paragonów; wspólne
+let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
+let prepOd = null, prepH = 3;
 let otwartyDzien = null, otwartyTyg = null;   // który dzień którego tygodnia jest rozwinięty
 let odroczone = false, ekranStartowy = false, ekranCzekania = false, formStart = null;
 // wspólny plan: wysyła tylko zmienione pola, np. [[['dni', 3, 'sn'], 'id-dania']]; undefined = usuń pole
@@ -107,7 +110,7 @@ const ukryte = id => oceny[id] === -1;
 const nieob = (day, p) => !!(day && day.nb && day.nb[p]);                 // osoba p jest nieobecna w tym dniu (plan pomija jej posiłki)
 const obecneDni = (pl, p) => pl.dni.map((_, i) => i).filter(i => !nieob(pl.dni[i], p));
 const stanKto = day => nieob(day, 'on') && !nieob(day, 'ona') ? 'bezon' : nieob(day, 'ona') && !nieob(day, 'on') ? 'bezona' : 'oboje';
-const opisGarnka = g => { const os = [...new Set(g.porcje.map(q => q.p))], dn = new Set(g.porcje.map(q => q.d)).size; return (os.length === 1 ? 'dla ' + (os[0] === 'ona' ? 'niej' : 'niego') : (dn > 1 ? '' : 'dla Was dwojga')) + (dn > 1 ? (os.length === 1 ? ' ' : '') + 'na ' + dn + ' dni' : ''); };
+const opisGarnka = g => { if (g.prep) return 'sesja meal prep'; const os = [...new Set(g.porcje.map(q => q.p))], dn = new Set(g.porcje.map(q => q.d)).size; return (os.length === 1 ? 'dla ' + (os[0] === 'ona' ? 'niej' : 'niego') : (dn > 1 ? '' : 'dla Was dwojga')) + (dn > 1 ? (os.length === 1 ? ' ' : '') + 'na ' + dn + ' dni' : ''); };
 const sredniaOsoby = (w, p, pole) => { const ix = obecneDni(plan, p); return ix.length ? sum(ix, i => w.dni[i][p][pole]) / ix.length : 0; };
 const fmtStan = (q, u) => (u === 'g' || u === 'ml') ? Math.round(q) + ' ' + u : (Math.round(q * 2) / 2).toString().replace('.', ',') + ' ' + u;
 
@@ -211,7 +214,7 @@ function migrujPuszki() {
 function etykietaPaku(prod) {
   const n = znorm(prod);
   if (DB.opak[prod] && DB.opak[prod].rodzaj) return DB.opak[prod].rodzaj;
-  if (/tunczyk|ciecierzyc|fasol|kukurydz|ananas|pomidory krojone/.test(n)) return 'puszka';
+  if (/^(tunczyk|ciecierzyc|fasol|kukurydza konserw|ananas z puszki|pomidory krojone)/.test(n)) return 'puszka';
   if (/passata|ketchup|oliw|olej|sos |mleko/.test(n)) return 'butelka';
   if (/miod|dzem|musztard|chrzan|pesto|maslo orzech|ogorek kiszony/.test(n)) return 'słoik';
   return 'opak.';
@@ -838,6 +841,7 @@ function pokazPrzepis(g, spont) {
   }).join('');
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>${esc((dish.kod ? dish.kod + ' ' : '') + dish.nazwa)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <div class="przepis-gora">${Obr.html(dish, 'duzy')}<div class="oceny">${przyciskiOceny(dish.id)}</div></div>
+    ${notaPrepu(g)}
     ${dish.kroki && dish.kroki.length ? `<button class="btn glowny szeroki" data-gotuj="1" style="margin-bottom:6px">Gotuj krok po kroku</button>` : ''}
     <h3 style="margin-top:6px">Jak smakuje?</h3><div class="smak-blok" data-dish="${esc(dish.id)}">${smakWiersze(dish.id, OS)}</div>
     <p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) : ''}${dish.sprzet ? ' · Sprzęt: ' + esc(dish.sprzet) : ''}</p>
@@ -847,7 +851,7 @@ function pokazPrzepis(g, spont) {
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
     ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
     <h3>Kto ile bierze</h3><div class="podzial">${pod}</div>
-    ${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => `<li>${esc(krokPrzeliczony(g, k))}</li>`).join('')}</ol>` : ''}
+    ${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => { const zs = krokZSesji(g, k); return `<li class="${zs ? 'krok-prep' : ''}">${esc(krokPrzeliczony(g, k))}${zs ? `<small>${esc(zs)} — możesz pominąć</small>` : ''}</li>`; }).join('')}</ol>` : ''}
     ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
     ${dish.uwaga ? `<div class="uwaga">${esc(dish.uwaga)}</div>` : ''}
     ${spont ? `<button class="btn glowny szeroki" data-spont-gotuj="1" style="margin-top:14px">Ugotowaliśmy — zdejmij z lodówki</button>` : ''}`;
@@ -858,8 +862,50 @@ function pokazPrzepis(g, spont) {
 const liczbaZ = t => parseFloat(String(t).replace(/\s/g, '').replace(',', '.'));
 const zl = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' zł';
 const G_SZT = { banan: 150, 'jabłko': 180, papryka: 200, 'ogórek świeży': 200, cebula: 100, marchew: 90, 'cebula czerwona': 100, cukinia: 300, awokado: 200, por: 200, 'pomidory świeże': 120, 'pietruszka (korzeń)': 80, 'rzodkiewka (pęczek)': 10 };
+// E-paragon w JSON (Moja Biedronka i inne sklepy używające e-paragonu JPK): linie w `body[].sellLine`, nagłówek z nazwą i adresem sklepu w `header`,
+// a pełny dokument także zakodowany w `data` (pozycja[].towar). Nazwy są skrócone i sklejone („PałeczkiKukurGłod60g C”), więc je rozdzielam.
+const htmlNaTekst = h => String(h || '').replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&').split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+const czyscNazwe = n => String(n || '').replace(/\s+[A-G]\s*$/, '').replace(/([a-ząćęłńóśźż])([A-ZĄĆĘŁŃÓŚŹŻ])/g, '$1 $2').replace(/([a-ząćęłńóśźż%])(\d)/gi, '$1 $2').replace(/\s+/g, ' ').trim();
+const wielkieZMalych = t => t.toLowerCase().replace(/(^|[\s.-])([a-ząćęłńóśźż])/g, (m, a, b) => a + b.toUpperCase());
+function parsujParagonJson(j) {
+  const out = { sklep: '', lokal: '', data: '', godz: '', suma: null, poz: [], ostrz: [] };
+  let body = Array.isArray(j.body) ? j.body : null, dok = null;
+  try { if (typeof j.data === 'string') { let b = j.data.split('.')[1] || ''; b = b.replace(/-/g, '+').replace(/_/g, '/'); b += '='.repeat((4 - b.length % 4) % 4); dok = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0)))).dokument; } } catch (e) { dok = null; }
+  const hl = (Array.isArray(j.header) ? j.header : []).filter(x => x.headerText).flatMap(x => htmlNaTekst(x.headerText.headerTextLines));
+  const hd = (Array.isArray(j.header) ? j.header : []).find(x => x.headerData), podm = hl.join(' ');
+  out.sklep = /lidl/i.test(podm) ? 'Lidl' : /biedronk|jeronimo/i.test(podm) ? 'Biedronka' : /kaufland/i.test(podm) ? 'Kaufland' : /auchan/i.test(podm) ? 'Auchan' : /carrefour/i.test(podm) ? 'Carrefour' : /netto/i.test(podm) ? 'Netto' : /(żabka|zabka)/i.test(podm) ? 'Żabka' : '';
+  if (hl[1]) out.lokal = wielkieZMalych(hl[1]).replace(/\bUl\./, 'ul.');
+  const dt = new Date((hd && hd.headerData && hd.headerData.date) || (dok && dok.paragon && dok.paragon.zakSprzed) || NaN);
+  if (!isNaN(dt)) { out.data = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; out.godz = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`; }
+  const dodaj = (nazwa, q, cenaJ, wartosc) => {
+    const ilosc = parseFloat(String(q).replace(',', '.')) || 1, waga = ilosc % 1 !== 0 ? ilosc : null;
+    out.poz.push({ raw: czyscNazwe(nazwa), ilosc: waga ? 1 : ilosc, waga, cenaJ, wartosc, rabaty: [] });
+  };
+  if (body) {
+    for (const x of body) {
+      if (x.sellLine) {
+        const l = x.sellLine;
+        if (l.isStorno) { const i = out.poz.map(q => q.raw).lastIndexOf(czyscNazwe(l.name)); if (i >= 0) out.poz.splice(i, 1); continue; }
+        dodaj(l.name, l.quantity, (l.price || 0) / 100, (l.total != null ? l.total : l.price) / 100);
+      } else if (x.sumInCurrency) out.suma = (x.sumInCurrency.fiscalTotal != null ? x.sumInCurrency.fiscalTotal : x.sumInCurrency.totalWithPacks) / 100;
+      else { const k = Object.keys(x).find(kk => /discount|rabat|opust|promo/i.test(kk)); if (k && out.poz.length) { const o = x[k], kw = [o.value, o.amount, o.total, o.price].find(v => typeof v === 'number'); if (kw) out.poz[out.poz.length - 1].rabaty.push({ et: String(o.name || k), kw: -Math.abs(kw) / 100 }); } }
+    }
+  } else if (dok && dok.paragon && Array.isArray(dok.paragon.pozycja)) {
+    for (const x of dok.paragon.pozycja) if (x.towar) dodaj(x.towar.nazwa, x.towar.ilosc, (x.towar.cena || 0) / 100, (x.towar.brutto || 0) / 100);
+    if (dok.paragon.podsum) out.suma = (dok.paragon.podsum.sumaBrutto || 0) / 100;
+  }
+  if (out.suma == null && dok && dok.paragon && dok.paragon.total) out.suma = dok.paragon.total.zaplZwrot / 100;
+  if (!out.poz.length) return null;
+  out.poz.forEach(x => { x.rabat = sum(x.rabaty, r => r.kw); x.netto = Math.round((x.wartosc + x.rabat) * 100) / 100; });
+  out.sumaPoz = Math.round(sum(out.poz, x => x.netto) * 100) / 100;
+  if (out.suma != null && Math.abs(out.sumaPoz - out.suma) > 0.05) out.ostrz.push(`Suma pozycji (${zl(out.sumaPoz)}) różni się od sumy na paragonie (${zl(out.suma)}). Mogło się nie wczytać kilka linii.`);
+  if (!out.data) out.data = isoDzis();
+  return out;
+}
 // Wklejony tekst paragonu (Lidl Plus / Biedronka / podobne): nazwa w jednej linii, pod nią „1 * 20.99 20.99 C” albo „0,244kg x 6.99 1.71 C”, a rabaty jako linie z ujemną kwotą.
 function parsujParagon(tekst) {
+  const t0 = String(tekst || '').trim();
+  if (t0[0] === '{') { try { const w = parsujParagonJson(JSON.parse(t0)); if (w) return w; } catch (e) { /* nie JSON — czytam jak tekst */ } }
   const lin = String(tekst || '').replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, '').replace(/\t/g, '  '));
   const pelny = lin.join('\n'), out = { sklep: '', lokal: '', data: '', godz: '', suma: null, poz: [], ostrz: [] };
   out.sklep = /lidl/i.test(pelny) ? 'Lidl' : /biedronk|jeronimo/i.test(pelny) ? 'Biedronka' : /kaufland/i.test(pelny) ? 'Kaufland' : /auchan/i.test(pelny) ? 'Auchan' : /carrefour/i.test(pelny) ? 'Carrefour' : /netto/i.test(pelny) ? 'Netto' : /(żabka|zabka)/i.test(pelny) ? 'Żabka' : '';
@@ -898,7 +944,7 @@ function parsujParagon(tekst) {
   if (!out.data) out.data = isoDzis();
   return out;
 }
-const NIE_JEDZENIE = /(cola|pepsi|fanta|sprite|napoj|energy|red bull|monster|black napoj|piwo|\bipa\b|wino|whisk|wodka|vodka|likier|jameson|\bgin\b|\brum\b|lomza|kaucj|torba|reklamow|papier toal|recznik|worki?\b|mydl|plyn|detergent|proszek|tabletk|pielucha|zmywar|czekolad|baton|chips|lody\b|ciastka|wafle|zelki|cukierk|guma do zucia|papieros|gazeta|bilet|doladowanie)/;
+const NIE_JEDZENIE = /(torba|\bmata\b|pod miski|miski|kubek|szczotk|gabka|zabawk|swieczk|baterie|bateria|cola|pepsi|fanta|sprite|napoj|energy|red bull|monster|black napoj|piwo|\bipa\b|wino|whisk|wodka|vodka|likier|jameson|\bgin\b|\brum\b|lomza|kaucj|torba|reklamow|papier toal|recznik|worki?\b|mydl|plyn|detergent|proszek|tabletk|pielucha|zmywar|czekolad|baton|chips|lody\b|ciastka|wafle|zelki|cukierk|guma do zucia|papieros|gazeta|bilet|doladowanie)/;
 const ALIASY = [
   ['jaja', /^jaj(a|ka)\b|^jaja/], ['mleko 2%', /^mleko(?! kokos| owsiane)/], ['jogurt naturalny', /jogurt nat/], ['skyr naturalny', /skyr/], ['masło orzechowe', /maslo orzech/], ['masło', /^maslo/],
   ['ser topiony', /ser topion|serek topion/], ['serek wiejski', /serek wiejski|twarog wiejski/], ['twaróg półtłusty', /twarog/], ['feta', /\bfeta\b|ser salatk/], ['parmezan', /parmezan|grana padano|pecorino/],
@@ -910,12 +956,12 @@ const ALIASY = [
   ['makaron ryżowy', /makaron ryzow/], ['makaron pszenny', /makaron|spaghetti|penne|fusilli|rurki|wstazki/], ['płaty lasagne', /lasagne|lazanki/], ['gnocchi', /gnocchi|kopytka/],
   ['płatki owsiane', /platki owsiane/], ['granola', /granola|musli/], ['miód', /^miod\b/], ['oliwa / olej', /^oliw|^olej(?! sezam)|olej rzepak/], ['passata', /passata/], ['koncentrat pomidorowy', /koncentrat pomidor/],
   ['pomidory krojone (puszka)', /pomidory krojone|pomidory w puszce|pomidory (w )?sosie wlasnym/], ['ketchup', /ketchup/], ['musztarda', /musztard/], ['dżem', /dzem|konfitur/], ['sos sojowy', /sos sojowy/],
-  ['kukurydza konserwowa', /kukurydz/], ['ciecierzyca z puszki (odsączona)', /ciecierzyc/], ['fasola czerwona z puszki (odsączona)', /fasol/], ['soczewica czerwona', /soczewic/], ['ogórek kiszony', /korniszon|ogorki kiszon|ogorek kiszon/],
+  ['kukurydza konserwowa', /^kukurydza|kukurydza (konserw|z puszki|w puszce|slodka)/], ['ciecierzyca z puszki (odsączona)', /ciecierzyc/], ['fasola czerwona z puszki (odsączona)', /fasol/], ['soczewica czerwona', /soczewic/], ['ogórek kiszony', /korniszon|ogorki kiszon|ogorek kiszon/],
   ['ogórek świeży', /ogork|ogorek/], ['cebula czerwona', /cebula czerwon/], ['cebula', /^cebul(?!k|a prazon)/], ['papryka', /^papryk(?!a mielon|a wedzon)/], ['pomidorki koktajlowe', /koktajl|cherry/], ['pomidory świeże', /^pomidor(?!y krojon)/],
   ['marchew', /marchew/], ['ziemniaki', /ziemniak/], ['bataty', /batat/], ['por', /^por\b/], ['seler korzeniowy', /^seler/], ['pietruszka (korzeń)', /pietruszk/], ['brokuł', /brokul/], ['kalafior', /kalafior/], ['cukinia', /cukini/],
   ['sałata', /^salat|rukola|roszponka|mix salat/], ['szpinak świeży', /szpinak/], ['pieczarki', /pieczark/], ['awokado', /awokad/], ['banan', /banan/], ['jabłko', /jablk/], ['dynia piżmowa', /^dyni/], ['rzodkiewka (pęczek)', /rzodkiew/],
   ['tortilla pełnoziarnista', /tortill/], ['chleb żytni', /chleb|pieczywo (zytnie|razowe)/], ['bułka pełnoziarnista', /^bulk/], ['pieczywo chrupkie', /chrupk/], ['paluszki rybne', /paluszki rybne/],
-  ['owoce mrożone (mieszanka)', /maliny|truskawk|jagod|owoce lesne|owoce mrozon|mrozone owoce/], ['mieszanka tropikalna mrożona (mango, ananas…)', /^mango|tropikaln/], ['ananas z puszki (mała 230 g)', /ananas/],
+  ['owoce mrożone (mieszanka)', /maliny|truskawk|jagod|owoce mrozon|mrozone owoce|mieszanka owocow mrozon/], ['mieszanka tropikalna mrożona (mango, ananas…)', /^mango|tropikaln/], ['ananas z puszki (mała 230 g)', /ananas/],
   ['orzechy włoskie', /orzechy wloskie|orzech wloski/], ['orzeszki ziemne', /orzeszki/], ['sezam', /^sezam/], ['chia', /^chia|nasiona chia/], ['pesto bazyliowe', /pesto/], ['chrzan', /chrzan/], ['mąka pszenna', /make pszenna|^maka\b/],
   ['kakao gorzkie', /kakao/], ['skrobia ziemniaczana', /skrobia/], ['odżywka białkowa', /odzywka|\bwpc\b|protein/]
 ];
@@ -924,6 +970,7 @@ const kluczPar = raw => nPar(raw).replace(/\b\d+[a-z%]*\b/g, ' ').replace(/\s+/g
 function dopasujProdukt(raw) {
   const n = nPar(raw), k = kluczPar(raw);
   if (mapaPar[k] !== undefined) return mapaPar[k] === '' ? { pomin: true, powod: 'pomijasz tę pozycję' } : { produkt: mapaPar[k], pew: 1, zapamietane: true };
+  const zh = zHistorii(raw); if (zh) return { produkt: zh, pew: 0.8 };       // podobna nazwa z wcześniejszych paragonów
   if (NIE_JEDZENIE.test(n)) return { pomin: true, powod: 'napój, alkohol lub nie jedzenie' };
   for (const [prod, re] of ALIASY) if (re.test(n)) return { produkt: prod, pew: 1 };
   // przybliżenie (tylko podpowiedź do sprawdzenia): pierwsze słowo nazwy z paragonu zaczyna się tak jak słowo nazwy znanego produktu
@@ -976,13 +1023,73 @@ function kosztProduktu(prod, q, u, sklep) {
 }
 const sklepyZnane = () => [...new Set(Object.values(ceny).flatMap(e => Object.keys(e)))].sort();
 
+// Własne produkty (z paragonów): wspólne dla pary, widoczne w lodówce, podpowiedziach i dopasowaniu paragonów.
+function zastosujWlasne() { for (const [n, x] of Object.entries(wlasneProd)) if (x && !DB.produkty.has(n)) DB.produkty.set(n, { kat: x.kat || 'zapas', u: x.u || 'g' }); }
+function dodajWlasnyProdukt(nazwa, kat, u) {
+  nazwa = String(nazwa || '').trim().toLowerCase().replace(/\s+/g, ' '); if (!nazwa) return null;
+  const istn = [...DB.produkty.keys()].find(k => znorm(k) === znorm(nazwa)); if (istn) return istn;
+  wlasneProd[nazwa] = { kat: kat || 'zapas', u: u || 'g' }; DB.produkty.set(nazwa, { kat: kat || 'zapas', u: u || 'g' });
+  LS.set('wlasneProd', wlasneProd); Z([[['wlasneProd', nazwa], wlasneProd[nazwa]]]);
+  return nazwa;
+}
+// Słownik polskich słów z bazy dań (do rozwijania skrótów z paragonów: „Kukur” → „kukurydza”) — tylko gdy jest jedna wyraźna możliwość.
+let _slownik = null;
+function slownik() {
+  if (_slownik) return _slownik; const m = new Map();
+  for (const d of DB.dania.values()) [d.nazwa, ...d.skladniki.map(i => i.produkt || '')].forEach(tx => tx.toLowerCase().split(/[^a-ząćęłńóśźż]+/).filter(w => w.length >= 5).forEach(w => m.set(w, (m.get(w) || 0) + 1)));
+  return (_slownik = m);
+}
+function rozwinSkrot(slowo) {
+  const z = znorm(slowo); if (z.length < 6) return slowo;      // krótkie skróty („Kuk”, „Jagl”) zostawiam: zgadywanie zepsułoby nazwę
+  const m = slownik(); for (const w of m.keys()) if (znorm(w) === z) return slowo;
+  const kand = [...m.entries()].filter(([w]) => znorm(w).startsWith(z) && w.length - z.length >= 2).sort((a, b) => b[1] - a[1]);
+  return kand.length === 1 || (kand.length > 1 && kand[0][1] >= 2 * kand[1][1]) ? kand[0][0] : slowo;
+}
+function zgadnijKat(nazwa) { if (/chrup|paluszk|paleczk|pałeczk|chips|krakers|ciastk|baton|snack|przekask|wafel|zelki|cukierk/.test(znorm(nazwa)) && !/rybne/.test(znorm(nazwa))) return 'zapas'; const d = dzialSklepu({ produkt: nazwa, kat: '' }); return d === 'mrozonki' ? 'zamrażarka' : d === 'spizarnia' ? 'zapas' : 'świeże'; }
+function zgadnijJedn(poz) {
+  if (poz.waga) return 'g';
+  const mm = poz.raw.match(/(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|szt)\b/i);
+  if (mm) { const j = mm[2].toLowerCase(); return j === 'ml' || j === 'l' ? 'ml' : j === 'szt' ? 'szt.' : 'g'; }
+  return /napoj|sok\b|mleko|olej|ocet|woda|syrop|sos\b/.test(nPar(poz.raw)) ? 'ml' : 'szt.';
+}
+// Podpowiedź nowego produktu z pozycji paragonu: czytelna nazwa (bez rozmiaru, ze rozwiniętymi skrótami), kategoria i jednostka.
+function sugerujNowy(poz) {
+  const n = poz.raw.replace(/\d+(?:[.,]\d+)?\s*(kg|g|ml|l|szt|tb)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  const nazwa = n.split(' ').map(w => /^[A-Za-ząćęłńóśźżĄĆĘŁŃÓŚŹŻ]+$/.test(w) ? rozwinSkrot(w.toLowerCase()) : w.toLowerCase()).join(' ');
+  return { nazwa, kat: zgadnijKat(nazwa), u: zgadnijJedn(poz) };
+}
+// Czy ta pozycja wygląda jak coś, co już dopasowywałeś na wcześniejszych paragonach (inny zapis nazwy w tym samym sklepie)?
+function zHistorii(raw) {
+  const tok = nPar(raw).replace(/\b\d+[a-z%]*\b/g, ' ').split(' ').filter(w => w.length >= 3); if (tok.length < 2) return null;
+  const zg = (a, b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b.slice(0, 4)) || b.startsWith(a.slice(0, 4))));
+  let naj = null, ns = 0;
+  for (const par of paragony) for (const q of par.poz) {
+    if (!q.p) continue; const t2 = nPar(q.n).replace(/\b\d+[a-z%]*\b/g, ' ').split(' ').filter(w => w.length >= 3); if (t2.length < 2) continue;
+    const wsp = tok.filter(a => t2.some(b => zg(a, b))).length, sim = wsp / (tok.length + t2.length - wsp);
+    if (sim > ns) { ns = sim; naj = q.p; }
+  }
+  return ns >= 0.6 ? naj : null;
+}
+let nowyP = null;
+function oknoNowyProdukt(i, nazwaStart) {
+  const x = parag.w.poz[i], sug = sugerujNowy(x);
+  nowyP = { i, nazwa: (nazwaStart || sug.nazwa), kat: sug.kat, u: sug.u };
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Nowy produkt</h2><button class="btn maly" data-par-wroc>Wróć</button></div>
+    <p class="mute">Z paragonu: <b>${esc(x.raw)}</b> · ${esc(opisPozycji(x))}. Zapamiętam ten produkt, jego ceny i opakowanie, a przy następnych paragonach rozpoznam go sam.</p>
+    <label class="pole"><span>Nazwa produktu</span><input id="np-nazwa" type="text" value="${esc(nowyP.nazwa)}" autocomplete="off"></label>
+    <h3>Gdzie go trzymasz?</h3><div class="seg" id="np-kat">${[['świeże', 'Świeże'], ['zamrażarka', 'Mrożone'], ['zapas', 'Zapasy']].map(([k, et]) => `<button data-np-kat="${k}" class="${nowyP.kat === k ? 'akt' : ''}">${et}</button>`).join('')}</div>
+    <label class="pole"><span>Jak liczyć ilość</span><select id="np-u">${[['g', 'w gramach'], ['ml', 'w mililitrach'], ['szt.', 'w sztukach']].map(([u, et]) => `<option value="${u}" ${nowyP.u === u ? 'selected' : ''}>${et}</option>`).join('')}</select></label>
+    <button class="btn glowny szeroki" data-np-dodaj style="margin-top:12px">Dodaj produkt i użyj</button>`;
+  $('#modal').hidden = false;
+}
+
 let parag = null;
 const SKLEPY_DOM = ['Lidl', 'Biedronka', 'Kaufland', 'Auchan', 'Carrefour', 'Netto', 'Żabka', 'Inny sklep'];
 function oknoParagonWklej() {
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Dodaj paragon</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
-    <p class="mute">Skopiuj tekst paragonu (np. z aplikacji Lidl Plus albo Biedronki) i wklej tutaj. Zapamiętam ceny produktów i sklep, żeby podpowiadać, gdzie taniej zrobić zakupy.</p>
+    <p class="mute">Skopiuj paragon (tekst z Lidl Plus albo plik JSON z Moja Biedronka) i wklej tutaj. Zapamiętam ceny produktów i sklep, żeby podpowiadać, gdzie taniej zrobić zakupy.</p>
     <button class="btn glowny szeroki" id="parSchowek">Wklej ze schowka</button>
-    <label class="pole"><span>…albo wklej ręcznie</span><textarea id="par-tekst" rows="8" placeholder="Wklej tu cały tekst paragonu"></textarea></label>
+    <label class="pole"><span>…albo wklej ręcznie</span><textarea id="par-tekst" rows="8" placeholder="Wklej tu cały tekst albo JSON paragonu"></textarea></label>
     <button class="btn szeroki" id="parWczytaj">Wczytaj paragon</button>`;
   $('#modal').hidden = false;
 }
@@ -1002,7 +1109,7 @@ function oknoParagon() {
   const wiersz = r => { const x = w.poz[r.i];
     return `<div class="par-w ${r.wlacz ? '' : 'wyl'}"><label class="par-wl"><input type="checkbox" data-par-wl="${r.i}" ${r.wlacz ? 'checked' : ''}><span class="zk-ptak"></span></label>
       <div class="par-tx"><b>${esc(x.raw)}</b><small>${esc(opisPozycji(x))}</small>
-      <button class="par-prod ${r.produkt ? '' : 'brak'}" data-par-prod="${r.i}">${r.produkt ? '→ ' + esc(r.produkt) + (r.pew === 0.5 ? ' (sprawdź)' : '') : 'Wybierz produkt'}</button>
+      <button class="par-prod ${r.produkt ? '' : 'brak'}" data-par-prod="${r.i}">${r.produkt ? '→ ' + esc(r.produkt) + (r.pew < 1 ? ' (sprawdź)' : '') : 'Wybierz produkt'}</button>${r.produkt ? '' : ` <button class="par-prod nowy" data-par-nowy-formularz="${r.i}">＋ Nowy produkt</button>`}
       ${r.produkt ? `${r.pak && r.q > 0 ? `<small class="par-pak">${fmtPak(r.q / r.pak)} × opakowanie ${r.pak} ${r.u} (zapamiętam rozmiar)</small>` : ''}<div class="par-q"><input type="text" inputmode="decimal" data-par-q="${r.i}" value="${r.q == null ? '' : String(r.q).replace('.', ',')}" placeholder="ile?" aria-label="Ilość"><select data-par-u="${r.i}">${['g', 'ml', 'szt.', 'krom.', 'pusz.'].map(u => `<option ${r.u === u ? 'selected' : ''}>${u}</option>`).join('')}</select></div>` : ''}</div>
       <b class="par-cena">${zl(x.netto)}</b></div>`; };
   const doSpr = wiersze.filter(r => !r.pomin && (!r.produkt || r.pew < 1 || !(r.q > 0))), rozp = wiersze.filter(r => !r.pomin && r.produkt && r.pew >= 1 && r.q > 0), pom = wiersze.filter(r => r.pomin);
@@ -1044,7 +1151,7 @@ function zapiszParagon() {
     if (r.pomin) { if (r.zmieniony) mapaPar[k] = ''; continue; }
     if (!r.produkt || !r.wlacz) continue;
     if (r.zmieniony || r.pew < 1) mapaPar[k] = r.produkt;
-    if (!DB.produkty.has(r.produkt)) DB.produkty.set(r.produkt, { kat: 'zapas', u: r.u || 'g' });
+    if (!DB.produkty.has(r.produkt)) dodajWlasnyProdukt(r.produkt, zgadnijKat(r.produkt), r.u || 'g');
     if (r.pak && r.u && !x.waga) uczPak(r.produkt, r.pak, r.u);
     if (r.q > 0) { if (x.waga) zapiszCene(r.produkt, sklep, x.netto, x.wartosc, x.waga * 1000, 'g', data); else zapiszCene(r.produkt, sklep, x.netto, x.wartosc, r.q, r.u, data); nCen++; if (lod) { zmienLodowke(r.produkt, r.u, r.q); nLod++; } }
     poz.push({ n: x.raw, p: r.produkt, q: r.q || 0, u: r.u, c: x.netto, b: x.wartosc });
@@ -1066,6 +1173,8 @@ function widokParagony() {
   h += `<h2>Ostatnie paragony</h2>` + (paragony.length ? paragony.map(x => `<details class="karta par-karta"><summary><span><b>${esc(x.sklep)}</b><small>${new Date(x.data + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })} · ${x.poz.length} pozycji</small></span><b>${zl(x.suma)}</b></summary>
       ${x.poz.map(q => `<div class="par-pw"><span>${esc(q.n)}${q.p ? `<br><span class="mute">→ ${esc(q.p)}${q.q ? ' · ' + String(q.q).replace('.', ',') + ' ' + esc(q.u) : ''}</span>` : ''}</span><b>${zl(q.c)}</b></div>`).join('')}
       <button class="btn maly" data-par-usun="${esc(x.id)}" style="margin:10px 0 14px">Usuń paragon</button></details>`).join('') : '<div class="karta pusta-karta"><b>Brak paragonów</b><p class="mute">Dodaj pierwszy, a apka zacznie pamiętać ceny.</p></div>');
+  const wl = Object.entries(wlasneProd).sort((a, b) => a[0].localeCompare(b[0], 'pl'));
+  if (wl.length) h += `<h2>Moje produkty (${wl.length})</h2><div class="karta"><p class="mute" style="margin:0 0 6px">Dodane z paragonów. Dotknij kategorii, żeby ją zmienić.</p>${wl.map(([n, x]) => `<div class="wpis"><span>${esc(n)}<br><span class="mute">${esc(x.u)}</span></span><span class="rzad" style="flex:none;flex-wrap:nowrap"><button class="chip" data-wlasny-kat="${esc(n)}">${x.kat === 'zamrażarka' ? 'Mrożone' : x.kat === 'zapas' ? 'Zapasy' : 'Świeże'}</button><button class="chip" data-wlasny-usun="${esc(n)}" aria-label="Usuń">✕</button></span></div>`).join('')}</div>`;
   const prod = Object.keys(ceny).sort((a, b) => a.localeCompare(b, 'pl'));
   h += `<h2>Ceny produktów (${prod.length})</h2>`;
   if (prod.length) h += `<div class="lod-filtr"><div class="lod-rzad"><input id="cena-szukaj" type="search" placeholder="Szukaj produktu…" autocomplete="off"></div></div><div class="karta ceny-karta">${prod.slice(0, 300).map(pr => { const e = ceny[pr], naj = Math.min(...Object.values(e).map(v => cenaX(v))); return `<div class="cena-w" data-nm="${esc(znorm(pr))}"><b>${esc(pr)}</b><div class="cena-sk">${Object.entries(e).map(([sk, v]) => `<span class="${cenaX(v) === naj && Object.keys(e).length > 1 ? 'naj' : ''}">${esc(sk)}: <b>${zl(cenaX(v))}</b>/${jednCeny(v.u)}${v.ost !== v.cb && v.cb ? `<small>po rabatach ${zl(v.ost)}</small>` : ''}<small>${new Date(v.t + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}</small></span>`).join('')}</div></div>`; }).join('')}</div>`;
@@ -1144,6 +1253,155 @@ function smakKara(pl) {
   });
   return k;
 }
+// ---------- meal prep: gotuj raz, jedz kilka razy ----------
+// fazy: przyg = czynne przygotowanie, gotuj = bierne gotowanie, post = czynne po gotowaniu, studz = bierne studzenie, porc = czynne porcjowanie (minuty).
+const PREP = {
+  'ryż': { nazwa: 'Ryż', u: 'g', ugot: 2.8, woda: 2, dni: 2, wzor: /ry[żz]/i, fazy: { przyg: 3, gotuj: 12, post: 6, studz: 25, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Ryż: odmierz ${w.suchy} g i przepłucz na sitku zimną wodą, aż woda będzie prawie czysta.`, gotuj: (c, w) => `Ryż: do garnka wlej ${w.woda} ml wody i szczyptę soli, zagotuj, wsyp ryż, przykryj i gotuj na najmniejszym ogniu 12 min.`,
+    post: () => `Ryż: zdejmij z ognia i nie otwieraj pokrywki — odstaw na 5 min, potem napuszyj widelcem.`, studz: () => `Ryż: rozłóż cienką warstwą na blasze albo dużym talerzu i studź 20 min. Do godziny od ugotowania musi trafić do lodówki.`,
+    przech: 'Lodówka do 2 dni, zamknięty pojemnik. Ryż psuje się szybciej niż inne dodatki, więc nie zostawiaj go w temperaturze pokojowej.', podgrzej: 'Mikrofala 2 min pod przykryciem z łyżką wody albo patelnia 3 min. Podgrzewaj tylko raz, do gorącego.' },
+  'kasza gryczana': { nazwa: 'Kasza gryczana', u: 'g', ugot: 2.6, woda: 2, dni: 3, wzor: /gryczan/i, fazy: { przyg: 2, gotuj: 15, post: 5, studz: 15, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Kasza gryczana: odmierz ${w.suchy} g i przepłucz na sitku.`, gotuj: (c, w) => `Kasza gryczana: zagotuj ${w.woda} ml osolonej wody, wsyp kaszę, przykryj i gotuj na małym ogniu 15 min.`,
+    post: () => `Kasza gryczana: zdejmij z ognia, odstaw przykrytą na 5 min i rozdrobnij widelcem.`, studz: () => `Kasza gryczana: rozłóż na talerzu i studź 15 min.`,
+    przech: 'Lodówka do 3 dni, zamknięty pojemnik.', podgrzej: 'Mikrofala 2 min z łyżką wody albo patelnia 3 min.' },
+  'kasza jaglana': { nazwa: 'Kasza jaglana', u: 'g', ugot: 2.8, woda: 2.2, dni: 3, wzor: /jaglan|jaglank/i, fazy: { przyg: 3, gotuj: 15, post: 5, studz: 15, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Kasza jaglana: odmierz ${w.suchy} g i przepłucz kilka razy na sitku, na końcu przelej wrzątkiem (usuwa goryczkę).`, gotuj: (c, w) => `Kasza jaglana: zagotuj ${w.woda} ml wody, wsyp kaszę, przykryj i gotuj na małym ogniu 15 min.`,
+    post: () => `Kasza jaglana: odstaw przykrytą na 5 min, rozdrobnij widelcem.`, studz: () => `Kasza jaglana: rozłóż na talerzu i studź 15 min.`,
+    przech: 'Lodówka do 3 dni, zamknięty pojemnik.', podgrzej: 'Mikrofala 2 min z odrobiną mleka lub wody.' },
+  'kuskus': { nazwa: 'Kuskus', u: 'g', ugot: 2.3, woda: 1.1, dni: 3, wzor: /kuskus/i, fazy: { przyg: 2, gotuj: 5, post: 2, studz: 10, porc: 4 }, gar: 0,
+    przyg: (c, w) => `Kuskus: odmierz ${w.suchy} g do miski, dodaj szczyptę soli.`, gotuj: (c, w) => `Kuskus: zalej ${w.woda} ml wrzątku, przykryj talerzem i odstaw na 5 min.`,
+    post: () => `Kuskus: rozdrobnij widelcem, żeby się nie sklejał.`, studz: () => `Kuskus: rozłóż na talerzu i studź 10 min.`,
+    przech: 'Lodówka do 3 dni, zamknięty pojemnik.', podgrzej: 'Mikrofala 1–2 min z łyżką wody albo zjedz na zimno.' },
+  'kasza bulgur': { nazwa: 'Kasza bulgur', u: 'g', ugot: 2.7, woda: 2, dni: 3, wzor: /bulgur/i, fazy: { przyg: 2, gotuj: 12, post: 5, studz: 15, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Bulgur: odmierz ${w.suchy} g i przepłucz na sitku.`, gotuj: (c, w) => `Bulgur: zagotuj ${w.woda} ml osolonej wody, wsyp kaszę, przykryj i gotuj na małym ogniu 12 min.`,
+    post: () => `Bulgur: odstaw przykryty na 5 min i rozdrobnij widelcem.`, studz: () => `Bulgur: rozłóż na talerzu i studź 15 min.`,
+    przech: 'Lodówka do 3 dni, zamknięty pojemnik.', podgrzej: 'Mikrofala 2 min z łyżką wody albo zjedz na zimno w sałatce.' },
+  'makaron pszenny': { nazwa: 'Makaron', u: 'g', ugot: 2.3, woda: 10, dni: 3, wzor: /makaron/i, fazy: { przyg: 2, gotuj: 9, post: 3, studz: 8, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Makaron: odmierz ${w.suchy} g. W dużym garnku zagotuj ${w.woda} ml wody (1 litr na 100 g) i dosól.`, gotuj: (c, w) => `Makaron: wrzuć do wrzątku i gotuj 9 min (o minutę krócej niż na opakowaniu, żeby był al dente).`,
+    post: () => `Makaron: odcedź i przepłucz zimną wodą, żeby przestał się gotować. Skrop łyżeczką oliwy i wymieszaj.`, studz: () => `Makaron: rozłóż na talerzu i ostudź 8 min.`,
+    przech: 'Lodówka do 3 dni, zamknięty pojemnik (skropiony oliwą nie skleja się).', podgrzej: 'Wrzuć na patelnię z sosem na 2–3 min albo zalej wrzątkiem na minutę.' },
+  'makaron ryżowy': { nazwa: 'Makaron ryżowy', u: 'g', ugot: 2.5, woda: 10, dni: 2, wzor: /makaron/i, fazy: { przyg: 2, gotuj: 6, post: 3, studz: 8, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Makaron ryżowy: odmierz ${w.suchy} g i zagotuj wodę.`, gotuj: (c, w) => `Makaron ryżowy: zalej gorącą (nie wrzącą) wodą i odstaw na czas z opakowania (zwykle 5–6 min).`,
+    post: () => `Makaron ryżowy: odcedź, przepłucz zimną wodą i skrop odrobiną oleju.`, studz: () => `Makaron ryżowy: rozłóż na talerzu i ostudź 8 min.`,
+    przech: 'Lodówka do 2 dni, zamknięty pojemnik.', podgrzej: 'Zalej gorącą wodą na minutę albo smaż krótko w woku.' },
+  'ziemniaki': { nazwa: 'Ziemniaki', u: 'g', ugot: 1, woda: 0, dni: 3, wzor: /ziemniak/i, fazy: { przyg: 6, gotuj: 20, post: 2, studz: 15, porc: 4 }, gar: 1,
+    przyg: (c, w) => `Ziemniaki: obierz ${w.suchy} g, pokrój w kostkę 3 cm i opłucz.`, gotuj: () => `Ziemniaki: zalej zimną osoloną wodą, zagotuj i gotuj pod uchyloną pokrywką 20 min, aż będą miękkie.`,
+    post: () => `Ziemniaki: odcedź i odparuj 2 min.`, studz: () => `Ziemniaki: rozłóż na talerzu i ostudź 15 min.`,
+    przech: 'Lodówka do 3 dni, zamknięty pojemnik.', podgrzej: 'Najlepiej na patelni 4–5 min z odrobiną oleju, w mikrofali robią się gumowate.' },
+  'jaja': { nazwa: 'Jajka na twardo', u: 'szt.', ugot: 1, woda: 0, dni: 5, wzor: /jaj/i, twarde: true, fazy: { przyg: 1, gotuj: 9, post: 5, studz: 5, porc: 3 }, gar: 1,
+    przyg: (c, w) => `Jajka: wyjmij ${w.suchy} jaj z lodówki i przygotuj garnek z wodą, żeby jajka były zalane.`, gotuj: () => `Jajka: włóż do wrzątku i gotuj na twardo 9 min.`,
+    post: () => `Jajka: przelej zimną wodą i trzymaj w niej 5 min — łatwiej się obierają.`, studz: () => `Jajka: osusz. Możesz je obrać teraz albo tuż przed jedzeniem.`,
+    przech: 'Lodówka do 5 dni (nieobrane do 7), w pojemniku.', podgrzej: 'Jedz na zimno albo zalej gorącą wodą na minutę.' }
+};
+// Czy danie gotuje ten składnik osobno (a nie w garnku z zupą)? Wtedy da się go ugotować na zapas.
+function gotowaneOsobno(dish, prod) {
+  const c = PREP[prod]; if (!c || dish.typ === 'obiad_zupa') return false;
+  return (dish.kroki || []).some(k => c.twarde ? /na twardo/i.test(k) : (/(ugotuj|gotuj|zagotuj|wsyp|zalej|przepłucz)/i.test(k) && c.wzor.test(k)));
+}
+const nazwaSlotu = sl => (PORA[sl] || sl).split(' · ').slice(-1)[0];
+const dzienKrotki = iso => `${DNI_KR[(new Date(iso + 'T12:00:00').getDay() + 6) % 7]} ${krotkaData(iso)}`;
+// Plan sesji: składniki z dań w oknie [od, od + h dni], które opłaca się ugotować raz (max tyle dni, ile wytrzymują w lodówce).
+function planPrepu(od, h) {
+  const doo = dodajDni(od, h), wg = {}, dzis = isoDzis();
+  for (const t of tygodnieZapisane()) {
+    const wk = oblicz({ start: t.start, dni: t.dni }, cele());
+    for (const g of wk.garnki) for (const i of g.dish.skladniki) {
+      if (!PREP[i.produkt] || !i.ilosc || !gotowaneOsobno(g.dish, i.produkt)) continue;
+      for (const x of dniGarnka(g)) {
+        const iso = dodajDni(t.start, x);
+        if (iso < od || iso > doo || iso < dzis || t.zuz[kluczZ(x, g.slot, t.start)]) continue;
+        const c = PREP[i.produkt], ilosc = i.ilosc * skala(g, i) * udzialDnia(g, x);
+        (wg[i.produkt] = wg[i.produkt] || []).push({ iso, slot: g.slot, id: g.dish.id, dish: g.dish.nazwa, wk: t.start, d: x, suchy: c.u === 'szt.' ? Math.max(1, Math.round(ilosc)) : Math.round(ilosc / 5) * 5 || 5, kto: [...new Set(g.porcje.filter(q => q.d === x).map(q => q.p))] });
+      }
+    }
+  }
+  const komp = [], pojedyncze = []; let min = 0, gar = 0;
+  for (const [prod, uz] of Object.entries(wg)) {
+    const c = PREP[prod]; uz.sort((a, b) => a.iso.localeCompare(b.iso) || a.slot.localeCompare(b.slot));
+    // jeden dzień = jedna porcja do pojemnika; w obrębie limitu przechowywania
+    const wOkn = uz.filter(x => (new Date(x.iso) - new Date(od)) / 864e5 <= c.dni), poza = uz.filter(x => !wOkn.includes(x));
+    if (wOkn.length < 2) { pojedyncze.push({ prod, nazwa: c.nazwa, uzycia: uz }); continue; }
+    wOkn.forEach(x => { x.ugot = c.u === 'szt.' ? x.suchy : Math.round(x.suchy * c.ugot / 5) * 5; });
+    const suchy = sum(wOkn, x => x.suchy), ugot = sum(wOkn, x => x.ugot), czynne = c.fazy.przyg + c.fazy.post + c.fazy.porc + 5;
+    const oszcz = (wOkn.length - 1) * czynne; min += oszcz; gar += (wOkn.length - 1) * c.gar;
+    komp.push({ prod, nazwa: c.nazwa, u: c.u, suchy, ugot, uzycia: wOkn, poza, oszczMin: oszcz });
+  }
+  komp.sort((a, b) => b.oszczMin - a.oszczMin);
+  const kroki = krokiSesji(komp);
+  return { od, doo, h, komp, pojedyncze, oszczMin: min, oszczGar: gar, kroki: kroki.kroki, czas: kroki.czas };
+}
+// Harmonogram jednej osoby: najpierw ustawia najdłuższe gotowania, potem kończy je w kolejności, na końcu porcjuje do pojemników.
+function krokiSesji(komp) {
+  if (!komp.length) return { kroki: [], czas: 0 };
+  const kroki = [], zad = komp.map(c => ({ c, p: PREP[c.prod], w: { suchy: c.suchy, woda: Math.round(c.suchy * PREP[c.prod].woda / 10) * 10 } })).sort((a, b) => b.p.fazy.gotuj - a.p.fazy.gotuj);
+  let t = 0;
+  for (const z of zad) { kroki.push(z.p.przyg(z.c, z.w)); t += z.p.fazy.przyg; kroki.push(z.p.gotuj(z.c, z.w)); z.gotowe = t + z.p.fazy.gotuj; }
+  const wgGot = zad.slice().sort((a, b) => a.gotowe - b.gotowe);
+  for (const z of wgGot) { t = Math.max(t, z.gotowe); kroki.push(z.p.post(z.c, z.w)); t += 2; z.stygnie = t + z.p.fazy.studz; kroki.push(z.p.studz(z.c, z.w)); }
+  const wgSt = zad.slice().sort((a, b) => a.stygnie - b.stygnie);
+  for (const z of wgSt) {
+    t = Math.max(t, z.stygnie);
+    const lista = z.c.uzycia.map(x => `${dzienKrotki(x.iso)} ${nazwaSlotu(x.slot)} — ${x.ugot} ${z.c.u === 'szt.' ? 'szt.' : 'g'}`).join('; ');
+    kroki.push(`${z.p.nazwa}: podziel na ${z.c.uzycia.length} ${z.c.uzycia.length < 5 ? 'pojemniki' : 'pojemników'} i opisz: ${lista}. Zamknij i wstaw do lodówki (zjedz najpóźniej do ${dzienKrotki(z.c.uzycia[z.c.uzycia.length - 1].iso)}, czyli maks. ${z.p.dni} dni po ugotowaniu).`);
+    t += z.p.fazy.porc;
+  }
+  return { kroki, czas: Math.round(t) };
+}
+const sesjaDla = (g) => sesje.flatMap(se => se.komp.flatMap(k => k.uzycia.filter(u => u.wk === plan.start && u.id === g.dish.id && u.slot === g.slot).map(u => ({ se, k, u }))));
+// Który krok przepisu został zrobiony w sesji meal prep (ten składnik ugotowany wcześniej)?
+function krokZSesji(g, tekst) {
+  for (const { k } of sesjaDla(g)) { const c = PREP[k.prod]; if (c && /(ugotuj|gotuj|zagotuj|wsyp|zalej|przepłucz)/i.test(tekst) && (c.twarde ? /na twardo/i.test(tekst) : c.wzor.test(tekst))) return `${c.nazwa} z sesji ${dzienKrotki(sesje.find(x => x.komp.includes(k)).od)}`; }
+  return null;
+}
+function notaPrepu(g) {
+  const ws = sesjaDla(g); if (!ws.length) return '';
+  return `<div class="prep-nota"><b>Z sesji meal prep</b>${ws.map(({ se, k, u }) => `<div>${esc(PREP[k.prod].nazwa)}: weź <b>${u.ugot} ${k.u === 'szt.' ? 'szt.' : 'g ugotowanego'}</b> z pojemnika${se.zrobione ? '' : ' (sesja zaplanowana na ' + dzienKrotki(se.od) + ')'}. Pomiń gotowanie tego składnika.</div>`).join('')}</div>`;
+}
+function zapiszSesje(pl) {
+  const id = pl.od + '_' + pl.h, kopia = { id, od: pl.od, h: pl.h, zrobione: false, t: Date.now(), komp: pl.komp.map(c => ({ prod: c.prod, nazwa: c.nazwa, u: c.u, suchy: c.suchy, ugot: c.ugot, uzycia: c.uzycia.map(x => ({ iso: x.iso, slot: x.slot, id: x.id, dish: x.dish, wk: x.wk, d: x.d, suchy: x.suchy, ugot: x.ugot })) })) };
+  sesje = sesje.filter(x => x.id !== id && x.od >= dodajDni(isoDzis(), -3)).concat([kopia]).sort((a, b) => a.od.localeCompare(b.od)).slice(-6);
+  LS.set('sesje', sesje); Z([[['sesje'], sesje]]);
+  return kopia;
+}
+function otworzSesje(pl, se) {
+  if (!pl.komp.length) return;
+  const skl = pl.komp.map(c => ({ nazwa: `${c.nazwa}${c.u === 'szt.' ? '' : ' (suchy)'}`, produkt: c.prod, ilosc: c.suchy, jednostka: c.u, kategoria: 'zapas' }));
+  const g = { prep: true, dish: { id: 'prep_' + pl.od, nazwa: `Meal prep ${dzienKrotki(pl.od)}`, kroki: pl.kroki, skladniki: skl, przyprawy: [], czas: `ok. ${pl.czas} min`, sprzet: 'garnki, sitko, pojemniki, widelec', typ: 'prep' }, slot: 'prep', d: 0, porcje: [], K: 1, s: 1, sw: 1, a: 1, b: 1, lev: new Set(), nF: 1 };
+  otworzGotowanie(g, false); got.prep = true; got.sesja = se; rysujGot();
+}
+
+// ---------- ekran meal prep ----------
+function okazjePrepu() {   // oszczędność dla każdego z najbliższych 7 dni
+  return Array.from({ length: 7 }, (_, i) => { const od = dodajDni(isoDzis(), i), pl = planPrepu(od, prepH); return { od, min: pl.oszczMin, n: pl.komp.length }; });
+}
+function widokPrep() {
+  const ok = okazjePrepu(), naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
+  if (!prepOd || prepOd < isoDzis()) prepOd = naj.min > 0 ? naj.od : isoDzis();
+  const pl = planPrepu(prepOd, prepH), sesjaZapisana = sesje.find(x => x.id === prepOd + '_' + prepH);
+  let h = `<h1>Meal prep</h1>` + wskazowka('prep', 'Ugotuj raz, jedz kilka razy: apka znajduje w planie ryż, makaron, kaszę, ziemniaki i jajka gotowane osobno, liczy ile ugotować, jak podzielić do pojemników i dopilnuje, ile dni wytrzymają w lodówce.');
+  h += `<h3>Kiedy gotujesz?</h3><div class="prep-dni">${ok.map(x => `<button class="prep-dz ${x.od === prepOd ? 'akt' : ''}" data-prep-dzien="${x.od}"><small>${dzienKrotki(x.od).split(' ')[0]}</small><b>${new Date(x.od + 'T12:00:00').getDate()}</b>${x.min > 0 ? `<em>−${x.min}′</em>` : '<em>&nbsp;</em>'}${x.od === naj.od && naj.min > 0 ? '<i class="prep-naj">najlepszy</i>' : ''}</button>`).join('')}</div>
+    <h3>Na ile dni naprzód?</h3><div class="seg mini">${[2, 3, 4].map(n => `<button data-prep-h="${n}" class="${prepH === n ? 'akt' : ''}">${n} dni</button>`).join('')}</div>`;
+  if (!pl.komp.length) {
+    h += `<div class="karta pusta-karta"><b>W tym oknie nie ma czego gotować na zapas</b><p class="mute">${pl.pojedyncze.length ? 'Znalazłem ' + pl.pojedyncze.map(x => esc(x.nazwa)).join(', ') + ', ale tylko w jednym posiłku, więc gotuj na bieżąco.' : 'W planie na te dni nie ma dań z osobno gotowanym ryżem, makaronem, kaszą, ziemniakami ani jajkami na twardo.'} Spróbuj innego dnia albo dłuższego okna.</p></div>`;
+  } else {
+    h += `<div class="hero prep-hero"><span class="hero-et">${dzienKrotki(pl.od)} · okno ${pl.h} dni</span><div class="hero-dan"><div><b>Ugotuj raz: ${pl.komp.map(c => esc(c.nazwa.toLowerCase())).join(', ')}</b><small>${sum(pl.komp, c => c.uzycia.length)} posiłków z jednego gotowania</small></div></div>
+      <div class="hero-liczby"><span>ok. ${pl.oszczMin} min mniej przy kuchni</span><span>${pl.oszczGar} ${pl.oszczGar === 1 ? 'garnek' : pl.oszczGar < 5 ? 'garnki' : 'garnków'} mniej</span><span>sesja ok. ${pl.czas} min</span></div>
+      <div class="rzad"><button class="btn hero-btn" data-prep-start="1">Zacznij sesję</button><button class="btn hero-btn jasny" data-prep-zapisz="1">${sesjaZapisana ? 'Zapisane ✓' : 'Zapisz plan'}</button></div></div>`;
+    h += pl.komp.map(c => {
+      const cc = PREP[c.prod];
+      return `<div class="karta prep-komp"><div class="prep-gora"><b>${esc(c.nazwa)}</b><span class="znaczek">${c.uzycia.length} ${c.uzycia.length < 5 ? 'porcje' : 'porcji'}</span></div>
+        <p class="prep-suma">${c.u === 'szt.' ? `<b>${c.suchy} jaj</b> ugotuj na twardo` : `<b>${c.suchy} g</b> suchego → ok. <b>${c.ugot} g</b> ugotowanego`}${c.u !== 'szt.' && cc.woda ? ` · woda ${Math.round(c.suchy * cc.woda / 10) * 10} ml` : ''}</p>
+        ${c.uzycia.map(x => `<div class="prep-uz"><span><b>${dzienKrotki(x.iso)}</b> · ${esc(nazwaSlotu(x.slot))}<br><span class="mute">${esc(x.dish)}</span></span><b>${x.ugot} ${c.u === 'szt.' ? 'szt.' : 'g'}</b></div>`).join('')}
+        <p class="mute" style="margin:8px 0 0"><b>Przechowywanie:</b> ${esc(cc.przech)}</p><p class="mute" style="margin:4px 0 0"><b>Podgrzewanie:</b> ${esc(cc.podgrzej)}</p>
+        ${c.poza.length ? `<p class="prep-poza">Poza limitem ${cc.dni} dni (${c.poza.map(x => dzienKrotki(x.iso)).join(', ')}): ugotuj świeże albo zrób drugą sesję.</p>` : ''}</div>`;
+    }).join('');
+    if (pl.pojedyncze.length) h += `<p class="mute">Tylko w jednym posiłku (gotuj na bieżąco): ${pl.pojedyncze.map(x => esc(x.nazwa)).join(', ')}.</p>`;
+    h += `<h2>Kolejność w sesji</h2><div class="karta"><ol class="kroki">${pl.kroki.map(k => `<li>${esc(k)}</li>`).join('')}</ol><p class="mute" style="margin:6px 0 0">Orientacyjny czas: ${pl.czas} min. „Zacznij sesję” prowadzi krok po kroku z timerami.</p></div>`;
+  }
+  if (sesje.length) h += `<h2>Zapisane sesje</h2>${sesje.map(se => `<div class="karta prep-se"><div class="rzad-nag"><div><b>${dzienKrotki(se.od)}</b><br><span class="mute">${se.komp.map(k => esc(k.nazwa)).join(', ')} · ${se.h} dni</span></div><span class="chips"><button class="chip ${se.zrobione ? 'akt' : ''}" data-prep-zrobione="${esc(se.id)}">${se.zrobione ? 'Zrobione ✓' : 'Oznacz jako zrobione'}</button><button class="chip" data-prep-usun="${esc(se.id)}">✕</button></span></div></div>`).join('')}`;
+  $('#view').innerHTML = h;
+}
+
 // ---------- tryb gotowania ----------
 let got = null, timery = [], timeryInt = null, wakeLock = null, audioCtx = null, timerSeq = 0;
 const TIMER_RE = new RegExp(`(\\d+(?:[.,]\\d+)?)(?:\\s?[–-]\\s?(\\d+(?:[.,]\\d+)?))?\\s*(godz\\w*|min\\w*|sek\\w*|s)(?!${PL})`, 'gi');
@@ -1218,10 +1476,12 @@ function rysujGot() {
     tresc = `<p class="got-et">Przed startem</p><h2 class="got-tyt">${esc(dish.nazwa)}</h2><p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) + '. ' : ''}${dish.sprzet ? 'Sprzęt: ' + esc(dish.sprzet) + '. ' : ''}Ekran nie będzie się wygaszał podczas gotowania${'wakeLock' in navigator ? '' : ' (ta przeglądarka tego nie obsługuje — wyłącz automatyczną blokadę ekranu)'}.</p>
       <h3>Przygotuj składniki — ${opisGarnka(g)}</h3><div class="got-lista">${dish.skladniki.filter(x => x.ilosc || x.nazwa).map((x, k) => `<label class="got-sk ${got.odhacz[k] ? 'ok' : ''}"><input type="checkbox" data-got-odh="${k}" ${got.odhacz[k] ? 'checked' : ''}><span class="zk-ptak"></span><span class="got-sk-tx">${esc(x.nazwa)}${stala(x) ? '<small>woreczek z zamrażarki — rozmroź wcześniej</small>' : ''}</span><b>${x.ilosc ? fq(x.ilosc * skala(g, x), x.jednostka) : ''}</b></label>`).join('')}${spr.length ? `<p class="mute" style="margin:10px 0 2px">Przyprawy: ${esc(spr.map(x => x.nazwa + (x.ilosc ? ' ' + x.ilosc : '')).join(', '))}</p>` : ''}</div>`;
   } else if (i <= N) {
-    const t = kroki[i - 1], wiecz = /^WIECZOREM/i.test(t), tm = wykryjTimery(t), sk = skladnikiKroku(g, t);
-    tresc = `<p class="got-et">Krok ${i} z ${N}${wiecz ? ' · przygotowanie wcześniej' : ''}</p><p class="got-tekst">${podswietl(t.replace(/^WIECZOREM:\s*/i, ''))}</p>
+    const t = kroki[i - 1], wiecz = /^WIECZOREM/i.test(t), tm = wykryjTimery(t), sk = skladnikiKroku(g, t), zs = got.prep ? null : krokZSesji(g, t);
+    tresc = `<p class="got-et">Krok ${i} z ${N}${wiecz ? ' · przygotowanie wcześniej' : got.prep ? ' · meal prep' : ''}</p>${zs ? `<div class="got-sesja">${esc(zs)}: ten krok możesz pominąć.</div>` : ''}<p class="got-tekst">${podswietl(t.replace(/^WIECZOREM:\s*/i, ''))}</p>
       ${tm.length ? `<div class="got-tm">${tm.map(x => `<button class="btn" data-got-timer="${x.sek}|${esc(x.et)}">⏱ Timer ${esc(x.et)}</button>`).join('')}</div>` : ''}
       ${sk.length ? `<div class="got-sk-krok"><b>W tym kroku</b>${sk.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}`;
+  } else if (got.prep) {
+    tresc = `<div class="got-koniec"><div class="intro-ik"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h2>Sesja gotowa!</h2><p class="mute">Pojemniki w lodówce. Podczas gotowania w tygodniu apka pokaże, ile ugotowanego składnika wziąć i które kroki pominąć.</p>${got.sesja && !got.sesja.zrobione ? `<button class="btn glowny szeroki" data-got-prep-ok="1">Zapisz jako zrobioną</button>` : ''}<button class="btn szeroki" data-got-zamknij style="margin-top:10px">Zamknij</button></div>`;
   } else {
     const dzien = dniGarnka(g).find(x => !zuzyte[kluczZ(x, g.slot)]), os = dzien !== undefined ? [...new Set(g.porcje.filter(q => q.d === dzien).map(q => q.p))] : [];
     tresc = `<div class="got-koniec"><div class="intro-ik"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h2>Smacznego!</h2><p class="mute">${esc(dish.nazwa)}</p>
@@ -1435,7 +1695,7 @@ const DZIALY = [
 ];
 function dzialSklepu(p) {
   const n = znorm(p.produkt);
-  if (/mrozon|paluszki/.test(n)) return 'mrozonki';
+  if (/mrozon|paluszki rybne/.test(n)) return 'mrozonki';
   if (/gnocchi|pestki|konserw|puszk|sloik|odsaczon|passata|koncentrat|ananas|tunczyk|kiszony|orzechow|(^| )sos |ketchup|musztard|dzem|miod|ocet|olej|oliwa/.test(n)) return 'spizarnia';
   if (/kurczak|indyk|wolowin|wieprzow|losos|dorsz|polędwicz|polendwicz|cwiartki|mielon|prega|lopatka|szynka|kielbas|boczek|parowk|filet|ryba|krewetk/.test(n) || (p.kat === 'zamrażarka')) return 'mieso';
   if (/chleb|bulk|tortilla|pieczywo|bagiet|buleczk/.test(n)) return 'pieczywo';
@@ -1677,6 +1937,7 @@ function widokDzis() {
     if (idx === 0 || idx === 4) kar.push(`<div class="karta zad"><b>Dziś dzień zakupów</b><p class="mute">Lista jest gotowa na: <b>${zakresDni(new Set(domyslneDni(dniDostepne())))}</b>.</p><button class="btn glowny szeroki" id="doZakupowDzis">Otwórz listę zakupów</button></div>`);
     const lastW = p => Object.keys(waga[p] || {}).sort().pop();
     if (OS.some(p => !lastW(p) || (new Date(dzis) - new Date(lastW(p))) / 864e5 >= 7)) kar.push(`<div class="karta zad"><b>Czas na ważenie</b><p class="mute">Raz w tygodniu, rano. Wynik pomaga ocenić, czy kalorie są dobre.</p><button class="btn szeroki" data-tab="waga">Zapisz wagę</button></div>`);
+    { const pp0 = planPrepu(dzis, 3); if (pp0.oszczMin >= 20 && [5, 6, 0].includes(idx) && !sesje.some(se => se.od >= dzis && se.od <= dodajDni(dzis, 2))) kar.push(`<div class="karta zad"><b>Dziś dobry dzień na meal prep</b><p class="mute">Ugotuj raz: ${esc(pp0.komp.map(c => c.nazwa.toLowerCase()).join(', '))}. Zaoszczędzisz ok. ${pp0.oszczMin} min przy kuchni w najbliższe dni.</p><button class="btn szeroki" data-prep-otworz="${dzis}">Zobacz plan sesji</button></div>`); }
     const prop = OS.filter(pp => propozycjaKorekty(pp).stan === 'propozycja'); if (prop.length) kar.push(`<div class="karta zad"><b>Propozycja korekty kalorii</b><p class="mute">Trend wagi sugeruje małą zmianę kalorii dla: ${prop.map(pp => ETY[pp]).join(', ')}.</p><button class="btn szeroki" data-tab="waga">Zobacz w Wadze</button></div>`);
     const pr = przypomnieniaDzis(w); if (pr) kar.push(pr);
     return o + (kar.length ? `<h2>Co dalej</h2>${kar.join('')}` : '') + `<button class="btn szeroki" data-tab="tydzien" style="margin-top:12px">Cały plan</button></div></section>`;
@@ -1734,6 +1995,7 @@ function widokWiecej() {
   const q = (pyt, odp) => `<details class="faq"><summary>${pyt}</summary><p>${odp}</p></details>`;
   $('#view').innerHTML = `<h1>Więcej</h1>
     ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
+    ${kafel('prep', 'Meal prep', 'Ugotuj raz, jedz kilka razy — plan sesji gotowania', 'M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6')}
     ${kafel('paragony', 'Paragony i ceny', paragony.length ? `${paragony.length} paragonów · ceny ${Object.keys(ceny).length} produktów` : 'Dodaj paragon, a zapamiętam ceny i sklepy', 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
     ${kafel('ustawienia', 'Ustawienia', 'Profile, cele, wspólny plan, ulubione dania', 'M4 7h9M17 7h3M4 17h3M11 17h9')}
@@ -1759,7 +2021,7 @@ function rysuj() {
   }
   if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
   naprawBrakujace();
-  if (!window._migrPusz) { window._migrPusz = true; zastosujPakiety(); migrujPuszki(); }
+  if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); }
   if (inny && inny.start < poniedzialek()) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
@@ -1770,9 +2032,9 @@ function rysuj() {
     ulozTydzien();
   }
   $('#tabs').hidden = false;
-  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony'].includes(zakladka);
+  const pod = ['waga', 'ustawienia', 'wykluczone', 'paragony', 'prep'].includes(zakladka);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('akt', b.dataset.tab === (pod ? 'wiecej' : zakladka)));
-  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else widokWiecej();
+  if (zakladka === 'dzis') widokDzis(); else if (zakladka === 'tydzien') widokTydzien(); else if (zakladka === 'zakupy') widokZakupy(); else if (zakladka === 'lodowka') widokLodowka(); else if (zakladka === 'waga') widokWaga(); else if (zakladka === 'ustawienia') widokUstawienia(false); else if (zakladka === 'wykluczone') widokWykluczone(); else if (zakladka === 'paragony') widokParagony(); else if (zakladka === 'prep') widokPrep(); else widokWiecej();
   if (pod) $('#view').insertAdjacentHTML('afterbegin', `<button class="wstecz" data-tab="wiecej">‹ Więcej</button>`);
   if (!LS.get('intro', false) && profil && plan) { LS.set('intro', true); pokazIntro(0); }
 }
@@ -2180,6 +2442,14 @@ document.addEventListener('click', e => {
   if (!t) { if (e.target.id === 'modal') zamknijOkno(); return; }
   if (t.tagName !== 'SUMMARY' && !t.dataset.tab) przygotujTydzien(e);
   if (t.dataset.toast !== undefined) { const f = toastFn; $('#toast').hidden = true; toastFn = null; if (f) f(); return; }
+  if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
+  if (t.dataset.prepH) { prepH = +t.dataset.prepH; rysuj(); return; }
+  if (t.dataset.prepOtworz) { prepOd = t.dataset.prepOtworz; zakladka = 'prep'; rysuj(); window.scrollTo(0, 0); return; }
+  if (t.dataset.prepStart) { const pl = planPrepu(prepOd, prepH), se = zapiszSesje(pl); otworzSesje(pl, se); return; }
+  if (t.dataset.prepZapisz) { zapiszSesje(planPrepu(prepOd, prepH)); rysuj(); pokazToast('Plan sesji zapisany. Przy daniach pokażę, co już ugotowane.'); return; }
+  if (t.dataset.prepZrobione) { const se = sesje.find(x => x.id === t.dataset.prepZrobione); if (se) { se.zrobione = !se.zrobione; LS.set('sesje', sesje); Z([[['sesje'], sesje]]); rysuj(); } return; }
+  if (t.dataset.prepUsun) { sesje = sesje.filter(x => x.id !== t.dataset.prepUsun); LS.set('sesje', sesje); Z([[['sesje'], sesje]]); rysuj(); pokazToast('Sesja usunięta'); return; }
+  if ('gotPrepOk' in t.dataset) { if (got && got.sesja) { got.sesja.zrobione = true; LS.set('sesje', sesje); Z([[['sesje'], sesje]]); } zamknijGotowanie(true); rysuj(); pokazToast('Sesja zapisana jako zrobiona'); return; }
   if (t.dataset.gotuj) { otworzGotowanie(window._przepisG, !!spontG); return; }
   if ('gotZamknij' in t.dataset) { zamknijGotowanie(); return; }
   if (t.dataset.gotIdz !== undefined) { gotIdz(+t.dataset.gotIdz); return; }
@@ -2231,7 +2501,12 @@ document.addEventListener('click', e => {
   else if (t.dataset.parProd !== undefined) oknoWyborProduktu(+t.dataset.parProd)
   else if ('parWroc' in t.dataset) oknoParagon()
   else if (t.dataset.parWybrany) { const [i, ...pr] = t.dataset.parWybrany.split('|'), r = parag.wiersze[+i], prod = pr.join('|'); Object.assign(r, { produkt: prod, pomin: false, wlacz: true, pew: 1, zmieniony: true }); const il = ilosciPozycji(parag.w.poz[+i], prod); r.q = il.q; r.u = il.u; r.pak = il.pak || null; oknoParagon(); }
-  else if (t.dataset.parNowyProd) { const [i, ...pr] = t.dataset.parNowyProd.split('|'), r = parag.wiersze[+i], prod = pr.join('|').toLowerCase(); Object.assign(r, { produkt: prod, pomin: false, wlacz: true, pew: 1, zmieniony: true }); const il = ilosciPozycji(parag.w.poz[+i], prod); r.q = il.q; r.u = il.u === 'g' && !il.q ? 'g' : il.u; oknoParagon(); }
+  else if (t.dataset.parNowyProd) { const [i, ...pr] = t.dataset.parNowyProd.split('|'); oknoNowyProdukt(+i, pr.join('|').toLowerCase()); }
+  else if (t.dataset.parNowyFormularz !== undefined) oknoNowyProdukt(+t.dataset.parNowyFormularz)
+  else if (t.dataset.npKat) { nowyP.kat = t.dataset.npKat; document.querySelectorAll('[data-np-kat]').forEach(b => b.classList.toggle('akt', b.dataset.npKat === nowyP.kat)); }
+  else if ('npDodaj' in t.dataset) { const nazwa = (($('#np-nazwa') || {}).value || '').trim(); if (nazwa.length < 2) { pokazToast('Wpisz nazwę produktu'); return; } const prod = dodajWlasnyProdukt(nazwa, nowyP.kat, ($('#np-u') || {}).value || nowyP.u), r = parag.wiersze[nowyP.i]; Object.assign(r, { produkt: prod, pomin: false, wlacz: true, pew: 1, zmieniony: true }); const il = ilosciPozycji(parag.w.poz[nowyP.i], prod); r.q = il.q; r.u = il.u; r.pak = il.pak || null; nowyP = null; oknoParagon(); pokazToast(`Dodano produkt: ${prod}`); }
+  else if (t.dataset.wlasnyKat) { const n = t.dataset.wlasnyKat, ord = ['świeże', 'zamrażarka', 'zapas'], x = wlasneProd[n]; if (x) { x.kat = ord[(ord.indexOf(x.kat) + 1) % 3]; DB.produkty.set(n, { kat: x.kat, u: x.u }); LS.set('wlasneProd', wlasneProd); Z([[['wlasneProd', n], x]]); rysuj(); } }
+  else if (t.dataset.wlasnyUsun) { const n = t.dataset.wlasnyUsun; delete wlasneProd[n]; DB.produkty.delete(n); LS.set('wlasneProd', wlasneProd); Z([[['wlasneProd', n], undefined]]); rysuj(); pokazToast('Produkt usunięty z listy własnych'); }
   else if (t.dataset.parPominPoz) { const r = parag.wiersze[+t.dataset.parPominPoz]; Object.assign(r, { pomin: true, wlacz: false, powod: 'pomijasz tę pozycję', zmieniony: true }); oknoParagon(); }
   else if (t.id === 'parZapisz') zapiszParagon()
   else if (t.dataset.cenyTryb) { cenyTryb = t.dataset.cenyTryb; LS.set('cenyTryb', cenyTryb); rysuj(); }
@@ -2372,7 +2647,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -2385,12 +2660,12 @@ window.App = {
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
-    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; zastosujPakiety(); migrujPuszki();
+    paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; wlasneProd = data.wlasneProd || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
-    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
+    LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('wlasneProd', wlasneProd);
     LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza

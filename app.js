@@ -21,21 +21,22 @@ const DNI_KR = ['pon', 'wto', 'śro', 'czw', 'pią', 'sob', 'nie'];
 const PORA = { sn: '11:00 · śniadanie', m13: '13:00 · koktajl', m13ona: '13:00 · koktajl', m13on: '13:00 · drugie śniadanie', ob: '17:00 · obiad', k18: '~18:00 · koktajl' };
 // Śniadanie i obiad można zmienić dla jednej osoby: day.dla[osoba][sn|ob] = id dania. Taka osoba je wtedy w osobnym „slocie” (snona, snon, obona, obon),
 // tak jak drugie śniadanie (m13ona / m13on), a druga osoba zostaje przy daniu wspólnym. Obiad na 2 dni jest zawsze wspólny.
-const BAZY_OS = ['sn', 'ob'];
-for (const b of BAZY_OS) for (const o of ['ona', 'on']) PORA[b + o] = PORA[b];
-const bazaSlotu = sl => /^(sn|ob)(ona|on)$/.test(sl) ? sl.replace(/(ona|on)$/, '') : sl;
-const osobaSlotu = sl => { const m = /^(?:sn|ob)(ona|on)$/.exec(sl); return m ? m[1] : null; };
-const dlaOsoby = (day, p, b) => (day && day.dla && day.dla[p] && day.dla[p][b] && !(b === 'ob' && (day.ob2 || !day.ob))) ? day.dla[p][b] : null;
-const slotOs = (day, p, b) => dlaOsoby(day, p, b) ? b + p : b;
+const BAZY_OS = ['sn', 'm13', 'ob', 'k18'];   // m13: tylko gdy 13:00 jest wspólne (weekend); w tygodniu każdy ma swoje
+const nazwaSl = (b, p) => b === 'm13' ? 'm13x' + p : b + p;      // slot osobnego dania: snona, m13xon, obona, k18on
+for (const b of BAZY_OS) for (const o of ['ona', 'on']) PORA[nazwaSl(b, o)] = PORA[b];
+const bazaSlotu = sl => /^(sn|ob|k18)(ona|on)$/.test(sl) ? sl.replace(/(ona|on)$/, '') : /^m13x(ona|on)$/.test(sl) ? 'm13' : sl;
+const osobaSlotu = sl => { const m = /^(?:sn|ob|k18|m13x)(ona|on)$/.exec(sl); return m ? m[1] : null; };
+const dlaOsoby = (day, p, b) => (day && day.dla && day.dla[p] && day.dla[p][b] && !(b === 'ob' && (day.ob2 || !day.ob)) && !(b === 'm13' && !(day.m13 && day.m13.wsp)) && !(b === 'k18' && !day.k18)) ? day.dla[p][b] : null;
+const slotOs = (day, p, b) => dlaOsoby(day, p, b) ? nazwaSl(b, p) : b;
 const etSlotu = sl => (sl === 'm13ona' || osobaSlotu(sl) === 'ona') ? ' · ONA' : (sl === 'm13on' || osobaSlotu(sl) === 'on') ? ' · ON' : '';
 // Podpis posiłku z osobą: „· ONA”, a gdy wspólny posiłek je tylko jedna osoba (druga ma osobne danie), też jej imię.
 const etG = g => etSlotu(g.slot) || (BAZY_OS.includes(g.slot) && new Set(g.porcje.map(q => q.p)).size === 1 ? ' · ' + ETY[g.porcje[0].p] : '');
 // Wszystkie posiłki dnia jako [slot, id dania], z osobnymi daniami dla jednej osoby.
 function slotyDania(day) {
-  const out = [], baza = (b, id) => { if (!id) return; if (OS.some(p => !dlaOsoby(day, p, b))) out.push([b, id]); OS.forEach(p => { const o = dlaOsoby(day, p, b); if (o) out.push([b + p, o]); }); };
+  const out = [], baza = (b, id) => { if (!id) return; if (OS.some(p => !dlaOsoby(day, p, b))) out.push([b, id]); OS.forEach(p => { const o = dlaOsoby(day, p, b); if (o) out.push([nazwaSl(b, p), o]); }); };
   baza('sn', day.sn);
-  if (day.m13.wsp) out.push(['m13', day.m13.wsp]); else out.push(['m13ona', day.m13.ona], ['m13on', day.m13.on]);
-  baza('ob', day.ob); out.push(['k18', day.k18]);
+  if (day.m13.wsp) baza('m13', day.m13.wsp); else out.push(['m13ona', day.m13.ona], ['m13on', day.m13.on]);
+  baza('ob', day.ob); baza('k18', day.k18);
   return out.filter(x => x[1]);
 }
 // Jaka część dziennych kcal przypada na posiłek (proporcje z planu w PDF-ach)
@@ -426,7 +427,7 @@ function rozwiaz(dish, Kc, ratio, skyrMax = 0, lever = true) {
   const roznica = ratio ? P - ratio * Kreal : 0;
   return { a, b, lev, s: s0, sw, nF, P, dodatek: null, roznica, wyrownane: ratio ? Math.abs(roznica) < 1 : null, Kreal };
 }
-const rz = (dish, K, ratio, slot) => rozwiaz(dish, K, ratio, 0, slot !== 'ob');     // w obiadach nie ruszam proporcji (mięso zostaje, jak w woreczku)
+const rz = (dish, K, ratio, slot) => rozwiaz(dish, K, ratio, 0, bazaSlotu(slot) !== 'ob');     // w obiadach nie ruszam proporcji (mięso zostaje, jak w woreczku)
 const SKYR = { kcal: 0.63, b: 0.11 };   // na 1 g, jak w PDF-ach
 const skala = (g, i) => (stala(i) ? (g.nF || 1) : (g.lev.has(i) ? g.a : g.b)) + (g.gosc ? g.gosc / ((g.dish && g.dish.porcje) || 2) : 0);   // goście: każdy dojada 1 standardową porcję przepisu
 
@@ -450,7 +451,7 @@ function oblicz(pl, c) {
   const udz = slot => slot.startsWith('m13') ? 'm13' : bazaSlotu(slot);
   const bud0 = (p, d, slot) => UDZIAL[p][udz(slot)] * (c[p].kcal - (pl.dni[d].tr[p] ? DB.shake[p].kcal : 0));
   const maOb = x => !!(pl.dni[x].ob || (x > 0 && pl.dni[x - 1].ob2 && pl.dni[x - 1].ob));
-  const slotyOsoby = (d, p) => [slotOs(pl.dni[d], p, 'sn'), pl.dni[d].m13.wsp ? 'm13' : 'm13' + p, maOb(d) ? slotOs(pl.dni[d], p, 'ob') : null, 'k18'].filter(Boolean);
+  const slotyOsoby = (d, p) => [slotOs(pl.dni[d], p, 'sn'), pl.dni[d].m13.wsp ? slotOs(pl.dni[d], p, 'm13') : 'm13' + p, maOb(d) ? slotOs(pl.dni[d], p, 'ob') : null, slotOs(pl.dni[d], p, 'k18')].filter(Boolean);
   const mnoz = pl.dni.map(() => ({ ona: 1, on: 1 }));
   // day.pomSl[osoba] = posiłki, które były jeszcze do zjedzenia w chwili pominięcia: tylko one dostają przeniesione kalorie (zjedzony posiłek nie rośnie wstecz). Brak wpisu = wszystkie (stare dane).
   const nm = x => String(x).startsWith('m13') ? 'm13' : x;
@@ -492,29 +493,31 @@ function oblicz(pl, c) {
     const r = day.ratio || {};
     garnek(day.sn, 'sn', d, obecniSlot(d, 'sn').filter(p => !dlaOsoby(day, p, 'sn')).map(p => ({ p, d, kcal: bud(p, d, 'sn') })), r.sn);
     OS.forEach(p => { const o = dlaOsoby(day, p, 'sn'); if (o && !nieob(day, p) && !pomija(day, p, 'sn' + p)) garnek(o, 'sn' + p, d, [{ p, d, kcal: bud(p, d, 'sn' + p) }], r['sn' + p]); });
-    if (day.m13.wsp) garnek(day.m13.wsp, 'm13', d, obecniSlot(d, 'm13').map(p => ({ p, d, kcal: bud(p, d, 'm13') })), r.m13);
+    if (day.m13.wsp) {
+      garnek(day.m13.wsp, 'm13', d, obecniSlot(d, 'm13').filter(p => !dlaOsoby(day, p, 'm13')).map(p => ({ p, d, kcal: bud(p, d, 'm13') })), r.m13);
+      OS.forEach(p => { const o = dlaOsoby(day, p, 'm13'); if (o && !nieob(day, p) && !pomija(day, p, 'm13x' + p)) garnek(o, 'm13x' + p, d, [{ p, d, kcal: bud(p, d, 'm13x' + p) }], r['m13x' + p]); });
+    }
     else obecni(d).forEach(p => { if (!pomija(day, p, 'm13' + p)) garnek(day.m13[p], 'm13' + p, d, [{ p, d, kcal: bud(p, d, 'm13') }], r['m13' + p]); });
     if (day.ob) {
       const dd = day.ob2 && d + 1 < 7 ? [d, d + 1] : [d];
       garnek(day.ob, 'ob', d, dd.flatMap(x => obecniSlot(x, 'ob').filter(p => !(x === d && dlaOsoby(day, p, 'ob'))).map(p => ({ p, d: x, kcal: bud(p, x, 'ob') }))), r.ob);
       OS.forEach(p => { const o = dlaOsoby(day, p, 'ob'); if (o && !nieob(day, p) && !pomija(day, p, 'ob' + p)) garnek(o, 'ob' + p, d, [{ p, d, kcal: bud(p, d, 'ob' + p) }], r['ob' + p]); });
     }
-    const k = DB.dania.get(day.k18);
-    if (k) {
-      const pz = k.podzial['~18:00'], bn = bud('on', d, 'k18'), onJe = !nieob(day, 'on') && !pomija(day, 'on', 'k18'), onaJe = !nieob(day, 'ona') && !pomija(day, 'ona', 'k18');
-      const gs = bn / pz.on_kcal, reszta = (k.razem.kcal - pz.ona_kcal) * gs;
-      const por = [];
-      if (onaJe) por.push({ p: 'ona', d, kcal: bud('ona', d, 'k18') });
+    // koktajl ~18:00: jeden blender dla obojga (ONA mniejsza porcja, ON reszta + dosypka); osoba z osobnym daniem robi własny koktajl
+    const k18dla = (id, slot, onJe, onaJe) => {
+      const k = DB.dania.get(id); if (!k) return;
+      const pz = k.podzial['~18:00'], bn = bud('on', d, slot), gs = bn / pz.on_kcal, reszta = (k.razem.kcal - pz.ona_kcal) * gs, por = [];
+      if (onaJe) por.push({ p: 'ona', d, kcal: bud('ona', d, slot) });
       if (onJe) por.push({ p: 'on', d, kcal: reszta });
-      const g = garnek(day.k18, 'k18', d, por, r.k18);
-      if (g && onJe) {
-        g.dosypka = { skala: gs, kcal: bn - reszta, b: DB.dosypka.b * gs };
-        dni[d].on.kcal += g.dosypka.kcal; dni[d].on.b += g.dosypka.b;
-      }
-    }
+      const g = garnek(id, slot, d, por, r[slot]);
+      if (g && onJe) { g.dosypka = { skala: gs, kcal: bn - reszta, b: DB.dosypka.b * gs }; dni[d].on.kcal += g.dosypka.kcal; dni[d].on.b += g.dosypka.b; }
+    };
+    const je18 = p => !nieob(day, p) && !pomija(day, p, 'k18') && !dlaOsoby(day, p, 'k18');
+    k18dla(day.k18, 'k18', je18('on'), je18('ona'));
+    OS.forEach(p => { const o = dlaOsoby(day, p, 'k18'); if (o && !nieob(day, p) && !pomija(day, p, 'k18' + p)) k18dla(o, 'k18' + p, p === 'on', p === 'ona'); });
     OS.forEach(p => { if (shakeAkt(day, p)) { dni[d][p].kcal += DB.shake[p].kcal; dni[d][p].b += DB.shake[p].bialko; } });
   });
-  const kolej = ['sn', 'snona', 'snon', 'm13', 'm13ona', 'm13on', 'ob', 'obona', 'obon', 'k18'];
+  const kolej = ['sn', 'snona', 'snon', 'm13', 'm13ona', 'm13on', 'm13xona', 'm13xon', 'ob', 'obona', 'obon', 'k18', 'k18ona', 'k18on'];
   dni.forEach(x => x.sloty.sort((p, q) => kolej.indexOf(p.g.slot) - kolej.indexOf(q.g.slot)));
   return { dni, garnki };
 }
@@ -681,6 +684,7 @@ function naprawBrakujace() {
     podmien(day.sn, DB.pula.sn, 'sn', ['sn'], v => { day.sn = v; });
     podmien(day.k18, DB.pula.k18, 'k18', ['k18'], v => { day.k18 = v; });
     podmien(day.ob, day.ob2 ? DB.pula.ob2 : DB.pula.ob1, 'ob', ['ob'], v => { day.ob = v; });
+    OS.forEach(pp => ['sn', 'm13', 'ob', 'k18'].forEach(b => { const id = day.dla && day.dla[pp] && day.dla[pp][b]; if (id) podmien(id, b === 'sn' ? DB.pula.sn : b === 'k18' ? DB.pula.k18 : b === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : (day.ob2 ? DB.pula.ob2 : DB.pula.ob1), nazwaSl(b, pp), ['dla', pp, b], v => { day.dla[pp][b] = v; }); }));
     if (day.m13) {
       podmien(day.m13.wsp, DB.pula.m13, 'm13', ['m13', 'wsp'], v => { day.m13.wsp = v; });
       podmien(day.m13.ona, DB.pula.m13ona, 'm13ona', ['m13', 'ona'], v => { day.m13.ona = v; });
@@ -895,7 +899,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
     if (g.ratio && !g.wyrownane) { const rb = Math.round(Math.abs(g.roznica) / g.porcje.length); if (rb >= 3) zn += `<span class="znaczek ${g.roznica < 0 ? 'ostrz' : ''}">Białko: o ${rb} g ${g.roznica > 0 ? 'więcej' : 'mniej'} na porcję niż w daniu, które tu było wcześniej</span> `; }
     if (g.dodatek) zn += `<span class="znaczek">+ skyr ${fq(g.dodatek.g, 'g')} obok dania</span> `;
     if (((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) && new Set(g.porcje.map(q => q.p)).size > 1) zn += `<span class="znaczek ostrz">Porcja ${(g.sw || g.s) > 1 ? 'większa' : 'mniejsza'} niż w przepisie (${(g.sw || g.s).toFixed(1).replace('.', ',')}×), dopasowana do Waszych kalorii</span>`;
-    h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${etG(g)}</div>
+    h += `<div class="pk ${ez ? 'zjedzone' : ''}"><div class="pk-pora">${bazaSlotu(g.slot) === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot]}${etG(g)}</div>
       <div class="pk-gora">${Obr.html(g.dish)}<div class="pk-tx"><button class="nazwa" data-przepis="${w.garnki.indexOf(g)}:${d}">${oceny[g.dish.id] === 1 ? '★ ' : ''}${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</button><div class="liczby">${liczby}</div></div></div>
       ${zn ? `<div class="pk-zn">${zn}</div>` : ''}
       <div class="pk-akcje"><label class="zuzyj"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''}> zjedzone</label>${odgrzewane ? '' : `<button class="btn maly" data-zmien="${d}:${g.slot}">Zmień danie</button><button class="btn maly blok blok-ik ${day.blok && day.blok[g.slot] ? 'akt' : ''}" data-blok="${d}:${g.slot}" aria-pressed="${!!(day.blok && day.blok[g.slot])}" aria-label="${day.blok && day.blok[g.slot] ? 'Odblokuj danie' : 'Zablokuj danie (zostanie przy losowaniu tygodnia)'}" title="Zablokuj danie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${day.blok && day.blok[g.slot] ? 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z' : 'M7 11V8a5 5 0 0 1 9.5-2M6 11h12v9H6z'}"/></svg></button>`}<button class="btn maly pomin" data-pomin="${d}:${g.slot}">Pomiń</button></div></div>`;
@@ -1010,7 +1014,7 @@ function pokazPrzepis(g, spont) {
     <h3>Składniki — ${opisGarnka(g)}</h3>${(() => { const k = kosztDania(g); return k ? `<p class="mute" style="margin:-4px 0 8px">Szacowany koszt składników: <b>ok. ${zl(k.zl)}</b> (ceny z paragonów, ${k.zn} z ${k.raz} składników)</p>` : ''; })()}
     <table class="skl">${wiersze}</table>
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
-    ${spont || g.slot === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
+    ${spont || bazaSlotu(g.slot) === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
     <h3>Kto ile bierze</h3><div class="podzial">${pod}</div>
     ${dish.wieczorem && dish.wieczorem.length ? `<div class="uwaga wiecz-uwaga"><b>Przygotuj dzień wcześniej wieczorem</b><br>W „Wykonaniu” poniżej oznaczone: ${dish.kroki.map((k, n) => /^WIECZOREM/i.test(k) ? n + 1 : 0).filter(Boolean).map(n => 'krok ' + n).join(', ')}.</div>` : ''}${dish.kroki && dish.kroki.length ? `<h3>Wykonanie</h3><p class="mute">Gramy i mililitry w krokach są już przeliczone na Waszą porcję. Liczbę sztuk bierz z tabeli składników.</p><ol class="kroki">${dish.kroki.map(k => { const zs = krokZSesji(g, k), wi = /^WIECZOREM/i.test(k); return `<li class="${zs ? 'krok-prep' : ''} ${wi ? 'krok-wiecz' : ''}">${wi ? '<span class="znaczek wiecz-znak">Dzień wcześniej, wieczorem</span> ' : ''}${esc(krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, ''))}${zs ? `<small>${esc(zs)} — możesz pominąć</small>` : ''}</li>`; }).join('')}</ol>` : ''}
     ${dish.odgrzewanie ? `<p><b>Drugi dzień:</b> ${esc(dish.odgrzewanie)}</p>` : ''}
@@ -2039,7 +2043,7 @@ function minDania(d) {
 const tkDania = d => d._tk || (d._tk = znorm(d.nazwa + ' ' + d.skladniki.map(i => i.nazwa + ' ' + (i.produkt || '')).join(' ')));
 const MIESO_RE = /(^|[^a-z0-9])(kurczak|indyk|drob|cwiartki|wieprzow|boczek|kielbas|schab|szynk|zeberk|karkowk|wolowin|poledwic|pulpet|bekon|mielon)/;
 const TRYBY = {
-  szybko: { et: 'Szybko', ok: (d, slot, o) => { const m = minDania(d), lim = slot === 'ob' ? Math.max(30, o.min || 30) : (o.min || 15); return m == null || m <= lim; } },
+  szybko: { et: 'Szybko', ok: (d, slot, o) => { const m = minDania(d), lim = bazaSlotu(slot) === 'ob' ? Math.max(30, o.min || 30) : (o.min || 15); return m == null || m <= lim; } },
   zimno: { et: 'Bez gotowania', ok: d => !/(patelni|garnek|piekarnik|airfryer|blacha|grill|toster|opiekacz|rondel)/i.test(d.sprzet || '') },
   bezMiesa: { et: 'Bez mięsa', ok: d => !MIESO_RE.test(tkDania(d)) },
   bezRyb: { et: 'Bez ryb', ok: d => !GRUPY_WYKL.ryby[1].test(tkDania(d)) },
@@ -2477,15 +2481,15 @@ const slowaZ = q => znorm(q).split(/[^a-z0-9]+/).filter(Boolean);
 function oknoZmien(d, slot) {
   const day = plan.dni[d];
   const teraz = slot === 'm13' ? day.m13.wsp : slot === 'm13ona' ? day.m13.ona : slot === 'm13on' ? day.m13.on : osobaSlotu(slot) ? dlaOsoby(day, osobaSlotu(slot), bazaSlotu(slot)) : day[slot];
-  const tryb = slot === 'm13' && ((DB.dania.get(teraz) || {}).typ !== 'koktajl') ? 'dania' : 'kokt';
-  const pula = bazaSlotu(slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : slot === 'm13' ? (tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania) : DB.pula[bazaSlotu(slot)];
-  const moznaDla = BAZY_OS.includes(bazaSlotu(slot)) && !(bazaSlotu(slot) === 'ob' && day.ob2);
+  const tryb = bazaSlotu(slot) === 'm13' && ((DB.dania.get(teraz) || {}).typ !== 'koktajl') ? 'dania' : 'kokt';
+  const pula = bazaSlotu(slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : bazaSlotu(slot) === 'm13' ? (tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania) : DB.pula[bazaSlotu(slot)];
+  const moznaDla = BAZY_OS.includes(bazaSlotu(slot)) && !(bazaSlotu(slot) === 'ob' && day.ob2) && !(bazaSlotu(slot) === 'm13' && !day.m13.wsp);
   const solo = BAZY_OS.includes(bazaSlotu(slot)) ? OS.filter(p => !dlaOsoby(day, p, bazaSlotu(slot))) : OS;
   zmienCtx = { d, slot, teraz, pula, dla: osobaSlotu(slot) || (moznaDla && solo.length === 1 ? solo[0] : 'oboje') };
-  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zmień: ${slot === 'm13' ? 'drugie śniadanie' : esc(PORA[slot].split(' · ')[1])}${esc(etSlotu(slot))}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zmień: ${bazaSlotu(slot) === 'm13' ? 'drugie śniadanie' : esc(PORA[slot].split(' · ')[1])}${esc(etSlotu(slot))}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <p class="mute">${DNI[d]}. Kalorie zostają takie same, a gramatury nowego dania dobiorę tak, żeby białko też się zgadzało.</p>
     ${moznaDla ? `<div class="dla-kogo"><span class="mute">Dla kogo zmieniasz?</span><div class="seg" id="dla-seg" role="group" aria-label="Dla kogo">${[['oboje', 'Dla obojga'], ['ona', 'Tylko ONA'], ['on', 'Tylko ON']].map(([k, et]) => `<button data-dla="${k}" class="${zmienCtx.dla === k ? 'akt' : ''}">${et}</button>`).join('')}</div>${osobaSlotu(slot) ? `<button class="btn maly" data-dla-wspolne="${d}:${slot}">Wróć do wspólnego dania</button>` : ''}</div>` : ''}
-    ${slot === 'm13' ? `<p class="mute" style="margin-bottom:6px">Na 13:00 pijecie koktajl czy jecie drugie danie?</p><div class="seg"><button data-tryb="kokt" class="${tryb === 'kokt' ? 'akt' : ''}">Koktajl</button><button data-tryb="dania" class="${tryb === 'dania' ? 'akt' : ''}">Drugie danie</button></div>` : ''}
+    ${bazaSlotu(slot) === 'm13' ? `<p class="mute" style="margin-bottom:6px">Na 13:00 pijecie koktajl czy jecie drugie danie?</p><div class="seg"><button data-tryb="kokt" class="${tryb === 'kokt' ? 'akt' : ''}">Koktajl</button><button data-tryb="dania" class="${tryb === 'dania' ? 'akt' : ''}">Drugie danie</button></div>` : ''}
     <label class="pole"><span>Szukaj po słowach (nazwa lub składnik, np. „kurczak ryż”)</span><input id="szukaj" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. kuskus"></label>
     <button class="btn szeroki" data-wlasne-nowe="1" style="margin:4px 0 8px">＋ Dodaj własne danie</button>
     <div id="lista-wyboru"></div>`;
@@ -2515,7 +2519,7 @@ function grupyDlaSlotu(x, slot) { return /^koktajl/.test(x.typ || '') ? GRUPY_KO
 document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.wyb-grp') && zmienCtx) { zmienCtx.otw = zmienCtx.otw || {}; zmienCtx.otw[d.dataset.grp] = d.open; } }, true);
 function wierszWyboru(x, teraz, d, slot) {
   return `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${esc((x.kod ? x.kod + ' ' : '') + x.nazwa)}</b>
-      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${smakTagi(x.id)}${x.tylko_wybor && slot !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
+      <span class="mute">${x.id === teraz ? 'obecnie w planie · ' : ''}${ukryte(x.id) ? 'ukryte · ' : ''}${smakTagi(x.id)}${x.tylko_wybor && bazaSlotu(slot) !== 'm13' ? 'na świeżo, nie na wieczór wcześniej · ' : ''}${x.czas ? esc(x.czas) + ' · ' : ''}${r0(x.razem.bialko / x.razem.kcal * 1000) / 10} g białka na 100 kcal${x.dodane ? ' · dodane' : ''}</span></span></button>
       <div class="oceny">${przyciskiOceny(x.id)}</div></div>`;
 }
 function listaWyboru(q) {
@@ -2571,15 +2575,15 @@ function ustawDanie(d, slot, id, ratio) {
 // Ustawia dania „tylko dla jednej osoby” albo wraca do wspólnego (czyści osobne dania danego posiłku).
 function czyscDla(d, b, osoby) {
   const day = plan.dni[d], zm = [];
-  (osoby || OS).forEach(p => { if (day.dla && day.dla[p] && day.dla[p][b]) { delete day.dla[p][b]; zm.push([['dni', d, 'dla', p, b], undefined]); if (day.ratio && day.ratio[b + p] !== undefined) { delete day.ratio[b + p]; zm.push([['dni', d, 'ratio', b + p], undefined]); } if (zuzyte[kluczZ(d, b + p)]) { delete zuzyte[kluczZ(d, b + p)]; LS.set('zuzyte', zuzyte); } } });
+  (osoby || OS).forEach(p => { if (day.dla && day.dla[p] && day.dla[p][b]) { delete day.dla[p][b]; zm.push([['dni', d, 'dla', p, b], undefined]); const sp = nazwaSl(b, p); if (day.ratio && day.ratio[sp] !== undefined) { delete day.ratio[sp]; zm.push([['dni', d, 'ratio', sp], undefined]); } if (zuzyte[kluczZ(d, sp)]) { delete zuzyte[kluczZ(d, sp)]; LS.set('zuzyte', zuzyte); } } });
   if (zm.length) { LS.set('plan', plan); Z(zm); }
 }
 function wybierz(d, slot, id) {
   const day = plan.dni[d], b = bazaSlotu(slot), dla = zmienCtx && zmienCtx.dla;
-  if (BAZY_OS.includes(b) && !(b === 'ob' && day.ob2)) {
+  if (BAZY_OS.includes(b) && !(b === 'ob' && day.ob2) && !(b === 'm13' && !day.m13.wsp)) {
     const solo = OS.filter(pp => !dlaOsoby(day, pp, b)), tylkoTaOsoba = slot === b && solo.length === 1 && solo[0] === dla;      // wspólny slot je już tylko ta osoba: zwykła zmiana
     if (dla && dla !== 'oboje' && !tylkoTaOsoba) {            // tylko dla jednej osoby
-      const sl = b + dla;
+      const sl = nazwaSl(b, dla);
       if (!dlaOsoby(day, dla, b)) {
         if (zuzyte[kluczZ(d, b)]) { pokazToast('Najpierw odznacz „zjedzone” przy tym posiłku.'); return; }
         day.dla = day.dla || {}; day.dla[dla] = day.dla[dla] || {}; day.dla[dla][b] = id; LS.set('plan', plan); Z([[['dni', d, 'dla', dla, b], id]]);
@@ -2600,7 +2604,7 @@ function wybierz(d, slot, id) {
 // ---------- podpowiedzi: „za mało białka” ----------
 let sugOsoba = null;
 const opisPosilku = g => `${DNI_KR[g.d]} · ${PORA[g.slot].split(' · ')[1]}${etSlotu(g.slot) ? ' (' + etSlotu(g.slot).slice(3) + ')' : ''}`;
-const puleDla = g => { const day = plan.dni[g.d]; return bazaSlotu(g.slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : g.slot === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : DB.pula[g.slot]; };
+const puleDla = g => { const day = plan.dni[g.d]; return bazaSlotu(g.slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : bazaSlotu(g.slot) === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : DB.pula[bazaSlotu(g.slot)]; };
 function opcjeBialka(p, w) {
   const dostepne = w.garnki.filter(g => g.porcje.some(q => q.p === p) && !dniGarnka(g).some(dd => zuzyte[kluczZ(dd, g.slot)]));
   const prop = [], zamiany = [];
@@ -2661,7 +2665,7 @@ function oknoSugestie(p, ile) {
 // Opcje „zużyj resztkę”: dania, które używają produktu, i miejsca w planie (od dziś, niezjedzone), gdzie mogą zastąpić inne danie.
 function opcjeZuzycia(prod, reszta) {
   const dzis = isoDzis(), out = new Map();
-  const pulaSlotu = (day, slot) => bazaSlotu(slot) === 'sn' ? DB.pula.sn : slot === 'm13ona' ? DB.pula.m13ona : slot === 'm13on' ? DB.pula.m13on : slot === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : slot === 'k18' ? DB.pula.k18 : (day.ob2 ? DB.pula.ob2 : DB.pula.ob1);
+  const pulaSlotu = (day, slot) => bazaSlotu(slot) === 'sn' ? DB.pula.sn : slot === 'm13ona' ? DB.pula.m13ona : slot === 'm13on' ? DB.pula.m13on : bazaSlotu(slot) === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : bazaSlotu(slot) === 'k18' ? DB.pula.k18 : (day.ob2 ? DB.pula.ob2 : DB.pula.ob1);
   for (const t of tygodnieZapisane()) t.dni.forEach((day, d) => {
     const iso = dodajDni(t.start, d); if (iso < dzis) return;
     const sloty = slotyDania(day);
@@ -2996,7 +3000,7 @@ function pokazIntro(n) {
     <div class="rzad">${ost ? '' : `<button class="btn" data-zamknij>Pomiń</button>`}<button class="btn glowny" ${ost ? 'data-zamknij' : `data-intro="${n + 1}"`}>${ost ? 'Zaczynamy' : 'Dalej'}</button></div></div>`;
   $('#modal').hidden = false;
 }
-const GODZ = { sn: 11, snona: 11, snon: 11, m13: 13, m13ona: 13, m13on: 13, ob: 17, obona: 17, obon: 17, k18: 18 };
+const GODZ = { sn: 11, snona: 11, snon: 11, m13: 13, m13ona: 13, m13on: 13, m13xona: 13, m13xon: 13, ob: 17, obona: 17, obon: 17, k18: 18, k18ona: 18, k18on: 18 };
 function widokDzis() {
   const dzis = isoDzis(), c = cele(), teraz = new Date(), godz = teraz.getHours() + teraz.getMinutes() / 60;
   const pow = godz < 5 ? 'Dobranoc' : godz < 11 ? 'Dzień dobry' : godz < 18 ? 'Cześć' : 'Dobry wieczór';
@@ -3016,7 +3020,7 @@ function widokDzis() {
     const nast = sloty.find(({ g }) => !zjedz_(g) && (GODZ[g.slot] || 12) >= godz - 1.5) || sloty.find(({ g }) => !zjedz_(g));
     let o = `<section data-wk="${t.start}"><div data-d="${d}">`;
     if (nast) {
-      const gh = n => (GODZ[n.g.slot] || 12), grupa = sloty.filter(n => !zjedz_(n.g) && gh(n) === gh(nast)), godzTxt = nast.g.slot === 'm13' && nast.g.dish.typ !== 'koktajl' ? '13:00' : PORA[nast.g.slot].split(' · ')[0];
+      const gh = n => (GODZ[n.g.slot] || 12), grupa = sloty.filter(n => !zjedz_(n.g) && gh(n) === gh(nast)), godzTxt = bazaSlotu(nast.g.slot) === 'm13' && nast.g.dish.typ !== 'koktajl' ? '13:00' : PORA[nast.g.slot].split(' · ')[0];
       const wiersz = (n, podw) => {
         const g = n.g, moje = g.porcje.filter(q => q.d === d), kto = podw ? (etSlotu(g.slot) ? etSlotu(g.slot).slice(3) : moje.map(q => ETY[q.p]).join(' + ')) : '';
         return `<div class="hero-poz"><div class="hero-dan">${Obr.html(g.dish, podw ? '' : 'duzy')}<div>${kto ? `<i class="hero-kto">${kto}</i>` : ''}<b>${esc((g.dish.kod ? g.dish.kod + ' ' : '') + g.dish.nazwa)}</b>${n.odgrzewane ? `<small>odgrzewasz z ${DNI_KR[g.d]}</small>` : ''}</div></div>
@@ -3034,7 +3038,7 @@ function widokDzis() {
     o += kartaPrepDzis(dzis);
     // lista posiłków
     o += `<h2>Dzisiejsze posiłki</h2><div class="karta posilki-dnia">` + sloty.map(({ g, odgrzewane }) => {
-      const moje = g.porcje.filter(q => q.d === d), ez = zjedz_(g), gl = g.slot === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot];
+      const moje = g.porcje.filter(q => q.d === d), ez = zjedz_(g), gl = bazaSlotu(g.slot) === 'm13' && g.dish.typ !== 'koktajl' ? '13:00 · drugie danie' : PORA[g.slot];
       return `<div class="pos-wiersz ${ez ? 'zjedzone' : ''} ${nast && nast.g === g ? 'nast' : ''}"><label class="pos-ptak"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''} aria-label="zjedzone"><span></span></label>
         <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${etG(g)}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
@@ -3362,7 +3366,7 @@ function prognoza(w) {
   const t = new Date(); t.setHours(12, 0, 0, 0);
   const od = Math.round((t - dataDnia(0)) / 864e5);
   if (od > 6) return [];
-  const stan = {}, pierwszy = {}, kolej = ['sn', 'snona', 'snon', 'm13', 'm13ona', 'm13on', 'ob', 'obona', 'obon', 'k18'];
+  const stan = {}, pierwszy = {}, kolej = ['sn', 'snona', 'snon', 'm13', 'm13ona', 'm13on', 'm13xona', 'm13xon', 'ob', 'obona', 'obon', 'k18', 'k18ona', 'k18on'];
   for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) stan[p + '|' + u] = q;
   const od0 = Math.max(od, 0);
   const wiersze = [];
@@ -3589,7 +3593,7 @@ function zapiszPom(d, p, slot, on) {
     const maPom = Object.keys(day.pom[p]).some(k => k !== 'shake' && day.pom[p][k]);
     if (!maPom) delete day.pomSl[p];
     else if (on) {
-      const wsz = [slotOs(day, p, 'sn'), day.m13 && day.m13.wsp ? 'm13' : 'm13' + p, (day.ob || (d > 0 && plan.dni[d - 1].ob2 && plan.dni[d - 1].ob)) ? slotOs(day, p, 'ob') : null, 'k18'].filter(Boolean);
+      const wsz = [slotOs(day, p, 'sn'), day.m13 && day.m13.wsp ? slotOs(day, p, 'm13') : 'm13' + p, (day.ob || (d > 0 && plan.dni[d - 1].ob2 && plan.dni[d - 1].ob)) ? slotOs(day, p, 'ob') : null, slotOs(day, p, 'k18')].filter(Boolean);
       day.pomSl[p] = wsz.filter(x => !zuzyte[kluczZ(d, x)] && (!day.pomSl[p] || day.pomSl[p].includes(x)));
     }
     zm.push([['dni', d, 'pomSl', p], day.pomSl[p] || undefined]);

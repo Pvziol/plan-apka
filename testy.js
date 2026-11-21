@@ -252,24 +252,27 @@
     for (let n = 0; n < 12; n++) {
       const k = JSON.parse(JSON.stringify(kandydat())), w0 = oblicz(k, c);
       k.dni.forEach((day, d) => {
-        for (const [b, pula] of [['sn', DB.pula.sn], ['ob', day.ob2 ? DB.pula.ob2 : DB.pula.ob1]]) {
-          if (!day[b] || (b === 'ob' && day.ob2)) continue;
-          const p = n % 2 ? 'ona' : 'on', alt = pula.find(x => x.id !== day[b] && dopuszcza(x, [p])); if (!alt) continue;
+        for (const [b, pula] of [['sn', DB.pula.sn], ['ob', day.ob2 ? DB.pula.ob2 : DB.pula.ob1], ['k18', DB.pula.k18], ['m13', DB.pula.m13kokt.concat(DB.pula.m13dania)]]) {
+          const idB = b === 'm13' ? day.m13.wsp : day[b];
+          if (!idB || (b === 'ob' && day.ob2)) continue;
+          const p = n % 2 ? 'ona' : 'on', alt = pula.find(x => x.id !== idB && dopuszcza(x, [p])); if (!alt) continue;
           day.dla = { ona: {}, on: {} }; day.dla[p][b] = alt.id;
-          const w1 = oblicz(k, c), os = w1.garnki.filter(g => g.d === d && g.slot === b + p), wsp = w1.garnki.filter(g => g.d === d && g.slot === b);
-          prawda(os.length === 1 && os[0].porcje.length === 1 && os[0].porcje[0].p === p, `${b}${p} powinien mieć jedną porcję osoby ${p}`);
+          const w1 = oblicz(k, c), os = w1.garnki.filter(g => g.d === d && g.slot === nazwaSl(b, p)), wsp = w1.garnki.filter(g => g.d === d && g.slot === b);
+          prawda(os.length === 1 && os[0].porcje.length === 1 && os[0].porcje[0].p === p, `${nazwaSl(b, p)} powinien mieć jedną porcję osoby ${p}`);
           prawda(wsp.length === 1 && wsp[0].porcje.every(q => q.p !== p), `${b} powinien zostać tylko drugiej osobie`);
           for (const pp of OS) prawda(Math.abs(w1.dni[d][pp].kcal - w0.dni[d][pp].kcal) < 0.05 * c[pp].kcal, `kcal dnia ${pp} zmieniły się po zmianie ${b} dla ${p}: ${Math.round(w0.dni[d][pp].kcal)} → ${Math.round(w1.dni[d][pp].kcal)}`);
-          const sl = slotyDania(day).map(x => x[0]); prawda(sl.includes(b + p) && sl.includes(b), 'slotyDania bez osobnego slotu');
+          const sl = slotyDania(day).map(x => x[0]); prawda(sl.includes(nazwaSl(b, p)) && sl.includes(b), 'slotyDania bez osobnego slotu');
           prawda(w1.dni[d].sloty.every(x => isFinite(x.g.K) && x.g.K > 0), 'NaN w kcal'); naruszeniaPlanu(k);
           day.dla = undefined; sprawdzone++;
         }
       });
     }
-    prawda(sprawdzone >= 20, 'za mało sprawdzonych przypadków: ' + sprawdzone);
+    prawda(sprawdzone >= 30, 'za mało sprawdzonych przypadków: ' + sprawdzone);
+    const wspM13 = (() => { for (let n = 0; n < 12; n++) { const k = kandydat(); if (k.dni.some(x => x.m13.wsp)) return k; } return null; })();
+    prawda(!!wspM13, 'brak planu z wspólnym 13:00 do sprawdzenia (weekend)');
     const k2 = JSON.parse(JSON.stringify(kandydat())), dd = k2.dni.findIndex(x => x.ob && x.ob2);
     if (dd >= 0) { k2.dni[dd].dla = { ona: { ob: DB.pula.ob1[0].id }, on: {} }; prawda(!oblicz(k2, c).garnki.some(g => g.slot === 'obona'), 'obiad na 2 dni musi zostać wspólny'); }
-    prawda(osobySlotu('snona')[0] === 'ona' && bazaSlotu('obon') === 'ob' && osobaSlotu('k18') === null, 'pomocnicy slotów');
+    prawda(osobySlotu('snona')[0] === 'ona' && bazaSlotu('obon') === 'ob' && osobaSlotu('k18') === null && bazaSlotu('m13xon') === 'm13' && osobaSlotu('k18ona') === 'ona' && osobaSlotu('m13ona') === null, 'pomocnicy slotów');
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

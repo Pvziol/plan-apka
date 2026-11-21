@@ -274,6 +274,33 @@
     if (dd >= 0) { k2.dni[dd].dla = { ona: { ob: DB.pula.ob1[0].id }, on: {} }; prawda(!oblicz(k2, c).garnki.some(g => g.slot === 'obona'), 'obiad na 2 dni musi zostać wspólny'); }
     prawda(osobySlotu('snona')[0] === 'ona' && bazaSlotu('obon') === 'ob' && osobaSlotu('k18') === null && bazaSlotu('m13xon') === 'm13' && osobaSlotu('k18ona') === 'ona' && osobaSlotu('m13ona') === null, 'pomocnicy slotów');
   });
+  await test('Zamiana składnika', 'zamiennik trzyma kalorie, zmienia białko; kroki, zakupy i cofanie działają', async () => {
+    const c = cele(), kand = [...DB.dania.values()].filter(d => d.skladniki.some(i => /kurczak/.test(i.produkt) && i.jednostka === 'g' && i.kcal > 0 && i.produkt === 'pierś z kurczaka'));
+    prawda(kand.length >= 3, 'za mało dań z kurczakiem do testu');
+    const sz = zamiennik, kk = JSON.parse(JSON.stringify(kandydat()));
+    try {
+      zamiennik = {};
+      const d0 = kk.dni.findIndex(x => x.ob && !x.ob2); prawda(d0 >= 0, 'brak dnia z obiadem 1-dniowym');
+      for (const dish of kand.slice(0, 6)) {
+        const day = kk.dni[d0]; const stary = day.ob; day.ob = dish.id; day.ob2 = false; day.zam = undefined;
+        const w0 = oblicz(kk, c), g0 = w0.garnki.find(g => g.d === d0 && g.slot === 'ob'), i0 = g0.dish.skladniki.find(i => i.produkt === 'pierś z kurczaka');
+        const op = kandydatyZamiany(g0, i0); prawda(op.length >= 1, dish.nazwa + ': brak zamienników'); prawda(op.every(x => klasaZam(x.prod) === 'drób' && !/szynk|rosolow|cwiartk/i.test(znorm(x.prod))), dish.nazwa + ': zły zamiennik ' + op.map(x => x.prod));
+        day.zam = { ob: { 'pierś z kurczaka': op[0].prod } };
+        const w1 = oblicz(kk, c), g1 = w1.garnki.find(g => g.d === d0 && g.slot === 'ob'), i1 = g1.dish.skladniki.find(i => i.zam);
+        prawda(i1 && i1.produkt === op[0].prod && i1.zam.z === 'pierś z kurczaka', dish.nazwa + ': składnik niezamieniony');
+        prawda(Math.abs(g1.K - g0.K) < 1, `${dish.nazwa}: kcal porcji zmieniły się ${Math.round(g0.K)} → ${Math.round(g1.K)}`);
+        for (const pp of OS) prawda(Math.abs(w1.dni[d0][pp].kcal - w0.dni[d0][pp].kcal) < 1, dish.nazwa + ': kcal dnia ' + pp);
+        prawda(g1.dish.skladniki.every(i => isFinite(i.ilosc) && i.ilosc > 0), dish.nazwa + ': NaN w ilościach');
+        const tekst = g1.dish.kroki.map(t => krokPrzeliczony(g1, t)).join(' ');
+        if (/indyk/.test(op[0].prod) && /kurczak/i.test(DB.dania.get(dish.id).kroki.join(' '))) prawda(!/kurczak/i.test(tekst), dish.nazwa + ': w krokach został kurczak');
+        day.zam = { ob: { 'pierś z kurczaka': '' } }; zamiennik = { [dish.id]: { 'pierś z kurczaka': op[0].prod } };
+        prawda(!oblicz(kk, c).garnki.find(g => g.d === d0 && g.slot === 'ob').dish.skladniki.some(i => i.zam), dish.nazwa + ': pusty wpis w posiłku powinien przywrócić oryginał');
+        day.zam = undefined; prawda(oblicz(kk, c).garnki.find(g => g.d === d0 && g.slot === 'ob').dish.skladniki.some(i => i.zam), dish.nazwa + ': zamiana „zawsze” nie działa');
+        zamiennik = {}; day.ob = stary;
+      }
+      prawda(zamienDrobWKrokach('Kurczaka pokrój, usmaż kurczak z piersi z kurczaka.', { dish: { skladniki: [{ zam: { z: 'pierś z kurczaka' }, produkt: 'filet z indyka' }] } }) === 'Indyka pokrój, usmaż indyk z piersi z indyka.', 'podmiana kurczak → indyk');
+    } finally { zamiennik = sz; }
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

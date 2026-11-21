@@ -1281,3 +1281,7 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 .dla-kogo { display: grid; gap: 8px; margin: 10px 0 6px; }
 .dla-kogo .seg button { min-height: 44px; }
 .dla-kogo > .btn { justify-self: start; }
+/* v111: zamiana składnika w przepisie */
+.zam-link { background: none; border: 0; padding: 4px 0; min-height: 36px; font: inherit; font-size: 13px; font-weight: 700; color: var(--zielony); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+#zam-zakres { margin: 10px 0 8px; }
+#zam-zakres button { min-height: 44px; }

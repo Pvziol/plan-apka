@@ -2628,19 +2628,23 @@ function glosWykonaj(k) {   // zwraca krótki komunikat dla użytkownika
 }
 function glosStart() {
   if (!GLOS_SR || glosRec || !got) return;
-  const rec = new GLOS_SR(); rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 3;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const rec = new GLOS_SR(); rec.lang = 'en-US'; rec.continuous = !ios; rec.interimResults = false; rec.maxAlternatives = 3;   // Safari na iPhonie źle znosi tryb ciągły: słucha jedną frazę i wznawia
   glosRec = rec; rec._ost = Date.now(); rec._restarty = 0;
   rec.onresult = e => {
     for (let k = e.resultIndex; k < e.results.length; k++) {
       const r = e.results[k]; if (!r.isFinal) continue;
       let kom = null; for (let a = 0; a < r.length && !kom; a++) kom = komendaGlosu(r[a].transcript);
       const m = kom && glosWykonaj(kom); if (m) pokazToast(m, null, null, 1800);
+      else if (!kom) { const sl = String(r[0].transcript || '').trim(); if (sl && sl.length <= 40) pokazToast('Usłyszałem: „' + sl + '”, to nie jest komenda', null, null, 1800); }   // widać, że mikrofon działa i co rozpoznał
     }
   };
+  rec.onaudiostart = () => { if (glosRec === rec) pokazToast('Mikrofon włączony, mów komendę', null, null, 1500); };
   rec.onerror = e => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { glosStop(); pokazToast('Mikrofon jest zablokowany. Zezwól na niego w ustawieniach przeglądarki.'); }
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { glosStop(); pokazToast(navigator.standalone ? 'Ten iPhone nie włącza rozpoznawania mowy w aplikacji z ekranu głównego. Otwórz stronę w Safari.' : 'Mikrofon lub rozpoznawanie mowy są zablokowane. Sprawdź zgody w ustawieniach (na iPhonie także Siri i dyktowanie).', null, null, 8000); }
     else if (e.error === 'network') { glosStop(); pokazToast('Rozpoznawanie mowy potrzebuje internetu.'); }
     else if (e.error === 'audio-capture') { glosStop(); pokazToast('Nie znaleziono mikrofonu.'); }
+    else if (e.error !== 'no-speech' && e.error !== 'aborted') pokazToast('Błąd rozpoznawania mowy: ' + e.error, null, null, 4000);
   };
   rec.onend = () => {   // przeglądarka sama kończy nasłuch po ciszy: wznawiam, dopóki mikrofon jest włączony (ale nie w pętli, gdy coś nie działa)
     if (glosRec !== rec) return;

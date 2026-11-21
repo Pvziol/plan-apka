@@ -2519,7 +2519,7 @@ function otworzGotowanie(g, spont) {
 }
 function zamknijGotowanie(bezPytania) {
   if (!bezPytania && timery.some(t => !t.zrobiony)) { pytaj('Timery jeszcze działają', 'Zamknąć tryb gotowania i je wyłączyć?', 'Zamknij i wyłącz').then(ok => { if (ok) zamknijGotowanie(true); }); return; }
-  got = null; timery = []; clearInterval(timeryInt); timeryInt = null;
+  got = null; timery = []; clearInterval(timeryInt); timeryInt = null; glosStop();
   try { wakeLock && wakeLock.release(); } catch (e) { /* nic */ }
   wakeLock = null; $('#gotuj').hidden = true; document.body.classList.remove('got-otwarte');
 }
@@ -2551,7 +2551,7 @@ function rysujGot() {
       ${os.length ? `<h3 style="margin-top:18px">Jak smakowało?</h3>${os.map(pp => `<div class="smak-w"><b class="${pp}">${ETY[pp]}</b><div class="seg mini">${[[2, 'Super'], [1, 'Może być'], [0, 'Nie']].map(([v, et]) => `<button data-smak="${esc(dish.id)}:${pp}:${v}" class="${smaki[dish.id] && smaki[dish.id][pp] && smaki[dish.id][pp].v === v ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`).join('')}` : ''}
       <button class="btn szeroki" data-got-zamknij style="margin-top:18px">Zamknij</button></div>`;
   }
-  $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div><button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
+  $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div>${GLOS_SR ? `<button class="got-mic ${glosRec ? 'on' : ''}" data-got-mic aria-pressed="${glosRec ? 'true' : 'false'}" aria-label="${glosRec ? 'Wyłącz komendy głosowe' : 'Włącz komendy głosowe'}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>` : ''}<button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
     <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fqS(x, x.ilosc * skala(g, x))}</b></div>`).join('')}</div>` : ''}${tresc}</div>
     <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe, podział porcji' : 'Dalej'} ›</button>` : ''}</div>`;
   if (got._ostI !== i) { const kier = got._ostI === undefined ? 0 : (i > got._ostI ? 1 : -1); got._ostI = i; const m = $('#gotuj .got-main'); if (m && kier) m.dataset.kier = kier; if (m) m.scrollTop = 0; }
@@ -2564,6 +2564,99 @@ document.addEventListener('keydown', e => { if (!got) return; if (e.key === 'Arr
   document.addEventListener('touchstart', e => { if (!got || !e.target.closest('#gotuj .got-main')) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
   document.addEventListener('touchend', e => { if (x0 === null || !got) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null; if (Math.abs(dx) > 70 && Math.abs(dy) < 45) gotIdz(got.i + (dx < 0 ? 1 : -1)); }, { passive: true });
 })();
+// ---------- komendy głosowe w trybie gotowania (rozpoznawanie mowy wbudowane w przeglądarkę, bez kluczy; język angielski) ----------
+const GLOS_SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let glosRec = null;
+const GL_LICZBY = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ninety: 90 };
+function glosCzas(t) {   // „10 minutes”, „ten minutes”, „twenty five minutes”, „1 hour 30 minutes”, „half an hour” -> sekundy (null = brak czasu)
+  if (/\bhalf (an |a )?hour\b/.test(t)) return 1800;
+  const w = t.split(/\s+/); let suma = 0, ok = false;
+  for (let k = 1; k < w.length; k++) {
+    const u = /^(hours?|hrs?|minutes?|mins?|seconds?|secs?)$/.exec(w[k]); if (!u) continue;
+    let n = parseFloat(w[k - 1].replace(',', '.'));
+    if (isNaN(n)) { n = GL_LICZBY[w[k - 1]]; if (n === undefined) continue; if (n < 10 && k >= 2 && GL_LICZBY[w[k - 2]] >= 20 && GL_LICZBY[w[k - 2]] % 10 === 0) n += GL_LICZBY[w[k - 2]]; }
+    suma += Math.round(n * (/^h/.test(u[0]) ? 3600 : /^m/.test(u[0]) ? 60 : 1)); ok = true;
+  }
+  return ok ? suma : null;
+}
+function komendaGlosu(txt) {   // tekst z rozpoznawania -> { a: akcja, ... } albo null (dłuższe zdania ignoruję, żeby rozmowa w kuchni nie przełączała kroków)
+  const t = String(txt || '').toLowerCase().replace(/-/g, ' ').replace(/[^a-z0-9., ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t || t.split(' ').length > 7) return null;
+  const sek = glosCzas(t), ma = r => r.test(t), timer = ma(/\btimers?\b/);
+  if (ma(/\b(close|exit|quit)\b/)) return { a: 'close' };
+  if (ma(/\b(cancel|delete|remove|clear)\b/) && timer) return { a: 'cancel' };
+  if (ma(/\b(add|plus|another|extra|more)\b/) && ma(/\b(minutes?|mins?|seconds?|secs?|hours?)\b/)) return { a: 'add', sek: sek || 60 };
+  if (timer && sek) return { a: 'timer', sek };
+  if (ma(/\b(pause|hold)\b/)) return { a: 'pause' };
+  if (ma(/\b(resume|unpause|continue)\b/)) return { a: 'resume' };
+  if (ma(/\b(stop|silence|quiet|dismiss|enough)\b/)) return { a: 'silence', timer };
+  if (timer) return { a: 'stimer' };
+  if (ma(/\bingredients?\b/)) return { a: 'skl' };
+  if (ma(/\bfirst\b/)) return { a: 'first' };
+  if (ma(/\b(last|final)\b/)) return { a: 'last' };
+  if (ma(/\b(back|previous|prev|before)\b/)) return { a: 'back' };
+  if (ma(/\b(next|forward|following)\b/)) return { a: 'next' };
+  return null;
+}
+const glosEt = sek => sek % 3600 === 0 ? sek / 3600 + ' godz.' : sek % 60 === 0 ? sek / 60 + ' min' : sek + ' s';
+function glosWykonaj(k) {   // zwraca krótki komunikat dla użytkownika
+  if (!got || !k) return null;
+  const N = got.kroki.length, dziala = () => timery.filter(x => !x.zrobiony);
+  const usunOstatni = () => { if (!timery.length) return 'Brak timera'; timery.pop(); rysujGot(); return 'Timer usunięty'; };
+  switch (k.a) {
+    case 'next': if (got.i > N) return 'To już koniec'; gotIdz(got.i + 1); return 'Dalej';
+    case 'back': if (got.i <= 0) return 'Jesteś na początku'; gotIdz(got.i - 1); return 'Wstecz';
+    case 'first': gotIdz(1); return 'Krok 1';
+    case 'last': gotIdz(N); return 'Krok ' + N;
+    case 'skl': if (got.i === 0) return 'Składniki są na tym ekranie'; if (got.i > N) return 'Tu nie ma składników'; got.skl = !got.skl; rysujGot(); return got.skl ? 'Składniki' : 'Ukryto składniki';
+    case 'close': { const czeka = dziala().length > 0; zamknijGotowanie(); return czeka ? 'Timery działają, potwierdź zamknięcie' : 'Zamknięto'; }
+    case 'stimer': {
+      if (got.i < 1 || got.i > N) return 'Timer uruchomisz w kroku';
+      const w = wykryjTimery(got.kroki[got.i - 1]), x = w.find(y => !dziala().some(t => t.ile === y.sek));
+      if (!w.length) return 'W tym kroku nie ma czasu. Powiedz np. „timer 10 minutes”';
+      if (!x) return 'Timery z tego kroku już działają';
+      startTimer(x.et, x.sek); return 'Timer ' + x.et;
+    }
+    case 'timer': if (!(k.sek >= 10 && k.sek <= 6 * 3600)) return 'Timer od 10 sekund do 6 godzin'; startTimer(glosEt(k.sek), k.sek); return 'Timer ' + glosEt(k.sek);
+    case 'pause': { const tm = dziala().filter(x => !x.pauza).pop(); if (!tm) return 'Brak działającego timera'; tm.pauza = Date.now(); rysujGot(); return 'Pauza'; }
+    case 'resume': { const tm = dziala().filter(x => x.pauza).pop(); if (!tm) return 'Żaden timer nie jest wstrzymany'; tm.koniec += Date.now() - tm.pauza; tm.pauza = null; rysujGot(); return 'Wznowiono'; }
+    case 'add': { const tm = dziala().pop(); if (!tm) return 'Brak timera'; tm.koniec += k.sek * 1000; rysujGot(); return '+' + glosEt(k.sek); }
+    case 'cancel': return usunOstatni();
+    case 'silence': if (timery.some(x => x.zrobiony)) { timery = timery.filter(x => !x.zrobiony); rysujGot(); return 'Alarm wyłączony'; } return k.timer ? usunOstatni() : 'Nic nie dzwoni';
+  }
+  return null;
+}
+function glosStart() {
+  if (!GLOS_SR || glosRec || !got) return;
+  const rec = new GLOS_SR(); rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 3;
+  glosRec = rec; rec._ost = Date.now(); rec._restarty = 0;
+  rec.onresult = e => {
+    for (let k = e.resultIndex; k < e.results.length; k++) {
+      const r = e.results[k]; if (!r.isFinal) continue;
+      let kom = null; for (let a = 0; a < r.length && !kom; a++) kom = komendaGlosu(r[a].transcript);
+      const m = kom && glosWykonaj(kom); if (m) pokazToast(m, null, null, 1800);
+    }
+  };
+  rec.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { glosStop(); pokazToast('Mikrofon jest zablokowany. Zezwól na niego w ustawieniach przeglądarki.'); }
+    else if (e.error === 'network') { glosStop(); pokazToast('Rozpoznawanie mowy potrzebuje internetu.'); }
+    else if (e.error === 'audio-capture') { glosStop(); pokazToast('Nie znaleziono mikrofonu.'); }
+  };
+  rec.onend = () => {   // przeglądarka sama kończy nasłuch po ciszy: wznawiam, dopóki mikrofon jest włączony (ale nie w pętli, gdy coś nie działa)
+    if (glosRec !== rec) return;
+    const t = Date.now(); rec._restarty = t - rec._ost < 1500 ? rec._restarty + 1 : 0; rec._ost = t;
+    if (rec._restarty > 5) { glosStop(); pokazToast('Mikrofon się wyłącza. Spróbuj włączyć go ponownie.'); return; }
+    setTimeout(() => { try { if (glosRec === rec) rec.start(); } catch (x) { /* nic */ } }, 250);
+  };
+  try { rec.start(); } catch (x) { glosRec = null; return; }
+  rysujGot(); pokazToast('Słucham po angielsku: next, back, timer, ingredients, close', null, null, 4500);
+}
+function glosStop() {
+  const r = glosRec; if (!r) return; glosRec = null;
+  r.onend = null; r.onresult = null; r.onerror = null; try { r.abort(); } catch (x) { /* nic */ }
+  if (got) rysujGot();
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && glosRec) glosStop(); });   // w tle mikrofon i tak by nie działał: wyłączam, żeby nic nie nasłuchiwało po cichu
 function przyciskiOceny(id) {
   return `<button class="btn maly ocena ${oceny[id] === 1 ? 'wl' : ''}" data-ocena="${esc(id)}:1">${oceny[id] === 1 ? '★ ulubione' : '☆ ulubione'}</button><button class="btn maly ocena ${ukryte(id) ? 'wl' : ''}" data-ocena="${esc(id)}:-1">${ukryte(id) ? 'ukryte — przywróć' : 'ukryj'}</button>`;
 }
@@ -3778,6 +3871,7 @@ document.addEventListener('click', async e => {
   if ('gotZamknij' in t.dataset) { zamknijGotowanie(); return; }
   if (t.dataset.gotIdz !== undefined) { gotIdz(+t.dataset.gotIdz); return; }
   if ('gotSkl' in t.dataset) { got.skl = !got.skl; rysujGot(); return; }
+  if ('gotMic' in t.dataset) { if (glosRec) glosStop(); else glosStart(); return; }
   if (t.dataset.gotTimer) { const [sek, ...et] = t.dataset.gotTimer.split('|'); startTimer(et.join('|'), +sek); return; }
   if (t.dataset.gotTp) { const tm = timery.find(x => x.id === +t.dataset.gotTp); if (tm) { if (tm.pauza) { tm.koniec += Date.now() - tm.pauza; tm.pauza = null; } else tm.pauza = Date.now(); rysujGot(); } return; }
   if (t.dataset.gotT1) { const tm = timery.find(x => x.id === +t.dataset.gotT1); if (tm) { tm.koniec += 60000; rysujGot(); } return; }

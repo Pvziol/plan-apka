@@ -330,6 +330,17 @@
       const r2 = rozumiemTekst('od poniedziałku do wtorku bez mięsa, dziś szybko'); rowne(r2.length, 1, 'tylko dziś ma plan'); prawda(r2.brakDni.includes('Poniedziałek'), 'dni bez planu w zakresie');
     }
   });
+  await test('Komendy głosowe', 'rozpoznawanie komend po angielsku (kroki, timery, składniki, zamknięcie), ignorowanie rozmowy', async () => {
+    const k = x => { const r = komendaGlosu(x); return r && r.a; };
+    rowne([k('next'), k('Next step'), k('go forward'), k('back'), k('previous'), k('first'), k('last step')], ['next', 'next', 'next', 'back', 'back', 'first', 'last'], 'poruszanie po krokach');
+    rowne([k('timer'), k('start timer'), k('timer 10 minutes'), k('set a timer for ten minutes'), k('20 minute timer')], ['stimer', 'stimer', 'timer', 'timer', 'timer'], 'timery');
+    rowne([komendaGlosu('timer 10 minutes').sek, komendaGlosu('timer ten minutes').sek, komendaGlosu('timer twenty five minutes').sek, komendaGlosu('timer 90 seconds').sek, komendaGlosu('timer one hour').sek, komendaGlosu('timer half an hour').sek, komendaGlosu('timer 1 hour 30 minutes').sek], [600, 600, 1500, 90, 3600, 1800, 5400], 'czasy');
+    rowne([k('pause'), k('resume'), k('add a minute'), komendaGlosu('add a minute').sek, komendaGlosu('add 2 minutes').sek, komendaGlosu('one more minute').sek, k('cancel timer'), k('stop'), k('silence')], ['pause', 'resume', 'add', 60, 120, 60, 'cancel', 'silence', 'silence'], 'sterowanie timerem');
+    rowne([k('ingredients'), k('close'), k('exit')], ['skl', 'close', 'close'], 'składniki i zamknięcie');
+    rowne([k(''), k('banana'), k('could you pass me the salt and the next plate please we are ready'), k('I think the chicken is almost done')], [null, null, null, null], 'rozmowa nie jest komendą');
+    rowne(komendaGlosu('stop the timer').timer, true, '„stop timer” może usunąć działający timer');
+    prawda(typeof GLOS_SR !== 'undefined', 'definicja rozpoznawania mowy');
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

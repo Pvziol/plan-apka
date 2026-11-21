@@ -1306,3 +1306,8 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 /* cele dotyku: małe przyciski w listach */
 .poza-wiersz .pos-pomin, .poza-wiersz button { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .zuzyj-btn { min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; }
+/* v122: przycisk komend głosowych w trybie gotowania */
+.got-mic { flex: none; width: 42px; height: 42px; min-height: 42px; border-radius: 50%; padding: 0; display: grid; place-items: center; border: 1px solid var(--szklo-brzeg); background: var(--szklo); box-shadow: var(--szklo-cien); color: var(--ink); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.got-mic.on { background: var(--zielony); border-color: var(--zielony); color: var(--bg); animation: glos-puls 1.6s ease-in-out infinite; }
+@keyframes glos-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, .45); } 50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); } }
+@media (prefers-reduced-motion: reduce) { .got-mic.on { animation: none; } }

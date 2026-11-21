@@ -2520,6 +2520,7 @@ function otworzGotowanie(g, spont) {
 function zamknijGotowanie(bezPytania) {
   if (!bezPytania && timery.some(t => !t.zrobiony)) { pytaj('Timery jeszcze działają', 'Zamknąć tryb gotowania i je wyłączyć?', 'Zamknij i wyłącz').then(ok => { if (ok) zamknijGotowanie(true); }); return; }
   got = null; timery = []; clearInterval(timeryInt); timeryInt = null; glosStop();
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (x) { /* nic */ }
   try { wakeLock && wakeLock.release(); } catch (e) { /* nic */ }
   wakeLock = null; $('#gotuj').hidden = true; document.body.classList.remove('got-otwarte');
 }
@@ -2551,7 +2552,7 @@ function rysujGot() {
       ${os.length ? `<h3 style="margin-top:18px">Jak smakowało?</h3>${os.map(pp => `<div class="smak-w"><b class="${pp}">${ETY[pp]}</b><div class="seg mini">${[[2, 'Super'], [1, 'Może być'], [0, 'Nie']].map(([v, et]) => `<button data-smak="${esc(dish.id)}:${pp}:${v}" class="${smaki[dish.id] && smaki[dish.id][pp] && smaki[dish.id][pp].v === v ? 'akt' : ''}">${et}</button>`).join('')}</div></div>`).join('')}` : ''}
       <button class="btn szeroki" data-got-zamknij style="margin-top:18px">Zamknij</button></div>`;
   }
-  $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div>${GLOS_SR ? `<button class="got-mic ${glosRec ? 'on' : ''}" data-got-mic aria-pressed="${glosRec ? 'true' : 'false'}" aria-label="${glosRec ? 'Wyłącz komendy głosowe' : 'Włącz komendy głosowe'}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>` : ''}<button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
+  $('#gotuj').innerHTML = `<div class="got-gora"><button class="got-x" data-got-zamknij aria-label="Zamknij tryb gotowania">✕</button><div class="got-nazwa">${esc(dish.nazwa)}</div>${document.fullscreenEnabled ? `<button class="got-pelny" data-got-pelny aria-label="${document.fullscreenElement ? 'Wyjdź z pełnego ekranu' : 'Pełny ekran'}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${document.fullscreenElement ? '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>' : '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'}</svg></button>` : ''}${GLOS_SR ? `<button class="got-mic ${glosRec ? 'on' : ''}" data-got-mic aria-pressed="${glosRec ? 'true' : 'false'}" aria-label="${glosRec ? 'Wyłącz komendy głosowe' : 'Włącz komendy głosowe'}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>` : ''}<button class="got-skl" data-got-skl>Składniki</button></div>${pasek}${tim}
     <div class="got-main">${got.skl && i > 0 && i <= N ? `<div class="got-panel"><h3>Składniki — ${opisGarnka(g)}</h3>${dish.skladniki.filter(x => x.ilosc).map(x => `<div class="got-pw"><span>${esc(x.nazwa)}</span><b>${fqS(x, x.ilosc * skala(g, x))}</b></div>`).join('')}</div>` : ''}${tresc}</div>
     <div class="got-dol">${i > 0 ? `<button class="btn" data-got-idz="${i - 1}">‹ Wstecz</button>` : '<span></span>'}${i <= N ? `<button class="btn glowny" data-got-idz="${i + 1}">${i === 0 ? 'Zaczynamy' : i === N ? 'Gotowe, podział porcji' : 'Dalej'} ›</button>` : ''}</div>`;
   if (got._ostI !== i) { const kier = got._ostI === undefined ? 0 : (i > got._ostI ? 1 : -1); got._ostI = i; const m = $('#gotuj .got-main'); if (m && kier) m.dataset.kier = kier; if (m) m.scrollTop = 0; }
@@ -2660,6 +2661,7 @@ function glosStop() {
   r.onend = null; r.onresult = null; r.onerror = null; try { r.abort(); } catch (x) { /* nic */ }
   if (got) rysujGot();
 }
+document.addEventListener('fullscreenchange', () => { if (got) rysujGot(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && glosRec) glosStop(); });   // w tle mikrofon i tak by nie działał: wyłączam, żeby nic nie nasłuchiwało po cichu
 function przyciskiOceny(id) {
   return `<button class="btn maly ocena ${oceny[id] === 1 ? 'wl' : ''}" data-ocena="${esc(id)}:1">${oceny[id] === 1 ? '★ ulubione' : '☆ ulubione'}</button><button class="btn maly ocena ${ukryte(id) ? 'wl' : ''}" data-ocena="${esc(id)}:-1">${ukryte(id) ? 'ukryte — przywróć' : 'ukryj'}</button>`;
@@ -3875,6 +3877,7 @@ document.addEventListener('click', async e => {
   if ('gotZamknij' in t.dataset) { zamknijGotowanie(); return; }
   if (t.dataset.gotIdz !== undefined) { gotIdz(+t.dataset.gotIdz); return; }
   if ('gotSkl' in t.dataset) { got.skl = !got.skl; rysujGot(); return; }
+  if ('gotPelny' in t.dataset) { try { if (document.fullscreenElement) document.exitFullscreen(); else $('#gotuj').requestFullscreen({ navigationUI: 'hide' }); } catch (x) { /* nic */ } return; }
   if ('gotMic' in t.dataset) { if (glosRec) glosStop(); else glosStart(); return; }
   if (t.dataset.gotTimer) { const [sek, ...et] = t.dataset.gotTimer.split('|'); startTimer(et.join('|'), +sek); return; }
   if (t.dataset.gotTp) { const tm = timery.find(x => x.id === +t.dataset.gotTp); if (tm) { if (tm.pauza) { tm.koniec += Date.now() - tm.pauza; tm.pauza = null; } else tm.pauza = Date.now(); rysujGot(); } return; }

@@ -341,8 +341,8 @@
     rowne(komendaGlosu('stop the timer').timer, true, '„stop timer” może usunąć działający timer');
     prawda(typeof GLOS_SR !== 'undefined', 'definicja rozpoznawania mowy');
   });
-  await test('Pomidory: passata i krojone', 'salsy z passaty, passata i pomidory krojone zamieniają się 1:1 w gramach, bez zamiany na brokuł', async () => {
-    for (const id of ['quesadille-z-kurczakiem-i-salsa-pomidorowa', 'burrito-wolowe-z-fasola-i-salsa']) { const dd = DB.dania.get(id), p = dd.skladniki.filter(i => /pomidor|passata/.test(i.produkt)); rowne(p.map(i => i.produkt), ['passata'], id + ': salsa z passaty'); prawda(dd.kroki.some(k => /^SALSA: passat/.test(k)), id + ': krok salsy'); }
+  await test('Pomidory: passata i krojone', 'salsy z pomidorów krojonych, passata i krojone zamieniają się 1:1 w gramach, bez zamiany na brokuł', async () => {
+    for (const id of ['quesadille-z-kurczakiem-i-salsa-pomidorowa', 'burrito-wolowe-z-fasola-i-salsa']) { const dd = DB.dania.get(id), p = dd.skladniki.filter(i => /pomidor|passata/.test(i.produkt)); rowne(p.map(i => i.produkt), ['pomidory krojone (puszka)'], id + ': salsa z pomidorów krojonych'); rowne(p[0].ilosc, 200, id + ': 200 g'); prawda(dd.kroki.some(k => /^SALSA: pomidory krojone/.test(k)), id + ': krok salsy'); }
     rowne([klasaZam('passata'), klasaZam('pomidory krojone (puszka)')], [POM_SOS, POM_SOS], 'wspólna klasa');
     const c = cele(), szm = zamiennik, kk = JSON.parse(JSON.stringify(kandydat()));
     try {
@@ -354,8 +354,79 @@
       kk.dni[d0].zam = { ob: { 'pomidory krojone (puszka)': 'passata' } };
       const g1 = oblicz(kk, c).garnki.find(g => g.d === d0 && g.slot === 'ob'), i1 = g1.dish.skladniki.find(i => i.zam);
       prawda(i1 && i1.produkt === 'passata' && i1.ilosc === i0.ilosc, 'passata w tej samej ilości');
-      const sp = g0.dish.skladniki.find(i => i.produkt === 'passata');
     } finally { zamiennik = szm; }
+  });
+  // --- zero waste: symulacja zapasów, automatyczny wybór produktu, zużycie resztek ---
+  const kukurydza = 'kukurydza konserwowa';   // puszka 140 g, po otwarciu 4 dni
+  await test('Zero waste: symulacja zapasów', 'kupno całych opakowań, zużycie otwartych resztek, trwałość po otwarciu, zapas z lodówki', async () => {
+    const op = DB.opak[kukurydza]; rowne([op.wielkosc, OTWARTE_DNI[kukurydza]], [140, 4], 'dane puszki do testu');
+    let s = symulujZapasy([{ t: 0, prod: kukurydza, u: 'g', q: 60 }], {}, 9);
+    rowne([s.paczki, Math.round(s.straty[0].q)], [1, 80], 'jedna puszka na 60 g: zostaje 80 g, które się zepsują'); prawda(Math.abs(s.koszt - 80 / 140) < 1e-6, 'koszt straty to ułamek opakowania');
+    s = symulujZapasy([{ t: 0, prod: kukurydza, u: 'g', q: 60 }, { t: 2, prod: kukurydza, u: 'g', q: 60 }], {}, 9);
+    rowne(s.paczki, 1, 'druga porcja bierze resztkę zamiast otwierać nową puszkę'); prawda(Math.abs(s.koszt - 20 / 140) < 1e-6, 'zostaje 20 g');
+    s = symulujZapasy([{ t: 0, prod: kukurydza, u: 'g', q: 60 }, { t: 6, prod: kukurydza, u: 'g', q: 60 }], {}, 9);
+    rowne(s.paczki, 2, 'po 4 dniach resztka jest wyrzucona, więc trzeba nową puszkę'); prawda(s.straty.some(x => Math.abs(x.q - 80) < 1e-6 && x.t0 === 0), 'przeterminowana resztka jest zapisana jako strata');
+    s = symulujZapasy([{ t: 0, prod: kukurydza, u: 'g', q: 60 }], { [kukurydza + '|g']: 100 }, 9);
+    rowne([s.paczki, Math.round(s.straty[0].q)], [0, 40], 'otwarta resztka z lodówki wystarcza, bez kupowania');
+    s = symulujZapasy([{ t: 0, prod: kukurydza, u: 'g', q: 60 }], { [kukurydza + '|g']: 280 }, 9);
+    rowne(s.paczki, 0, 'dwie nieotwarte puszki w lodówce: nic do kupienia'); rowne(Math.round(s.straty[0].q), 80, 'otwarta zostaje tylko jedna puszka, druga nietknięta');
+    s = symulujZapasy([{ t: 0, prod: 'ryż', u: 'g', q: 100 }], {}, 9); rowne(s.koszt, 0, 'produkt trwały nie generuje strat');
+  });
+  // pomocnik: tydzień bez pomidorów w innych posiłkach, z wybranymi obiadami w kolejne dni od poniedziałku 23.11
+  const tydzienTest = ob => {
+    const poms = d => d.skladniki.some(i => /pomidor|passata|koncentrat/.test(i.produkt) && i.ilosc > 0), czysty = pool => pool.find(d => !poms(d)), k = JSON.parse(JSON.stringify(kandydat()));
+    k.start = '2026-11-23'; k.dni.forEach((day, i) => { day.sn = czysty(DB.pula.sn).id; day.ob = ob[i] || czysty(DB.pula.ob1).id; day.ob2 = false; day.zam = undefined; day.dla = {}; day.k18 = czysty(DB.pula.k18).id; if (day.m13.wsp) day.m13.wsp = czysty(DB.pula.m13).id; day.m13.ona = czysty(DB.pula.m13ona).id; day.m13.on = czysty(DB.pula.m13on).id; });
+    return [{ start: k.start, dni: k.dni, zuz: {} }];
+  };
+  const wTygodniu = async (tyg, lod, fn) => { const sl = lodowka, st = _autoTyg; try { lodowka = lod || {}; _autoTyg = tyg; _autoCache = { sig: '', mapa: {} }; _stratyCache = { sig: '', wynik: null }; return await fn(); } finally { lodowka = sl; _autoTyg = st; _autoCache = { sig: '', mapa: {} }; _stratyCache = { sig: '', wynik: null }; } };
+  const pomLinie = (tyg, d) => oblicz({ start: tyg[0].start, dni: tyg[0].dni }, cele()).garnki.filter(g => g.d === d && g.slot === 'ob').flatMap(g => g.dish.skladniki.filter(i => /^(passata|pomidory krojone)/.test(i.produkt)).map(i => ({ produkt: i.produkt, auto: i.zam && i.zam.auto, ilosc: Math.round(i.ilosc * skala(g, i)) })));
+  await test('Zero waste: automatyczny wybór pomidorów', 'zapas w lodówce wygrywa, dwie salsy z jednej butelki, dobór do pełnych opakowań, ręczna zamiana ma pierwszeństwo', async () => {
+    const Q = 'quesadille-z-kurczakiem-i-salsa-pomidorowa', C = 'chili-z-indykiem-fasola-i-ryzem', P = [...DB.dania.values()].find(d => /^Pomidorówka/.test(d.nazwa)).id;
+    let t = tydzienTest([Q]);
+    await wTygodniu(t, {}, () => { const l = pomLinie(t, 0); rowne(l.map(x => x.produkt), ['pomidory krojone (puszka)'], 'pusta lodówka i jedna salsa: krojone, jak w przepisie'); prawda(!l[0].auto, 'bez zmiany automatu'); });
+    await wTygodniu(t, { passata: { g: 300 } }, () => { const l = pomLinie(t, 0); rowne(l.map(x => x.produkt), ['passata'], 'otwarta passata w lodówce, brak krojonych: passata'); rowne(l[0].auto, 'masz w lodówce', 'powód'); });
+    await wTygodniu(t, { 'pomidory krojone (puszka)': { g: 400 } }, () => { rowne(pomLinie(t, 0).map(x => x.produkt), ['pomidory krojone (puszka)'], 'krojone w lodówce zostają'); });
+    t = tydzienTest([Q, null, Q]);
+    await wTygodniu(t, {}, () => { rowne([pomLinie(t, 0)[0].produkt, pomLinie(t, 2)[0].produkt], ['passata', 'passata'], 'dwie salsy w jednym tygodniu: jedna butelka passaty zamiast dwóch otwieranych puszek'); const s = przewidzStraty().sim; rowne(s.kup['passata|g'], 1, 'jedna butelka'); });
+    t = tydzienTest([Q, C]);
+    await wTygodniu(t, {}, () => { rowne([pomLinie(t, 0)[0].produkt, pomLinie(t, 1)[0].produkt], ['passata', 'passata'], 'salsa + chili: 660 g mieści się w jednej butelce 690 g'); });
+    t[0].dni[0].zam = { ob: { 'pomidory krojone (puszka)': '' } };
+    await wTygodniu(t, { passata: { g: 300 } }, () => { rowne(pomLinie(t, 0).map(x => x.produkt), ['pomidory krojone (puszka)'], 'ręczne „wróć do oryginału” blokuje automat'); });
+    t = tydzienTest([null, null, P]);
+    await wTygodniu(t, {}, () => { rowne(pomLinie(t, 2).map(x => x.produkt), ['passata'], 'pomidorówka bez powodu do zmiany zostaje na passacie'); prawda(!pomLinie(t, 2)[0].auto, 'bez oznaczenia automatu'); });
+  });
+  await test('Zero waste: zużycie resztki', 'podpowiedzi liczone symulacją: każda naprawdę zmniejsza koszt strat, bez dokładania opakowań', async () => {
+    const pom = d => d.skladniki.some(i => /kukurydz/.test(i.produkt) && i.ilosc > 0), sn = [...DB.dania.values()].find(d => pom(d) && d.typ === 'sniadanie');
+    const t = tydzienTest([]); t[0].dni[1].sn = sn.id;
+    await wTygodniu(t, {}, async () => {
+      const st = przewidzStraty().sim.straty.find(x => x.prod === kukurydza); prawda(st && st.q > 40, 'brak przewidzianej straty kukurydzy w teście');
+      const przed = kosztCalkowity(t), op = await opcjeZuzycia(st, t); prawda(op.length >= 1, 'brak podpowiedzi');
+      for (const x of op) { const k = klonTygodni(t); ustawNaKlonie(k[0], x.d, x.slot, x.dish.id, cele()); const po = kosztCalkowity(k); prawda(wynikZW(po) < wynikZW(przed) - 0.2, x.dish.nazwa + ': zamiana nie zmniejsza strat ani liczby opakowań'); }
+    });
+  });
+  await test('Zero waste: układanie tygodnia', 'poprawa układu obniża ocenę (straty, opakowania, białko), nie dubluje dań i nie rusza zablokowanych', async () => {
+    const c = cele(), st0 = '2026-11-23', sl = lodowka;
+    try {
+      lodowka = {};
+      const inneT = tygodnieZapisane().filter(t => t.start !== st0), T = Math.max(dzienIdx(dodajDni(st0, 7)), ...inneT.map(t => dzienIdx(dodajDni(t.start, 7))));
+      _bezAuto++; try { _zwKontekst = { start: st0, T, stan: stanLodowki(), inne: inneT.flatMap(t => zdarzeniaTygodnia(t, oblicz({ start: t.start, dni: t.dni }, c), [])) }; } finally { _bezAuto--; }
+      const k = JSON.parse(JSON.stringify(kandydat())), przed = ocena(k, c), powtPrzed = (l => l.filter(Boolean).length - new Set(l.filter(Boolean)).size)(k.dni.map(y => y.sn)) + (l => l.filter(Boolean).length - new Set(l.filter(Boolean)).size)(k.dni.map(y => y.ob)) + (l => l.filter(Boolean).length - new Set(l.filter(Boolean)).size)(k.dni.map(y => y.k18)) + (l => l.filter(Boolean).length - new Set(l.filter(Boolean)).size)(k.dni.map(y => y.m13.wsp || y.m13.on));
+      const blok = k.dni.map((_, i) => (i === 3 ? { sn: true, ob: true } : {})), sn3 = k.dni[3].sn, ob3 = k.dni[3].ob;
+      poprawUklad(k, c, blok, 3000);
+      const po = ocena(k, c); prawda(po <= przed + 1e-6, `ocena po poprawie ${Math.round(po)} nie jest niższa niż przed ${Math.round(przed)}`);
+      rowne([k.dni[3].sn, k.dni[3].ob], [sn3, ob3], 'zablokowane dania nie zmieniają się');
+      const powt = l => l.filter(Boolean).length - new Set(l.filter(Boolean)).size, powtK = x => powt(x.dni.map(y => y.sn)) + powt(x.dni.map(y => y.ob)) + powt(x.dni.map(y => y.k18)) + powt(x.dni.map(y => y.m13.wsp || y.m13.on));
+      prawda(powtK(k) <= powtPrzed, `poprawa zwiększyła liczbę powtórzeń dań (${powtPrzed} → ${powtK(k)})`);
+      prawda(k.dni.every(x => DB.dania.has(x.sn) && DB.dania.has(x.k18) && (!x.ob || DB.dania.has(x.ob))), 'układ zawiera nieistniejące dania');
+    } finally { lodowka = sl; _zwKontekst = null; }
+  });
+  await test('Zero waste: przepis z automatyczną zamianą', 'zamienione() z automatem zmienia produkt, zachowuje masę i oznacza powód, a ręczny wybór go blokuje', async () => {
+    const dish = DB.dania.get('quesadille-z-kurczakiem-i-salsa-pomidorowa'), auto = { 'pomidory krojone (puszka)': { p: 'passata', powod: 'masz w lodówce' } };
+    const z = zamienione(dish, { zam: {} }, 'ob', auto), i = z.skladniki.find(x => x.produkt === 'passata');
+    prawda(i && i.ilosc === 200 && i.zam.z === 'pomidory krojone (puszka)' && i.zam.auto === 'masz w lodówce', 'automatyczna zamiana na passatę 200 g z powodem');
+    prawda(!z.skladniki.some(x => x.produkt === 'pomidory krojone (puszka)'), 'stary składnik zniknął');
+    const r = zamienione(dish, { zam: { ob: { 'pomidory krojone (puszka)': '' } } }, 'ob', auto); prawda(r.skladniki.some(x => x.produkt === 'pomidory krojone (puszka)') && !r.skladniki.some(x => x.zam), 'ręczny powrót do oryginału blokuje automat');
+    const r2 = zamienione(dish, { zam: {} }, 'ob', null); prawda(r2 === dish, 'bez automatu przepis bez zmian');
   });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');

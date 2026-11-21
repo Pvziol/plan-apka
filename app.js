@@ -461,6 +461,7 @@ const celDnia = (pl, c, d, p) => { const b = bazaDnia(pl, c, d, p); return b ? b
 const pomija = (day, p, slot) => !!(day && day.pom && day.pom[p] && day.pom[p][slot]);
 const shakeAkt = (day, p) => !!(day.tr[p] && !nieob(day, p) && !pomija(day, p, 'shake'));
 function oblicz(pl, c) {
+  const auto = autoDla(pl);
   const dni = pl.dni.map(() => ({ ona: { kcal: 0, b: 0 }, on: { kcal: 0, b: 0 }, sloty: [], przenos: { ona: {}, on: {} } }));
   const garnki = [];
   const udz = slot => slot.startsWith('m13') ? 'm13' : bazaSlotu(slot);
@@ -489,7 +490,7 @@ function oblicz(pl, c) {
   const obecni = d => OS.filter(p => !nieob(pl.dni[d], p));
   const obecniSlot = (d, slot) => OS.filter(p => !nieob(pl.dni[d], p) && !pomija(pl.dni[d], p, slot));
   function garnek(id, slot, d, porcje, ratio) {
-    const dish = zamienione(DB.dania.get(id), pl.dni[d], slot);
+    const dish = zamienione(DB.dania.get(id), pl.dni[d], slot, auto && auto[kluczAuto(pl.start, d, slot)]);
     if (!dish || !porcje.length) return null;                 // nikt nie je tego posiłku (nieobecność albo pominięty)
     let K = sum(porcje, x => x.kcal);
     const r = rz(dish, K, ratio, slot);
@@ -626,6 +627,8 @@ function kandydat() {
   }
   return { start: poniedzialek(), dni };
 }
+let _zwKontekst = null;
+const ZW_WAGA = { straty: 20, paczki: 1 };
 function ocena(pl, c) {
   const w = oblicz(pl, c);
   let kara = 0;
@@ -641,10 +644,11 @@ function ocena(pl, c) {
   pl.dni.flatMap(day => [day.sn, day.k18, day.ob, day.m13.wsp, day.m13.ona, day.m13.on]).filter(Boolean).forEach(id => { if (oceny[id] === 1) kara -= 6; else if (ukryte(id)) kara += 200; });
   w.garnki.forEach(g => { if ((g.sw || g.s) > 1.7 || (g.sw || g.s) < 0.55) kara += 10; });
   kara += 300 * naruszeniaPlanu(pl).length + smakKara(pl) + sezonKara(pl);                       // dania z wykluczonymi składnikami to ostateczność
-  // zero waste: świeże produkty sprzedawane w opakowaniach (np. łosoś wędzony 100 g) — im mniej zostaje po zakupie, tym lepiej
-  const potrz = {};
-  w.garnki.forEach(g => g.dish.skladniki.forEach(i => { const o = i.produkt && DB.opak[i.produkt]; if (o && i.jednostka === o.jednostka && i.kategoria === 'świeże') potrz[i.produkt] = (potrz[i.produkt] || 0) + i.ilosc * skala(g, i); }));
-  for (const [pr, q] of Object.entries(potrz)) { const o = DB.opak[pr]; kara += 3 * (Math.ceil(q / o.wielkosc - 1e-6) * o.wielkosc - q) / o.wielkosc; }
+  // zero waste: symulacja lodówki z drugim zapisanym tygodniem i stanem lodówki. Kara za opakowania, których resztka zepsuje się, zanim plan ją zużyje, i za liczbę kupowanych opakowań.
+  if (_zwKontekst) {
+    const ev = zdarzeniaTygodnia({ start: _zwKontekst.start, dni: pl.dni, zuz: {} }, w, []).concat(_zwKontekst.inne), sm = symulujZapasy(ev, _zwKontekst.stan, _zwKontekst.T);
+    kara += ZW_WAGA.straty * sm.koszt + ZW_WAGA.paczki * sm.paczki;
+  }
   return kara;
 }
 const paczka = () => ({ start: plan.start, dni: plan.dni, odhaczone, zuzyte });
@@ -667,10 +671,43 @@ function przelaczTydzien() {
   return true;
 }
 // start = poniedziałek układanego tygodnia; bez niego: zostaje data obecnego planu (jeśli to bieżący lub przyszły tydzień), inaczej bieżący poniedziałek
+// Poprawia gotowy układ tygodnia: dla każdego posiłku próbuje innych dań tego samego typu i zostawia zmianę, jeśli obniża całą ocenę (straty, liczba opakowań, białko, smak, wykluczenia).
+function poprawUklad(k, c, blok, limitMs) {
+  const t0 = performance.now(), P = DB.pula;
+  const pola = [];
+  k.dni.forEach((day, d) => {
+    const dod = (slot, id, pula, ustaw) => { if (id && !(blok && blok[d] && blok[d][slot])) pola.push({ d, slot, id, pula, ustaw }); };
+    dod('sn', day.sn, P.sn, v => { day.sn = v; });
+    if (day.m13.wsp) dod('m13', day.m13.wsp, P.m13, v => { day.m13.wsp = v; }); else { dod('m13ona', day.m13.ona, P.m13ona, v => { day.m13.ona = v; }); dod('m13on', day.m13.on, P.m13on, v => { day.m13.on = v; }); }
+    dod('ob', day.ob, day.ob2 ? P.ob2 : P.ob1, v => { day.ob = v; });
+    dod('k18', day.k18, P.k18, v => { day.k18 = v; });
+  });
+  // powtórzenia tego samego dania w tygodniu to zła cena za mniej opakowań: każde powtórzenie ponad pierwsze kosztuje
+  const powt = () => { const grupy = { sn: [], on: [], ona: [], ob: [], k18: [] }; k.dni.forEach(dd => { grupy.sn.push(dd.sn); grupy.on.push(dd.m13.wsp || dd.m13.on); if (dd.m13.ona) grupy.ona.push(dd.m13.ona); if (dd.ob) grupy.ob.push(dd.ob); grupy.k18.push(dd.k18); }); return Object.values(grupy).reduce((n, l) => n + l.filter(Boolean).length - new Set(l.filter(Boolean)).size, 0); };
+  const cel = () => ocena(k, c) + 60 * powt();
+  let najO = cel();
+  for (let przebieg = 0; przebieg < 3; przebieg++) {
+    let zmiana = false;
+    for (const p of pola) {
+      const obecny = DB.dania.get(p.id); if (!obecny) continue;
+      for (const alt of p.pula) {
+        if (performance.now() - t0 > limitMs) return najO;
+        if (alt.id === p.id || ukryte(alt.id) || !(p.slot === 'ob' && !k.dni[p.d].ob2 ? (alt.typ === 'obiad' || alt.typ === ({ 2: 'obiad_sroda', 5: 'obiad_sobota', 6: 'obiad_niedziela' })[p.d]) : alt.typ === obecny.typ)) continue;
+        const stary = p.id; p.ustaw(alt.id);
+        const o = cel();
+        if (o < najO - 0.5) { najO = o; p.id = alt.id; zmiana = true; } else p.ustaw(stary);
+      }
+    }
+    if (!zmiana) break;
+  }
+  return najO;
+}
 function ulozTydzien(start, zachowaj) {
   const c = cele();
   let naj = null, najK = Infinity;
-  for (let i = 0; i < 300; i++) { const k = kandydat(), o = ocena(k, c); if (o < najK) { naj = k; najK = o; } }
+  { const st0 = start || (plan && plan.start && plan.start >= poniedzialek() ? plan.start : poniedzialek()), inneT = tygodnieZapisane().filter(t => t.start !== st0), T = Math.max(dzienIdx(dodajDni(st0, 7)), ...inneT.map(t => dzienIdx(dodajDni(t.start, 7))));
+    _bezAuto++; try { _zwKontekst = { start: st0, T, stan: stanLodowki(), inne: inneT.flatMap(t => zdarzeniaTygodnia(t, oblicz({ start: t.start, dni: t.dni }, c), [])) }; } finally { _bezAuto--; } }
+  try { for (let i = 0; i < 300; i++) { const k = kandydat(), o = ocena(k, c); if (o < najK) { naj = k; najK = o; } } } finally { _zwKontekst = null; }
   // zachowaj zaznaczone treningi z poprzedniego planu
   if (plan) naj.dni.forEach((d, i) => { d.tr = Object.assign({ ona: false, on: false }, plan.dni[i] && plan.dni[i].tr); });
   naj.start = start || (plan && plan.start && plan.start >= poniedzialek() ? plan.start : poniedzialek());
@@ -682,6 +719,12 @@ function ulozTydzien(start, zachowaj) {
     }
   });
   if (plan && plan.start === naj.start) naj.dni.forEach((d, i) => { if (plan.dni[i] && plan.dni[i].nb) d.nb = plan.dni[i].nb; if (plan.dni[i] && plan.dni[i].pom) d.pom = plan.dni[i].pom; });   // przy losowaniu tego samego tygodnia zostają dni „bez niego/niej”
+  { // poprawiam układ (zero waste), nie ruszając zablokowanych dań
+    const st1 = naj.start, blok = naj.dni.map(dd => dd.blok || {});
+    const inneT = tygodnieZapisane().filter(t => t.start !== st1), T = Math.max(dzienIdx(dodajDni(st1, 7)), ...inneT.map(t => dzienIdx(dodajDni(t.start, 7))));
+    _bezAuto++; try { _zwKontekst = { start: st1, T, stan: stanLodowki(), inne: inneT.flatMap(t => zdarzeniaTygodnia(t, oblicz({ start: t.start, dni: t.dni }, c), [])) }; } finally { _bezAuto--; }
+    try { poprawUklad(naj, c, blok, 2500); } finally { _zwKontekst = null; }
+  }
   // układam drugi tydzień obok: obecny (bieżący lub przyszły) zostaje zapisany i da się do niego wrócić
   if (zachowaj && plan && plan.dni && plan.start >= poniedzialek() && plan.start !== naj.start) inny = paczka();
   plan = naj; odhaczone = {}; zuzyte = {};
@@ -772,7 +815,8 @@ function kupnoIlosc(prod, u, q) {
   return Math.ceil(q / krok - 1e-6) * krok;
 }
 // Wszystkie zapisane tygodnie razem (bieżący + następny), od najwcześniejszego.
-const tygodnieZapisane = () => [plan && { start: plan.start, dni: plan.dni, zuz: zuzyte }, inny && { start: inny.start, dni: inny.dni, zuz: inny.zuzyte || {} }].filter(Boolean).sort((a, b) => a.start.localeCompare(b.start));
+let _zam0 = null;   // oryginalny plan i „zjedzone” podczas zTygodniem (żeby lista zapisanych tygodni nie zmieniała się w środku rysowania)
+const tygodnieZapisane = () => [(_zam0 ? _zam0.plan : plan) && { start: (_zam0 ? _zam0.plan : plan).start, dni: (_zam0 ? _zam0.plan : plan).dni, zuz: _zam0 ? _zam0.zuz : zuzyte }, inny && { start: inny.start, dni: inny.dni, zuz: inny.zuzyte || {} }].filter(Boolean).sort((a, b) => a.start.localeCompare(b.start));
 function dniDostepne() {
   const out = [];
   tygodnieZapisane().forEach(t => t.dni.forEach((day, d) => out.push({ iso: dodajDni(t.start, d), start: t.start, d, day })));
@@ -793,30 +837,10 @@ function wybraneDni() {
   if (z && (!z.length || z.some(x => x >= dzis))) return new Set(z);       // własny wybór (też pusty); stary, już miniony wybór zastępuję propozycją
   return new Set(domyslneDni(dost));
 }
-// Co jeszcze zrobić z resztą opakowania: dania z planu poza tymi zakupami i pomysły z bazy.
-function pomyslyResztki(prod, zost, wyb) {
-  const wPlanie = new Set(), c = cele();
-  for (const t of tygodnieZapisane()) {
-    const wk = oblicz({ start: t.start, dni: t.dni }, c);
-    for (const g of wk.garnki) {
-      if (!g.dish.skladniki.some(i => i.produkt === prod)) continue;
-      const dni = dniGarnka(g).filter(d => !t.zuz[kluczZ(d, g.slot, t.start)]);
-      if (!dni.length || dni.some(d => wyb.has(dodajDni(t.start, d)))) continue;
-      const dt = dodajDni(t.start, dni[0]);
-      wPlanie.add(`${g.dish.nazwa} (${DNI_KR[(new Date(dt + 'T12:00:00').getDay() + 6) % 7]} ${krotkaData(dt)})`);
-    }
-  }
-  const pomysly = [...DB.dania.values()].filter(d => !ukryte(d.id) && ['sniadanie', 'drugie_on', 'koktajl_maly', 'koktajl'].includes(d.typ)).map(d => {
-    const i = d.skladniki.find(x => x.produkt === prod && x.jednostka === zost.u);
-    return i && i.ilosc <= zost.q * 1.15 ? { d, q: i.ilosc } : null;
-  }).filter(Boolean).sort((a, b) => (oceny[b.d.id] === 1) - (oceny[a.d.id] === 1) || b.q - a.q).slice(0, 3).map(x => x.d.nazwa);
-  return { wPlanie: [...wPlanie].slice(0, 3), pomysly };
-}
 // Lista zakupów na wybrane dni (z obu tygodni). Jeśli danie jest na kilka dni (zupa na 2 dni), kupujesz je w całości — nie trzeba dzielić ani zaglądać w przepisy.
 // Od potrzeb odejmuję lodówkę i dania już zjedzone.
-const TRWALE = new Set(['mleko 2%', 'jaja', 'masło', 'parmezan', 'ser żółty', 'jogurt naturalny', 'śmietana 12%']);   // długo się trzymają — bez ostrzeżeń o resztkach
 function zakupyDni(wyb) {
-  const nz = new Map(), inne = new Set(), przyprawy = [], worki = {};
+  const nz = new Map(), inne = new Set(), przyprawy = [], worki = {}, autoUw = {};
   const dodaj = (produkt, kat, q, u) => {
     if (!nz.has(produkt)) nz.set(produkt, { produkt, kat: kat || 'zapas', il: {} });
     const p = nz.get(produkt); p.il[u] = (p.il[u] || 0) + q;
@@ -831,6 +855,7 @@ function zakupyDni(wyb) {
       const dt = dodajDni(t.start, dni[0]);
       for (const i of g.dish.skladniki) {
         if (i.ilosc && i.produkt) {
+          if (i.zam && i.zam.auto) (autoUw[i.produkt] = autoUw[i.produkt] || new Set()).add(`zamiast ${i.zam.z} w daniu ${g.dish.nazwa} (${i.zam.auto})`);
           dodaj(i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
           if (stala(i) && f > 0.999) { const nb = g.nF || 1; for (let n = 0; n < Math.ceil(nb); n++) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc * Math.min(1, nb - n)), dt, dish: g.dish.nazwa, slot: g.slot }); }
         } else inne.add(i.nazwa + ' — ' + g.dish.nazwa);
@@ -869,11 +894,10 @@ function zakupyDni(wyb) {
     }
     const kupno = {};
     for (const [u, q] of Object.entries(il)) kupno[u] = kupnoIlosc(prod, u, q);
-    const pomysly = reszta && a.kat === 'świeże' && !TRWALE.has(prod) && reszta.ulamek >= 0.4 ? pomyslyResztki(prod, reszta, wyb) : null;
-    (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[prod] || null, reszta, pomysly });
+    const strata = stratyDla(prod, wyb), pomysly = strata ? { strata } : null;      // ostrzeżenie tylko, gdy symulacja zużycia pokazuje realną stratę
+    (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[prod] || null, reszta, pomysly, uwagaAuto: autoUw[prod] ? [...autoUw[prod]].slice(0, 2).join('; ') : '' });
   }
-  // zero waste: przycisk „Zużyj resztkę” tylko przy 4 największych resztkach, żeby lista nie była usiana ostrzeżeniami
-  Object.values(wynik).flat().filter(x => x.pomysly).sort((x, y) => y.reszta.ulamek - x.reszta.ulamek).slice(4).forEach(x => { x.pomysly = null; });
+  Object.values(wynik).flat().filter(x => x.pomysly).sort((x, y) => y.pomysly.strata.kosztPaczek - x.pomysly.strata.kosztPaczek).slice(6).forEach(x => { x.pomysly = null; });      // ostrzeżenia tylko przy 6 największych stratach
   Object.values(wynik).forEach(arr => arr.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
   return { wynik, inne: [...inne], przyprawy: przyprawyZbiorczo(przyprawy), wyb };
 }
@@ -885,9 +909,10 @@ function stan(b, c) { return b < c.bMin ? ['za mało', 'zle'] : b > c.bMax ? ['z
 
 // Na czas rysowania „przestawiam” plan i zużyte na wskazany tydzień (potem przywracam), żeby narysować oba tygodnie jeden pod drugim.
 function zTygodniem(t, fn) {
-  const p0 = plan, z0 = zuzyte;
+  const p0 = plan, z0 = zuzyte, wlasny = !_zam0;
+  if (wlasny) _zam0 = { plan: p0, zuz: z0 };
   plan = { start: t.start, dni: t.dni }; zuzyte = t.zuz;
-  try { return fn(); } finally { plan = p0; zuzyte = z0; }
+  try { return fn(); } finally { plan = p0; zuzyte = z0; if (wlasny) _zam0 = null; }
 }
 const DNI_P = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 // Jeden wybrany dzień: nagłówek, liczby, ustawienia dnia i posiłki jako karty z obrazkami. Rysowane na „przestawionym” tygodniu (zTygodniem).
@@ -969,6 +994,7 @@ function zjedz(g, d, on) {
   const k = kluczZ(d, g.slot);
   if (on) {
     if (zuzyte[k]) return;
+    { const zmA = []; for (const i of g.dish.skladniki) if (i.zam && i.zam.auto && plan.dni[g.d]) { const dz = plan.dni[g.d]; dz.zam = dz.zam || {}; dz.zam[g.slot] = dz.zam[g.slot] || {}; if (dz.zam[g.slot][i.zam.z] === undefined) { dz.zam[g.slot][i.zam.z] = i.produkt; zmA.push([['dni', g.d, 'zam', g.slot, i.zam.z], i.produkt]); } } if (zmA.length) { LS.set('plan', plan); Z(zmA); } }
     const f = udzialDnia(g, d), odj = {};
     for (const [pp, , q, uu] of skladGarnka(g)) if (lodowka[pp] && lodowka[pp][uu] != null) {
       const x = ileZuzyto(q, uu, f);
@@ -1013,17 +1039,154 @@ function oknoPrzepis(gi) { pokazPrzepis(window._w.garnki[gi], false); }
 const POM_SOS = 'pomidory w sosie';   // passata i pomidory krojone z puszki: zamieniają się 1:1 w gramach (kalorie nie są tu miarą)
 const KLASY_ZAM = [[POM_SOS, /passata|pomidory krojone/], ['wędliny', /szynk|kielbas|parowk|salami/], ['mielone', /mielon/], ['drób', /kurczak|indyk/], ['wołowina i wieprzowina', /wolowin|wieprz|schab|karkowk|lopatk|prega|poledwic/], ['ryby', /dorsz|losos|tunczyk|ryb|mintaj|makrel|pstrag/], ['strączki i tofu', /ciecierzyc|soczewic|tofu|fasola czerw|fasola biala/], ['warzywa', /brokul|kalafior|cukini|papryk|marchew|szpinak|pieczark|^por\b|seler|dynia|fasolk|groszek|pomidor|ogork|cebul|salat|rukol|burak|kapust/], ['dodatki skrobiowe', /makaron|^ryz|kasza|kuskus|bulgur|ziemniak|batat|tortill|chleb|bulk/], ['nabiał', /skyr|jogurt|twarog|serek/], ['sery', /^ser |^ser$|feta|mozzarell|parmezan|oscypek/], ['owoce', /banan|jablk|owoce mrozone|maliny|truskaw|mango|ananas|gruszk/]];
 const klasaZam = prod => { const n = znorm(prod || ''), k = KLASY_ZAM.find(([, re]) => re.test(n)); return k ? k[0] : null; };
-function zamienione(dish, day, slot) {
+// ---------- zero waste: zapasy, trwałość po otwarciu i równoważne produkty ----------
+let _bezAuto = 0, _autoTyg = null, _autoCache = { sig: '', mapa: {} }, _stratyCache = { sig: '', wynik: null };
+// Ile dni po otwarciu opakowania resztka nadaje się do jedzenia. Brak wpisu = produkt trwały (suche, tłuszcze, słoiki): jego resztka nie jest stratą.
+const OTWARTE_DNI = { 'passata': 5, 'pomidory krojone (puszka)': 4, 'kukurydza konserwowa': 4, 'ciecierzyca z puszki (odsączona)': 4, 'fasola czerwona z puszki (odsączona)': 4, 'ananas z puszki (mała 230 g)': 4,
+  'jogurt naturalny': 6, 'skyr naturalny': 6, 'śmietana 12%': 5, 'serek wiejski': 4, 'twaróg półtłusty': 5, 'feta': 7, 'ser topiony': 10, 'ser żółty': 14, 'szynka z indyka': 4, 'kiełbasa biała': 5, 'łosoś wędzony': 3, 'mleko 2%': 5,
+  'sałata': 3, 'szpinak świeży': 3, 'pieczarki': 4, 'brokuł': 4, 'kalafior': 5, 'cukinia': 6, 'dynia piżmowa': 7, 'papryka': 7, 'pomidorki koktajlowe': 5, 'ogórek świeży': 5, 'awokado': 3, 'gnocchi': 5, 'rzodkiewka (pęczek)': 5, 'bułka pełnoziarnista': 3, 'bagietka': 2 };
+// Produkty, które w przepisie można podmienić na prawie to samo: produkt → [[zamiennik, tryb]]. „masa” = tyle samo gramów, „kcal” = tyle samo kalorii.
+const ROWNOW = new Map([
+  ['pomidory krojone (puszka)', [['passata', 'masa']]],
+  ['passata', [['pomidory krojone (puszka)', 'masa']]],
+  ['orzechy włoskie', [['orzeszki ziemne', 'kcal'], ['pestki dyni', 'kcal']]],
+  ['orzeszki ziemne', [['orzechy włoskie', 'kcal']]],
+  ['pestki dyni', [['orzechy włoskie', 'kcal']]]
+]);
+const GRUPY_ROWNOW = [new Set(['pomidory krojone (puszka)', 'passata']), new Set(['orzechy włoskie', 'orzeszki ziemne', 'pestki dyni'])];
+const dzienIdx = iso => Math.round((new Date(iso + 'T12:00:00') - new Date(isoDzis() + 'T12:00:00')) / 864e5);
+const kluczAuto = (start, d, slot) => start + '|' + d + '|' + slot;
+function rozmiarOpak(prod, u) { const o = DB.opak[prod]; if (o && o.jednostka === u && o.wielkosc > 0) return o.wielkosc; return u === 'szt.' ? 1 : 0; }
+function stanLodowki() { const s = {}; for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us || {})) if (q > 0) s[p + '|' + u] = q; return s; }
+const recznieUstawione = (dishId, day, slot, prod) => { const gl = zamiennik[dishId] || {}, ml = (day && day.zam && day.zam[slot]) || {}; return prod in gl || prod in ml; };
+function alternatywy(i) {   // zamienniki składnika z przepisu z przeliczoną ilością: [{ p, u, ratio, tryb }]
+  const wpis = ROWNOW.get(i.produkt); if (!wpis || i.jednostka !== 'g' || !(i.kcal > 0) || !(i.ilosc > 0)) return null;
+  const T = tabelaOdzywcza(), out = [];
+  for (const [p, tryb] of wpis) { const t = T[p + '|g']; if (!t || !t[0]) continue; const il = tryb === 'masa' ? i.ilosc : Math.max(5, Math.round(i.kcal / t[0] / 5) * 5); out.push({ p, u: 'g', ratio: il / i.ilosc, tryb }); }
+  return out.length ? out : null;
+}
+// Zdarzenia zużycia produktów w kolejnych dniach (od dziś do końca zapisanych tygodni). Składniki, które mają równoważniki, dostają listę „alt”.
+function zdarzeniaTygodnia(t, w, zd) {
+  const zuz = t.zuz || {};
+  for (const g of w.garnki) {
+    const f = pozostalo(g, t.start, zuz), dni = dniGarnka(g).filter(dd => !zuz[kluczZ(dd, g.slot, t.start)]);
+    if (f < 0.001 || !dni.length) continue;
+    const ti = dzienIdx(dodajDni(t.start, dni[0])); if (ti < 0) continue;
+    const day = t.dni[g.d], ref = { start: t.start, d: g.d, slot: g.slot };
+    for (const i of g.dish.skladniki) {
+      if (!(i.ilosc && i.produkt)) continue;
+      const q = i.ilosc * skala(g, i) * f, e = { t: ti, prod: i.produkt, u: i.jednostka, q, ref: Object.assign({ p0: i.produkt }, ref) };
+      const al = !i.zam && !recznieUstawione(g.dish.id, day, g.slot, i.produkt) ? alternatywy(i) : null;
+      if (al) e.alt = al.map(a => ({ prod: a.p, u: a.u, q: q * a.ratio, tryb: a.tryb }));
+      zd.push(e);
+    }
+    if (g.dosypka) { zd.push({ t: ti, prod: 'odżywka białkowa', u: 'g', q: DB.dosypka.odzywka * g.dosypka.skala * f }, { t: ti, prod: 'skyr naturalny', u: 'g', q: DB.dosypka.skyr * g.dosypka.skala * f }); }
+    if (g.dodatek) zd.push({ t: ti, prod: 'skyr naturalny', u: 'g', q: g.dodatek.g * f });
+  }
+  t.dni.forEach((day, d) => { const ti = dzienIdx(dodajDni(t.start, d)); if (ti >= 0) OS.forEach(p => { if (shakeAkt(day, p)) { zd.push({ t: ti, prod: 'odżywka białkowa', u: 'g', q: DB.shake[p].odzywka_g }, { t: ti, prod: 'mleko 2%', u: 'ml', q: DB.shake[p].mleko_ml }); } }); });
+  return zd;
+}
+function zdarzeniaZapasow(tyg, bezAuto) {
+  const c = cele(), zd = []; let T = 0;
+  if (bezAuto) _bezAuto++;
+  try { for (const t of tyg) { T = Math.max(T, dzienIdx(dodajDni(t.start, 7))); zdarzeniaTygodnia(t, oblicz({ start: t.start, dni: t.dni }, c), zd); } }
+  finally { if (bezAuto) _bezAuto--; }
+  return { zd, T };
+}
+// Symulacja lodówki: zdarzenia po kolei zużywają zapas (najpierw otwarte resztki), brak = kupno całych opakowań; resztka po otwarciu psuje się po OTWARTE_DNI dniach.
+// Koszt strat liczę w „opakowaniach” (wyrzucone 60 g z puszki 140 g = 0,43).
+function symulujZapasy(zd, stan0, T) {
+  const wg = new Map(); for (const e of zd) { const k = e.prod + '|' + e.u; if (!wg.has(k)) wg.set(k, []); wg.get(k).push(e); }
+  let koszt = 0, paczki = 0; const straty = [], kup = {};
+  for (const [k, ev] of wg) {
+    const [prod, u] = k.split('|'), P = rozmiarOpak(prod, u), tr = OTWARTE_DNI[prod] || 0, liczy = P > 0 && tr > 0;
+    ev.sort((a, b) => a.t - b.t);
+    const s0 = stan0[k] || 0; let pelne = P > 0 ? Math.floor(s0 / P + 1e-9) : 0, loty = [];
+    const zost0 = P > 0 ? s0 - pelne * P : s0; if (zost0 > 1e-9) loty.push({ q: zost0, t0: 0 });
+    const wyrzuc = l => { const kz = l.q / P; koszt += kz; straty.push({ prod, u, q: l.q, t0: l.t0, wygasa: l.t0 + tr, kosztPaczek: kz }); };
+    for (const e of ev) {
+      if (liczy) loty = loty.filter(l => { if (e.t - l.t0 > tr) { wyrzuc(l); return false; } return true; });
+      let need = e.q;
+      for (const l of loty) { const w = Math.min(l.q, need); l.q -= w; need -= w; if (need <= 1e-9) break; }
+      loty = loty.filter(l => l.q > 1e-9);
+      while (need > 1e-9) {
+        if (P <= 0) { kup[k] = (kup[k] || 0) + need; need = 0; break; }
+        if (pelne > 0) pelne--; else { paczki++; kup[k] = (kup[k] || 0) + 1; }
+        const w = Math.min(P, need); need -= w; if (P - w > 1e-9) loty.push({ q: P - w, t0: e.t });
+      }
+    }
+    if (liczy) for (const l of loty) if (T - l.t0 > tr) wyrzuc(l);   // resztka, która zepsuje się jeszcze w planie; po jego końcu nie wiem, czy się przyda, więc jej nie karzę
+  }
+  return { koszt, paczki, kup, straty };
+}
+// Automat: dla składników z równoważnikami wybiera produkt wg zapasów w lodówce, a gdy ich nie ma, wg najmniejszych strat po zakupie.
+function liczAuto(tyg) {
+  const { zd, T } = zdarzeniaZapasow(tyg, true), stan0 = stanLodowki(), mapa = {};
+  for (const gr of GRUPY_ROWNOW) {
+    const sta = zd.filter(e => !e.alt && gr.has(e.prod)), el = zd.filter(e => e.alt && gr.has(e.prod)).sort((a, b) => a.t - b.t);
+    if (!el.length) continue;
+    const op = el.map(e => [{ prod: e.prod, u: e.u, q: e.q }].concat(e.alt.map(a => ({ prod: a.prod, u: a.u, q: a.q }))));
+    let K = Math.min(el.length, 12);
+    while (K > 1 && op.slice(0, K).reduce((n, o) => n * o.length, 1) > 4096) K--;
+    const wyb = new Array(el.length).fill(0), best = { koszt: Infinity, wyb: null };
+    const ocen = () => { const ev = sta.slice(); let ns = 0; el.forEach((e, j) => { const o = op[j][wyb[j]]; if (wyb[j]) ns++; ev.push({ t: e.t, prod: o.prod, u: o.u, q: o.q }); }); const sm = symulujZapasy(ev, stan0, T); return sm.koszt + 0.25 * ns + 0.5 * sm.paczki; };
+    const rec = j => { if (j === K) { const k = ocen(); if (k < best.koszt - 1e-9) { best.koszt = k; best.wyb = wyb.slice(); } return; } for (let a = 0; a < op[j].length; a++) { wyb[j] = a; rec(j + 1); } wyb[j] = 0; };
+    rec(0);
+    el.forEach((e, j) => {
+      const a = best.wyb[j]; if (!a) return;
+      const o = op[j][a], k = kluczAuto(e.ref.start, e.ref.d, e.ref.slot);
+      (mapa[k] = mapa[k] || {})[e.ref.p0] = { p: o.prod, powod: (stan0[o.prod + '|' + o.u] || 0) > 0 ? 'masz w lodówce' : 'mniej resztek po zakupie' };
+    });
+  }
+  return mapa;
+}
+const podpisZapasow = tyg => JSON.stringify([isoDzis(), tyg.map(t => [t.start, t.dni, t.zuz]), lodowka, zamiennik]);
+function autoDla(pl) {
+  if (_bezAuto || !pl) return null;
+  const tyg = _autoTyg || tygodnieZapisane();
+  if (!tyg.some(t => t.dni === pl.dni)) return null;           // plan hipotetyczny (losowanie tygodnia): bez automatu
+  const sig = podpisZapasow(tyg);
+  if (_autoCache.sig !== sig) _autoCache = { sig, mapa: liczAuto(tyg) };
+  return _autoCache.mapa;
+}
+// Przewidywane straty w całym zapisanym planie (z wyborem automatu): { sim, T }
+function przewidzStraty() {
+  const tyg = _autoTyg || tygodnieZapisane(), sig = podpisZapasow(tyg);
+  if (_stratyCache.sig === sig && _stratyCache.wynik) return _stratyCache.wynik;
+  const { zd, T } = zdarzeniaZapasow(tyg, false), wynik = { sim: symulujZapasy(zd, stanLodowki(), T), T };
+  _stratyCache = { sig, wynik }; return wynik;
+}
+// Strata do pokazania przy produkcie na liście zakupów: resztka otwarta w wybranych dniach, która zepsuje się, zanim plan ją zużyje.
+function stratyDla(prod, wyb) {
+  const dzis = isoDzis(), l = przewidzStraty().sim.straty.filter(x => x.prod === prod && x.kosztPaczek >= 0.3 && (x.u === 'szt.' ? x.q >= 0.5 : x.q >= 40) && wyb.has(dodajDni(dzis, x.t0)));
+  return l.length ? l.sort((a, b) => b.kosztPaczek - a.kosztPaczek)[0] : null;
+}
+function kosztCalkowity(tyg) {
+  const sv = _autoTyg; _autoTyg = tyg;
+  try { const { zd, T } = zdarzeniaZapasow(tyg, false); return symulujZapasy(zd, stanLodowki(), T); } finally { _autoTyg = sv; }
+}
+const wynikZW = k => k.koszt + 0.5 * k.paczki;      // ocena planu: straty + liczba kupowanych opakowań (każde opakowanie to koszt i wizyta w sklepie)
+const klonTygodni = tyg => tyg.map(t => ({ start: t.start, dni: JSON.parse(JSON.stringify(t.dni)), zuz: t.zuz }));
+// Wstawia danie w posiłek na kopii tygodnia tak, jak robi to „Zmień danie” (białko na kcal jak poprzednie danie).
+function ustawNaKlonie(t, d, slot, id, c) {
+  const day = t.dni[d], stary = oblicz({ start: t.start, dni: t.dni }, c).garnki.find(g => g.d === d && g.slot === slot);
+  if (osobaSlotu(slot)) { day.dla = day.dla || {}; day.dla[osobaSlotu(slot)] = day.dla[osobaSlotu(slot)] || {}; day.dla[osobaSlotu(slot)][bazaSlotu(slot)] = id; }
+  else if (slot === 'm13') day.m13.wsp = id; else if (slot === 'm13ona') day.m13.ona = id; else if (slot === 'm13on') day.m13.on = id; else day[slot] = id;
+  if (stary && id !== stary.dish.id) { day.ratio = day.ratio || {}; day.ratio[slot] = stary.P / stary.K; }
+}
+function zamienione(dish, day, slot, auto) {
   if (!dish) return dish;
-  const gl = zamiennik[dish.id] || {}, ml = (day && day.zam && day.zam[slot]) || {}, m = {};
+  const gl = zamiennik[dish.id] || {}, ml = (day && day.zam && day.zam[slot]) || {}, m = {}, au = {};
   for (const k of new Set([...Object.keys(gl), ...Object.keys(ml)])) { const v = k in ml ? ml[k] : gl[k]; if (v) m[k] = v; }       // wartość '' w posiłku = wróć do oryginału
+  if (auto) for (const [p, a] of Object.entries(auto)) if (!(p in gl) && !(p in ml) && dish.skladniki.some(i => i.produkt === p)) { m[p] = a.p; au[p] = a; }    // automat tylko tam, gdzie nic nie wybrano ręcznie
   if (!Object.keys(m).length) return dish;
   const T = tabelaOdzywcza(), k = Object.assign({}, dish);
   k.skladniki = dish.skladniki.map(i => {
     const nowy = m[i.produkt]; if (!nowy || i.jednostka !== 'g' || !(i.kcal > 0)) return i;
     const t = T[nowy + '|g']; if (!t || !t[0]) return i;
-    const ilosc = klasaZam(i.produkt) === POM_SOS ? i.ilosc : Math.max(5, Math.round(i.kcal / t[0] / 5) * 5), info = DB.produkty.get(nowy);
-    return Object.assign({}, i, { produkt: nowy, nazwa: nowy, ilosc, kcal: ilosc * t[0], bialko: ilosc * t[1], kategoria: info ? info.kat : i.kategoria, zam: { z: i.produkt, ilosc: i.ilosc, bialko: i.bialko || 0 } });
+    const alt = au[i.produkt] ? (alternatywy(i) || []).find(x => x.p === nowy) : null;
+    const ilosc = alt ? Math.max(5, Math.round(i.ilosc * alt.ratio)) : (klasaZam(i.produkt) === POM_SOS ? i.ilosc : Math.max(5, Math.round(i.kcal / t[0] / 5) * 5)), info = DB.produkty.get(nowy);
+    return Object.assign({}, i, { produkt: nowy, nazwa: nowy, ilosc, kcal: ilosc * t[0], bialko: ilosc * t[1], kategoria: info ? info.kat : i.kategoria, zam: Object.assign({ z: i.produkt, ilosc: i.ilosc, bialko: i.bialko || 0 }, au[i.produkt] ? { auto: au[i.produkt].powod } : {}) });
   });
   k.razem = Object.assign({}, dish.razem, { kcal: dish.razem.kcal + sum(k.skladniki, i => i.kcal || 0) - sum(dish.skladniki, i => i.kcal || 0), bialko: dish.razem.bialko + sum(k.skladniki, i => i.bialko || 0) - sum(dish.skladniki, i => i.bialko || 0) });
   return k;
@@ -1095,7 +1258,7 @@ function pokazPrzepis(g, spont) {
     <h3 style="margin-top:6px">Jak smakuje?</h3><div class="smak-blok" data-dish="${esc(dish.id)}">${smakWiersze(dish.id, OS)}</div>
     <p class="mute">${dish.czas ? 'Czas: ' + esc(dish.czas) : ''}${dish.sprzet ? ' · Sprzęt: ' + esc(dish.sprzet) : ''}</p>
     ${dish.dodane ? '<p class="mute">Danie dodane do bazy — wartości liczone z tabel, nie z Twojego planu.</p>' : ''}
-    ${(() => { const zl = dish.skladniki.filter(i => i.zam); return zl.length ? `<div class="uwaga zam-uwaga"><b>Zamienione składniki</b><br>${zl.map(i => `${esc(i.zam.z)} → <b>${esc(i.produkt)}</b>`).join(', ')}. Gramatury w tabeli i w krokach są już przeliczone; w krokach czytaj nowy składnik.</div>` : ''; })()}<h3>Składniki — ${opisGarnka(g)}</h3>${(() => { const k = kosztDania(g); return k ? `<p class="mute" style="margin:-4px 0 8px">Szacowany koszt składników: <b>ok. ${zl(k.zl)}</b> (ceny z paragonów, ${k.zn} z ${k.raz} składników)</p>` : ''; })()}
+    ${(() => { const zl = dish.skladniki.filter(i => i.zam); return zl.length ? `<div class="uwaga zam-uwaga"><b>Zamienione składniki</b><br>${zl.map(i => `${esc(i.zam.z)} → <b>${esc(i.produkt)}</b>${i.zam.auto ? ` (${esc(i.zam.auto)})` : ''}`).join(', ')}. Gramatury w tabeli i w krokach są już przeliczone; w krokach czytaj nowy składnik.</div>` : ''; })()}<h3>Składniki — ${opisGarnka(g)}</h3>${(() => { const k = kosztDania(g); return k ? `<p class="mute" style="margin:-4px 0 8px">Szacowany koszt składników: <b>ok. ${zl(k.zl)}</b> (ceny z paragonów, ${k.zn} z ${k.raz} składników)</p>` : ''; })()}
     <table class="skl">${wiersze}</table>
     ${(dish.warianty || []).length ? `<h3>Glazura — wybierz jedną</h3>${dish.warianty.map(v => `<p><b>${esc(v.nazwa)}</b>: ${esc(v.sklad)}</p>`).join('')}` : ''}
     ${spont || bazaSlotu(g.slot) === 'ob' ? '' : `<div class="rzad" style="margin-top:12px"><button class="btn maly" data-nudge="${g.d}:${g.slot}:-1">− białka w daniu</button><button class="btn maly" data-nudge="${g.d}:${g.slot}:1">+ białka w daniu</button></div><p class="mute">Zmienia proporcje składników przy tych samych kcal. Przeliczy się makro, lista zakupów i lodówka.</p>`}
@@ -2877,37 +3040,35 @@ function oknoSugestie(p, ile) {
   $('#modal').hidden = false;
 }
 
-// Opcje „zużyj resztkę”: dania, które używają produktu, i miejsca w planie (od dziś, niezjedzone), gdzie mogą zastąpić inne danie.
-function opcjeZuzycia(prod, reszta) {
-  const dzis = isoDzis(), out = new Map();
+// Opcje „zużyj resztkę”: dla każdej możliwej zamiany dania w planie liczę całą symulację zapasów od nowa i pokazuję tylko te, które naprawdę zmniejszają straty.
+async function opcjeZuzycia(st, tyg0 = tygodnieZapisane()) {
+  const c = cele(), baza = kosztCalkowity(tyg0), grupa = GRUPY_ROWNOW.find(g => g.has(st.prod)) || new Set([st.prod]), kand = [];
   const pulaSlotu = (day, slot) => bazaSlotu(slot) === 'sn' ? DB.pula.sn : slot === 'm13ona' ? DB.pula.m13ona : slot === 'm13on' ? DB.pula.m13on : bazaSlotu(slot) === 'm13' ? DB.pula.m13kokt.concat(DB.pula.m13dania) : bazaSlotu(slot) === 'k18' ? DB.pula.k18 : (day.ob2 ? DB.pula.ob2 : DB.pula.ob1);
-  for (const t of tygodnieZapisane()) t.dni.forEach((day, d) => {
-    const iso = dodajDni(t.start, d); if (iso < dzis) return;
-    const sloty = slotyDania(day);
-    for (const [slot, teraz] of sloty) {
-      if (t.zuz[kluczZ(d, slot, t.start)] || osobySlotu(slot).every(pp => nieob(day, pp))) continue;
-      for (const dish of pulaSlotu(day, slot)) {
-        if (dish.id === teraz || ukryte(dish.id) || !dopuszcza(dish, osobySlotu(slot))) continue;
-        const i = dish.skladniki.find(x => x.produkt === prod && x.jednostka === reszta.u && x.ilosc > 0);
-        if (!i || i.ilosc > reszta.q * 1.15) continue;
-        const uzycie = Math.min(i.ilosc, reszta.q) / reszta.q;
-        if (uzycie < 0.25) continue;
-        const wynik = uzycie * 10 + (oceny[dish.id] === 1 ? 1 : 0) - (new Date(iso) - new Date(dzis)) / 864e5 * 0.15;
-        const ex = out.get(dish.id);
-        if (!ex || wynik > ex.wynik) out.set(dish.id, { dish, start: t.start, d, slot, iso, ilosc: i.ilosc, u: i.jednostka, wynik, stare: (DB.dania.get(teraz) || {}).nazwa || '' });
-      }
+  for (const t of tyg0) t.dni.forEach((day, d) => {
+    const ti = dzienIdx(dodajDni(t.start, d)); if (ti < 0 || ti < st.t0 || ti > st.wygasa) return;
+    for (const [slot, teraz] of slotyDania(day)) {
+      if ((t.zuz || {})[kluczZ(d, slot, t.start)] || osobaSlotu(slot) || osobySlotu(slot).every(pp => nieob(day, pp))) continue;
+      for (const dish of pulaSlotu(day, slot)) { if (dish.id === teraz || ukryte(dish.id) || !dopuszcza(dish, osobySlotu(slot)) || !dish.skladniki.some(i => grupa.has(i.produkt) && i.ilosc)) continue; kand.push({ start: t.start, d, slot, dish, iso: dodajDni(t.start, d), stare: (DB.dania.get(teraz) || {}).nazwa || '' }); }
     }
   });
-  return [...out.values()].sort((a, b) => b.wynik - a.wynik).slice(0, 6);
+  const stratyProd = k => sum(k.straty.filter(x => x.prod === st.prod), x => x.q), out = [], przed = stratyProd(baza);
+  let n = 0;
+  for (const k of kand) {
+    const tyg1 = klonTygodni(tyg0); ustawNaKlonie(tyg1.find(x => x.start === k.start), k.d, k.slot, k.dish.id, c);
+    const po = kosztCalkowity(tyg1), dk = wynikZW(po) - wynikZW(baza);
+    if (dk <= -0.25) out.push(Object.assign({}, k, { dk, zostaje: stratyProd(po), przed }));
+    if (++n % 4 === 0) await new Promise(r => setTimeout(r));
+  }
+  const uniq = new Map(); out.sort((a, b) => a.dk - b.dk).forEach(x => { if (!uniq.has(x.dish.id)) uniq.set(x.dish.id, x); });
+  return [...uniq.values()].slice(0, 5);
 }
-function oknoZuzyj(prod) {
-  const poz = Object.values(window._z.wynik).flat().find(x => x.produkt === prod && x.reszta);
-  if (!poz) return;
-  const op = opcjeZuzycia(prod, poz.reszta);
-  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zużyj: ${esc(prod)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
-    <p class="mute">Po zakupie zostanie ok. <b>${poz.reszta.q} ${poz.reszta.u}</b>. Wybierz danie — wstawię je w planie w miejsce innego, a gramatury dopasują się do tych samych kalorii.</p>
-    ${op.length ? op.map(x => `<div class="wiersz"><button class="wybor" data-zuz-wstaw="${x.start}|${x.d}|${x.slot}|${esc(x.dish.id)}">${Obr.html(x.dish)}<span class="tx"><b>${esc(x.dish.nazwa)}</b><span class="mute">zużyje ok. ${fmtStan(Math.min(x.ilosc, poz.reszta.q), x.u)} · ${dzienTxt(x.iso)} · ${esc(PORA[x.slot].split(' · ')[1])}</span><span class="mute">zastąpi: ${esc(x.stare)}</span></span></button></div>`).join('') : '<p class="pusty" style="padding:24px 0">Nie znalazłem pasującego dania w planie. Zajrzyj do „Lodówki” → „Co ugotować z tego, co mamy?” po zakupach.</p>'}`;
-  $('#modal').hidden = false;
+async function oknoZuzyj(prod) {
+  const poz = Object.values(window._z.wynik).flat().find(x => x.produkt === prod && x.pomysly); if (!poz) return;
+  const st = poz.pomysly.strata, naglowek = `<div class="okno-gora"><h2>Zużyj: ${esc(prod)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div><p class="mute">Po zakupie zostanie ok. <b>${esc(fmtStan(Math.round(st.q * 10) / 10, st.u))}</b>, a produkt psuje się po ${OTWARTE_DNI[prod] || '?'} dniach od otwarcia. Sprawdzam, które zamiany dań w planie zmniejszą straty (każdą liczę od nowa, razem z resztą zakupów).</p>`;
+  $('#modal-box').innerHTML = naglowek + '<p class="pusty" style="padding:24px 0">Szukam…</p>'; $('#modal').hidden = false;
+  const op = await opcjeZuzycia(st);
+  if ($('#modal').hidden) return;
+  $('#modal-box').innerHTML = naglowek + (op.length ? op.map(x => `<div class="wiersz"><button class="wybor" data-zuz-wstaw="${x.start}|${x.d}|${x.slot}|${esc(x.dish.id)}">${Obr.html(x.dish)}<span class="tx"><b>${esc(x.dish.nazwa)}</b><span class="mute">${dzienTxt(x.iso)} · ${esc(PORA[x.slot].split(' · ')[1])} · zastąpi: ${esc(x.stare)}</span><span class="mute">${x.zostaje < 1 ? 'po zmianie nie zostanie nic, co się zepsuje' : 'po zmianie zepsuje się tylko ok. ' + esc(fmtStan(Math.round(x.zostaje), st.u))}</span></span></button></div>`).join('') : '<p class="pusty" style="padding:24px 0">Żadna zamiana dania nie zmniejsza strat. Możesz zamrozić resztkę albo dodać ją do posiłku poza planem („Lodówka” → „Co ugotować z tego, co mamy?”).</p>');
 }
 const dzienTxt = iso => `${DNI_KR[(new Date(iso + 'T12:00:00').getDay() + 6) % 7]} ${krotkaData(iso)}`;
 // Podział mięsa i ryb do lodówki / zamrażarki: zawsze liczony od DZIŚ na kolejne dni planu (niezależnie od zaznaczonych dni zakupów),
@@ -3032,8 +3193,8 @@ function widokZakupy() {
       + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || (uk ? (uk.tr[a.produkt] != null ? uk.tr[a.produkt] : uk.sr[kod]) - (uk.tr[b.produkt] != null ? uk.tr[b.produkt] : uk.sr[kod]) : 0) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
         const k = klucz(p.produkt), on = !!odhK(k);
         const ci = cmp.info[p.produkt], cenyTxt = ci && Object.keys(ci.c).length > 1 ? Object.entries(ceny[p.produkt] || {}).filter(([sk]) => ci.c[sk] != null).sort((a, b) => cenaX(a[1]) - cenaX(b[1])).map(([sk, v]) => `${sk} ${zl(cenaX(v))}/${jednCeny(v.u)}`).join(' · ') : '';
-        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', cenyTxt ? `taniej: ${cenyTxt}` : ''].filter(Boolean).join(' · ');
-        const zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zużyj resztkę (${p.reszta.q} ${p.reszta.u}) ›</button>` : '';
+        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', cenyTxt ? `taniej: ${cenyTxt}` : '', p.uwagaAuto].filter(Boolean).join(' · ');
+        const zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zostanie ok. ${esc(fmtStan(Math.round(p.pomysly.strata.q * 10) / 10, p.pomysly.strata.u))} i się zepsuje. Jak to zużyć? ›</button>` : '';
         return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}${SEZON[p.produkt] && SEZON[p.produkt].includes(miesiac()) ? ' <i class="sezon-lisc" title="w sezonie" aria-label="w sezonie">sezon</i>' : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
       }).join('') + `</div></section>`;
   }
@@ -3359,7 +3520,7 @@ function widokWiecej() {
     ${q('Kogoś nie ma w danym dniu', 'W „Planie” rozwiń dzień i wybierz „Bez niego” albo „Bez niej”. Posiłki tej osoby znikną, a obiad i zakupy policzą się na jedną osobę.')}
     ${q('Jak ułożyć następny tydzień?', 'W „Planie” na dole jest karta „Ułóż następny tydzień”. Oba tygodnie są potem w jednym widoku, jeden pod drugim.')}
     ${q('Jak podzielić mięso po zakupach?', 'W „Zakupach”, pod wyborem dni, jest karta „Podział mięsa i ryb”: wpisujesz, ile kupiliście (np. 2,5 kg), a apka dzieli to od dziś na kolejne dni: kolejność woreczków, co zostaje w lodówce, co do zamrażarki i co wpisać na etykiecie.')}
-    ${q('Co zrobić z resztkami po zakupach?', 'Przy produktach z resztą opakowania lista pisze, w których daniach w planie ich użyjesz, i podpowiada pomysły. W „Lodówce” działa też „Spontaniczne gotowanie”.')}
+    ${q('Jak działa zasada zero waste?', 'Apka sprawdza cały plan i lodówkę: ile opakowań kupisz, co zostanie po otwarciu i czy zdąży się zużyć, zanim się zepsuje (np. otwarta puszka kukurydzy ok. 4 dni). Jeśli resztka się zmarnuje, przy produktie na liście zakupów pojawia się ostrzeżenie i przycisk z zamianami dań, które naprawdę zmniejszają straty. Pomidory krojone i passatę (oraz orzechy) apka dobiera sama: najpierw to, co masz w lodówce, a gdy nic nie ma, to, po czym zostanie najmniej resztek. Wybór widać w przepisie przy „Zamienione składniki”. Przy układaniu tygodnia dania są dobierane tak, żeby resztek było jak najmniej.')}
     ${q('Telefon drugiej osoby', 'W „Ustawieniach” utwórz wspólny plan i wyślij zaproszenie. Plan, lodówka i zakupy synchronizują się między telefonami.')}
     <p class="mute wersja-stopka">Wersja aplikacji: ${esc((window._wersja || '').replace('plan-', '') || '—')}${window.Sync && window.Sync.kod && window.Sync.ostatni ? ` · synchronizacja ${new Date(window.Sync.ostatni).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>`;
 }

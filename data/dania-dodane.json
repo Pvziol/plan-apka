@@ -5376,11 +5376,11 @@
     "kategoria": "świeże"
    },
    {
-    "nazwa": "passata",
-    "produkt": "passata",
-    "ilosc": 150,
+    "nazwa": "pomidory krojone (puszka)",
+    "produkt": "pomidory krojone (puszka)",
+    "ilosc": 200,
     "jednostka": "g",
-    "kcal": 52,
+    "kcal": 44,
     "bialko": 2,
     "grupa": null,
     "uwaga": null,
@@ -5437,7 +5437,7 @@
   "kroki": [
    "Kurczaka (280 g) pokrój w cienkie paski, dopraw kminem, papryką wędzoną, czosnkiem, solą i pieprzem. Usmaż na suchej patelni 6–7 min (albo airfryer 190°C, 10 min). Odstaw.",
    "Paprykę pokrój w cienkie paski i podsmaż 3 min na tej samej patelni z ½ łyżki oliwy.",
-   "SALSA: passatę (150 g) wymieszaj z cebulą czerwoną (40 g) posiekaną drobno, sokiem z limonki i solą.",
+   "SALSA: pomidory krojone (200 g) wymieszaj z cebulą czerwoną (40 g) posiekaną drobno, sokiem z limonki i solą. Nadmiar soku z puszki odlej.",
    "Na połowie każdej tortilli ułóż kurczaka, paprykę i starty ser (90 g), złóż na pół.",
    "Smaż na suchej patelni po 2–3 min z każdej strony, aż ser się roztopi, a tortilla zrumieni. Dociskaj szpatułką.",
    "Pokrój na trójkąty. Podaj z salsą i jogurtem (100 g) wymieszanym z solą i czosnkiem."
@@ -5624,11 +5624,11 @@
     "kategoria": "świeże"
    },
    {
-    "nazwa": "passata",
-    "produkt": "passata",
-    "ilosc": 150,
+    "nazwa": "pomidory krojone (puszka)",
+    "produkt": "pomidory krojone (puszka)",
+    "ilosc": 200,
     "jednostka": "g",
-    "kcal": 52,
+    "kcal": 44,
     "bialko": 2,
     "grupa": null,
     "uwaga": null,
@@ -5697,7 +5697,7 @@
    "Na patelni rozgrzej oliwę (½ łyżki). Smaż cebulę (lub por) 3 min, dodaj czosnek na 30 s.",
    "Dodaj mięso (320 g) i smaż na mocnym ogniu 7 min, rozbijając łopatką. Dopraw kminem, papryką wędzoną, chili i solą.",
    "Dodaj odsączoną fasolę (100 g) i 50 ml wody, duś 5 min, lekko rozgniatając część fasoli.",
-   "SALSA: passatę (150 g) wymieszaj z sokiem z limonki i solą. SOS: jogurt (100 g) z solą i odrobiną czosnku.",
+   "SALSA: pomidory krojone (200 g) wymieszaj z sokiem z limonki i solą. Nadmiar soku z puszki odlej. SOS: jogurt (100 g) z solą i odrobiną czosnku.",
    "Tortille podgrzej 20 s na suchej patelni. Na każdą nałóż mięso z fasolą, sałatę (40 g), ser (30 g), salsę i sos. Zegnij boki do środka i zwiń burrito."
   ],
   "odgrzewanie": null,

@@ -91,10 +91,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "cebula opalona 1, liść laurowy 2, ziele 4, pieprz, natka"
+   "cebula opalona 1, liść laurowy 2, ziele 4, pieprz"
   ],
   "razem": {
    "kcal": 2550,
@@ -230,10 +241,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "liść laurowy, ziele, cukier szczypta, natka"
+   "liść laurowy, ziele, cukier szczypta"
   ],
   "razem": {
    "kcal": 2317,
@@ -366,10 +388,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "koperek, liść laurowy, ziele"
+   "liść laurowy, ziele"
   ],
   "razem": {
    "kcal": 2362,
@@ -635,10 +668,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "chrzan",
+    "produkt": "chrzan",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "2 łyżeczki",
+    "kategoria": "zapas"
    }
   ],
   "przyprawy": [
-   "czosnek 4 ząbki, majeranek, chrzan, liść laurowy"
+   "czosnek 4 ząbki, majeranek, liść laurowy"
   ],
   "razem": {
    "kcal": 2552,
@@ -834,15 +878,26 @@
     "kategoria": "świeże"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 1.0,
+    "ilosc": 0.5,
     "jednostka": "szt.",
-    "kcal": 40,
+    "kcal": 16,
     "bialko": 1,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "ziemniaki",
@@ -1184,10 +1239,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "imbir 1 łyżeczka, czosnek, bulion 1,2 l (1 kostka rosołowa lub warzywna na 1 l wody)"
+   "czosnek, bulion 1,2 l (1 kostka rosołowa lub warzywna na 1 l wody)"
   ],
   "razem": {
    "kcal": 2403,
@@ -1247,15 +1313,26 @@
     "kategoria": "zapas"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 1.0,
+    "ilosc": 0.5,
     "jednostka": "szt.",
-    "kcal": 40,
+    "kcal": 16,
     "bialko": 1,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "ziemniaki",
@@ -1457,10 +1534,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "natka, liść laurowy, ziele"
+   "liść laurowy, ziele"
   ],
   "razem": {
    "kcal": 2381,
@@ -1942,15 +2030,26 @@
     "kategoria": "zapas"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 1.0,
+    "ilosc": 0.5,
     "jednostka": "szt.",
-    "kcal": 40,
+    "kcal": 16,
     "bialko": 1,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "marchew",
@@ -2083,15 +2182,26 @@
     "kategoria": "świeże"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 2.0,
+    "ilosc": 1.0,
     "jednostka": "szt.",
-    "kcal": 80,
+    "kcal": 32,
     "bialko": 2,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 1.0,
+    "jednostka": "szt.",
+    "kcal": 48,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "oliwa / olej",
@@ -2147,10 +2257,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "papryka słodka 2 łyżeczki, natka, sól, pieprz"
+   "papryka słodka 2 łyżeczki, sól, pieprz"
   ],
   "razem": {
    "kcal": 2362,
@@ -2244,15 +2365,26 @@
     "kategoria": "zapas"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 2.0,
+    "ilosc": 1.0,
     "jednostka": "szt.",
-    "kcal": 80,
+    "kcal": 32,
     "bialko": 2,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 1.0,
+    "jednostka": "szt.",
+    "kcal": 48,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "oliwa / olej",
@@ -2382,15 +2514,26 @@
     "kategoria": "świeże"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 2.0,
+    "ilosc": 1.0,
     "jednostka": "szt.",
-    "kcal": 80,
+    "kcal": 32,
     "bialko": 2,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 1.0,
+    "jednostka": "szt.",
+    "kcal": 48,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "ser żółty starty",
@@ -3023,10 +3166,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 1102,
@@ -3522,10 +3676,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 1104,
@@ -3674,10 +3839,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, papryka słodka, sól, pieprz"
+   "papryka słodka, sól, pieprz"
   ],
   "razem": {
    "kcal": 454,
@@ -3784,15 +3960,26 @@
     "kategoria": "zapas"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 1.0,
+    "ilosc": 0.5,
     "jednostka": "szt.",
-    "kcal": 40,
+    "kcal": 16,
     "bialko": 1,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "ananas z puszki",
@@ -3850,14 +4037,14 @@
     "kategoria": "zapas"
    },
    {
-    "nazwa": "ocet 1 łyż. + syrop z ananasa 2 łyż. + woda 80 ml",
-    "produkt": null,
-    "ilosc": null,
-    "jednostka": null,
+    "nazwa": "ocet",
+    "produkt": "ocet",
+    "ilosc": 1,
+    "jednostka": "łyż.",
     "kcal": 15,
     "bialko": 0,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "plus 2 łyż. syropu z puszki ananasa i 80 ml wody",
     "kategoria": "zapas"
    }
   ],
@@ -3969,15 +4156,26 @@
     "kategoria": "świeże"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 1.0,
+    "ilosc": 0.5,
     "jednostka": "szt.",
-    "kcal": 40,
+    "kcal": 16,
     "bialko": 1,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "gochujang",
@@ -4044,10 +4242,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 3,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, imbir ½ łyżeczki, woda 60 ml"
+   "czosnek 2 ząbki, woda 60 ml"
   ],
   "razem": {
    "kcal": 1238,
@@ -4155,15 +4364,26 @@
     "kategoria": "zapas"
    },
    {
-    "nazwa": "cebula (on) / por (ona)",
+    "nazwa": "cebula (on)",
     "produkt": "cebula",
-    "ilosc": 1.0,
+    "ilosc": 0.5,
     "jednostka": "szt.",
-    "kcal": 40,
+    "kcal": 16,
     "bialko": 1,
     "grupa": null,
-    "uwaga": null,
+    "uwaga": "tylko dla niego",
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "por (ona)",
+    "produkt": "por",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 24,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "tylko dla niej",
+    "kategoria": "świeże"
    },
    {
     "nazwa": "GLAZURA (średnio, wg wybranego smaku — tabela niżej)",
@@ -4539,11 +4759,20 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
-  "przyprawy": [
-   "szczypiorek"
-  ],
+  "przyprawy": [],
   "razem": {
    "kcal": 484,
    "bialko": 40
@@ -5235,19 +5464,41 @@
    },
    {
     "nazwa": "cebula czerwona",
-    "produkt": "cebula czerwona",
-    "ilosc": null,
-    "jednostka": null,
+    "produkt": "cebula",
+    "ilosc": 0.25,
+    "jednostka": "szt.",
     "kcal": 10,
     "bialko": 0,
     "grupa": null,
     "uwaga": "TYLKO dla niego",
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
    "proszek do pieczenia ½ łyżeczki, sól",
-   "przyprawa kebab/gyros 2 łyżeczki, czosnek, koperek, cytryna"
+   "przyprawa kebab/gyros 2 łyżeczki, czosnek"
   ],
   "razem": {
    "kcal": 1172,
@@ -5580,18 +5831,29 @@
    },
    {
     "nazwa": "cebula czerwona",
-    "produkt": "cebula czerwona",
-    "ilosc": null,
-    "jednostka": null,
+    "produkt": "cebula",
+    "ilosc": 0.25,
+    "jednostka": "szt.",
     "kcal": 10,
     "bialko": 0,
     "grupa": null,
     "uwaga": "TYLKO dla niego",
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "przyprawa gyros 2 łyżeczki, czosnek, koperek"
+   "przyprawa gyros 2 łyżeczki, czosnek"
   ],
   "razem": {
    "kcal": 1177,
@@ -5987,8 +6249,8 @@
    {
     "nazwa": "cebula",
     "produkt": "cebula",
-    "ilosc": null,
-    "jednostka": null,
+    "ilosc": 0.25,
+    "jednostka": "szt.",
     "kcal": 10,
     "bialko": 0,
     "grupa": null,
@@ -6112,10 +6374,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "koperek, sok z cytryny, czosnek, sól"
+   "czosnek, sól"
   ],
   "razem": {
    "kcal": 1169,
@@ -6230,10 +6514,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "koperek, czosnek"
+   "czosnek"
   ],
   "razem": {
    "kcal": 1259,
@@ -6730,11 +7025,31 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
-  "przyprawy": [
-   "sok z cytryny, szczypiorek"
-  ],
+  "przyprawy": [],
   "razem": {
    "kcal": 1105,
    "bialko": 89
@@ -7007,10 +7322,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 1076,
@@ -7522,10 +7848,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 1 ząbek, papryka słodka, chili, koperek, ocet 1 łyżka do wody"
+   "czosnek 1 ząbek, papryka słodka, ocet 1 łyżka do wody"
   ],
   "razem": {
    "kcal": 1203,

@@ -3915,7 +3915,7 @@ function szybkieDodanie(tekst) {
 }
 
 // ---------- spontaniczne gotowanie ----------
-const ZAKLADANE = /oliw|olej|\bsol\b|pieprz|przypraw|cukier|ocet|woda|bulion|czosnek|curry|oregano|bazyli|kmin|cynamon|ziele|lisc|majeran|tymian|proszek|sos sojowy|musztard|keczup|koncentrat|papryka (slodka|wedzona|mielona)|miod|ekstrakt|wanili/;
+const ZAKLADANE = /oliw|olej|\bsol\b|pieprz|przypraw|cukier|ocet|woda|bulion|czosnek|curry|oregano|bazyli|kmin|cynamon|ziele|lisc|majeran|tymian|proszek|sos sojowy|musztard|keczup|koncentrat|papryka (slodka|wedzona|mielona)|miod|ekstrakt|wanili|koperek|natka|szczypiorek|cytryn|limonk|imbir|chili/;
 function mozliwosci() {
   const out = [];
   for (const d of DB.dania.values()) {

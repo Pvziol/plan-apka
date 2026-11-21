@@ -375,7 +375,7 @@
   // pomocnik: tydzień bez pomidorów w innych posiłkach, z wybranymi obiadami w kolejne dni od poniedziałku 23.11
   const tydzienTest = ob => {
     const poms = d => d.skladniki.some(i => /pomidor|passata|koncentrat/.test(i.produkt) && i.ilosc > 0), czysty = pool => pool.find(d => !poms(d)), k = JSON.parse(JSON.stringify(kandydat()));
-    k.start = '2026-11-23'; k.dni.forEach((day, i) => { day.sn = czysty(DB.pula.sn).id; day.ob = ob[i] || czysty(DB.pula.ob1).id; day.ob2 = false; day.zam = undefined; day.dla = {}; day.k18 = czysty(DB.pula.k18).id; if (day.m13.wsp) day.m13.wsp = czysty(DB.pula.m13).id; day.m13.ona = czysty(DB.pula.m13ona).id; day.m13.on = czysty(DB.pula.m13on).id; });
+    k.start = isoDzis(); k.dni.forEach((day, i) => { day.sn = czysty(DB.pula.sn).id; day.ob = ob[i] || czysty(DB.pula.ob1).id; day.ob2 = false; day.zam = undefined; day.dla = {}; day.k18 = czysty(DB.pula.k18).id; if (day.m13.wsp) day.m13.wsp = czysty(DB.pula.m13).id; day.m13.ona = czysty(DB.pula.m13ona).id; day.m13.on = czysty(DB.pula.m13on).id; });
     return [{ start: k.start, dni: k.dni, zuz: {} }];
   };
   const wTygodniu = async (tyg, lod, fn) => { const sl = lodowka, st = _autoTyg; try { lodowka = lod || {}; _autoTyg = tyg; _autoCache = { sig: '', mapa: {} }; _stratyCache = { sig: '', wynik: null }; return await fn(); } finally { lodowka = sl; _autoTyg = st; _autoCache = { sig: '', mapa: {} }; _stratyCache = { sig: '', wynik: null }; } };
@@ -386,8 +386,15 @@
     await wTygodniu(t, {}, () => { const l = pomLinie(t, 0); rowne(l.map(x => x.produkt), ['pomidory krojone (puszka)'], 'pusta lodówka i jedna salsa: krojone, jak w przepisie'); prawda(!l[0].auto, 'bez zmiany automatu'); });
     await wTygodniu(t, { passata: { g: 300 } }, () => { const l = pomLinie(t, 0); rowne(l.map(x => x.produkt), ['passata'], 'otwarta passata w lodówce, brak krojonych: passata'); rowne(l[0].auto, 'masz w lodówce', 'powód'); });
     await wTygodniu(t, { 'pomidory krojone (puszka)': { g: 400 } }, () => { rowne(pomLinie(t, 0).map(x => x.produkt), ['pomidory krojone (puszka)'], 'krojone w lodówce zostają'); });
-    t = tydzienTest([Q, null, Q]);
-    await wTygodniu(t, {}, () => { rowne([pomLinie(t, 0)[0].produkt, pomLinie(t, 2)[0].produkt], ['passata', 'passata'], 'dwie salsy w jednym tygodniu: jedna butelka passaty zamiast dwóch otwieranych puszek'); const s = przewidzStraty().sim; rowne(s.kup['passata|g'], 1, 'jedna butelka'); });
+    const g1 = await wTygodniu(tydzienTest([Q]), {}, () => pomLinie(tydzienTest([Q]), 0)[0].ilosc), n = [2, 3, 4, 5].find(m => m * g1 >= 520 && m * g1 <= 690) || 3;   // ilość salsy zależy od profilu, więc dobieram liczbę salsy tak, żeby razem wyszło 520–690 g (więcej niż puszka, mniej niż butelka)
+    t = tydzienTest(Array(n).fill(Q));
+    await wTygodniu(t, {}, () => {
+      const lin = Array.from({ length: n }, (_, d) => pomLinie(t, d)[0]), T = dzienIdx(dodajDni(isoDzis(), 7));
+      const koszt = prods => { const sm = symulujZapasy(lin.map((x, d) => ({ t: d, prod: prods[d], u: 'g', q: x.ilosc })), {}, T); return sm.koszt + 0.5 * sm.paczki + 0.25 * prods.filter(p => p !== 'pomidory krojone (puszka)').length; };
+      const wybor = koszt(lin.map(x => x.produkt)), krojone = koszt(lin.map(() => 'pomidory krojone (puszka)')), passata = koszt(lin.map(() => 'passata'));
+      prawda(wybor <= Math.min(krojone, passata) + 1e-6, `${n} salsy (${n * g1} g): wybór automatu kosztuje ${wybor.toFixed(2)}, a samo krojone ${krojone.toFixed(2)}, sama passata ${passata.toFixed(2)}`);
+      prawda(lin.some(x => x.produkt === 'passata') || krojone <= passata, 'gdy butelka passaty jest tańsza, automat jej używa');
+    });
     t = tydzienTest([Q, C]);
     await wTygodniu(t, {}, () => { rowne([pomLinie(t, 0)[0].produkt, pomLinie(t, 1)[0].produkt], ['passata', 'passata'], 'salsa + chili: 660 g mieści się w jednej butelce 690 g'); });
     t[0].dni[0].zam = { ob: { 'pomidory krojone (puszka)': '' } };
@@ -405,7 +412,7 @@
     });
   });
   await test('Zero waste: układanie tygodnia', 'poprawa układu obniża ocenę (straty, opakowania, białko), nie dubluje dań i nie rusza zablokowanych', async () => {
-    const c = cele(), st0 = '2026-11-23', sl = lodowka;
+    const c = cele(), st0 = isoDzis(), sl = lodowka;
     try {
       lodowka = {};
       const inneT = tygodnieZapisane().filter(t => t.start !== st0), T = Math.max(dzienIdx(dodajDni(st0, 7)), ...inneT.map(t => dzienIdx(dodajDni(t.start, 7))));
@@ -427,6 +434,19 @@
     prawda(!z.skladniki.some(x => x.produkt === 'pomidory krojone (puszka)'), 'stary składnik zniknął');
     const r = zamienione(dish, { zam: { ob: { 'pomidory krojone (puszka)': '' } } }, 'ob', auto); prawda(r.skladniki.some(x => x.produkt === 'pomidory krojone (puszka)') && !r.skladniki.some(x => x.zam), 'ręczny powrót do oryginału blokuje automat');
     const r2 = zamienione(dish, { zam: {} }, 'ob', null); prawda(r2 === dish, 'bez automatu przepis bez zmian');
+  });
+  await test('Lista zakupów: świeże dodatki', 'cytryna, limonka, zioła, imbir, chili i por trafiają na listę jako składniki z ilością, a nie tylko w przyprawach', async () => {
+    const swieze = /^(sok z cytryny|sok z limonki|cytryna|limonka|koperek|natka|szczypiorek|imbir|chili|chrzan)\b/i;
+    const wPrzyprawach = [...DB.dania.values()].filter(x => (x.przyprawy || []).some(t => t.split(/,\s+/).some(e => swieze.test(e.trim()) && !/opcjonalnie/i.test(e))));
+    prawda(!wPrzyprawach.length, `świeże dodatki zostały w przyprawach: ${wPrzyprawach.slice(0, 3).map(x => x.nazwa).join('; ')}`);
+    const bez = [...DB.dania.values()].filter(x => x.skladniki.some(i => (!i.produkt || !i.ilosc) && !/^glazura/i.test(i.nazwa)));   // glazura to wybór smaku z tabeli, bez stałych składników
+    prawda(!bez.length, `składniki bez ilości lub produktu w: ${bez.slice(0, 3).map(x => x.nazwa).join('; ')}`);
+    const lem = DB.dania.get('losos-pieczony-frytki-sos-koperkowy');
+    prawda(lem.skladniki.some(i => i.produkt === 'cytryna' && i.jednostka === 'szt.' && i.ilosc > 0) && lem.skladniki.some(i => i.produkt === 'koperek' && i.jednostka === 'g' && i.ilosc > 0), 'łosoś z sosem koperkowym ma cytrynę i koperek jako składniki');
+    const por = DB.dania.get('krem-z-papryki'); prawda(por.skladniki.some(i => i.produkt === 'por' && i.uwaga === 'tylko dla niej') && por.skladniki.some(i => i.produkt === 'cebula' && i.uwaga === 'tylko dla niego'), 'cebula dla niego i por dla niej jako osobne składniki');
+    const wg = (x, k) => x.skladniki.reduce((n, i) => n + (i[k] || 0), 0);
+    prawda(Math.abs(wg(lem, 'kcal') - lem.razem.kcal) < 400, 'kcal dania nie rozjechały się ze składnikami');
+    prawda(DB.opak.koperek && DB.opak.koperek.jednostka === 'g', 'koperek ma opakowanie (pęczek)');
   });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');

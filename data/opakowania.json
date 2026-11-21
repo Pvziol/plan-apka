@@ -334,5 +334,25 @@
   "rodzaj": "puszka",
   "wielkosc": 160,
   "jednostka": "g"
+ },
+ "koperek": {
+  "rodzaj": "pęczek",
+  "wielkosc": 40,
+  "jednostka": "g"
+ },
+ "natka pietruszki": {
+  "rodzaj": "pęczek",
+  "wielkosc": 40,
+  "jednostka": "g"
+ },
+ "szczypiorek": {
+  "rodzaj": "pęczek",
+  "wielkosc": 40,
+  "jednostka": "g"
+ },
+ "imbir": {
+  "rodzaj": "kawałek korzenia",
+  "wielkosc": 100,
+  "jednostka": "g"
  }
 }

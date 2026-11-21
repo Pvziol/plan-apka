@@ -543,10 +543,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 1093,
@@ -660,10 +671,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 1103,
@@ -779,10 +801,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "koperek, sok z cytryny, pieprz"
+   "pieprz"
   ],
   "razem": {
    "kcal": 1074,
@@ -1006,10 +1050,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, papryka słodka, sól, pieprz"
+   "papryka słodka, sól, pieprz"
   ],
   "razem": {
    "kcal": 480,
@@ -1326,10 +1381,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, natka, pieprz"
+   "pieprz"
   ],
   "razem": {
    "kcal": 469,
@@ -1643,10 +1720,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, oregano, papryka wędzona, sok z cytryny, sól, pieprz"
+   "czosnek 2 ząbki, oregano, papryka wędzona, sól, pieprz"
   ],
   "razem": {
    "kcal": 1197,
@@ -1761,10 +1849,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "koperek, sok z cytryny, czosnek, sól, pieprz"
+   "czosnek, sól, pieprz"
   ],
   "razem": {
    "kcal": 1144,
@@ -1878,10 +1988,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "majeranek, natka, sól, pieprz"
+   "majeranek, sól, pieprz"
   ],
   "razem": {
    "kcal": 1195,
@@ -2103,10 +2224,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "dla niej mniej",
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, kmin, papryka słodka i wędzona, chili (dla niej mniej), sól"
+   "czosnek 2 ząbki, kmin, papryka słodka i wędzona, sól"
   ],
   "razem": {
    "kcal": 1221,
@@ -2221,10 +2353,21 @@
     "grupa": "SOS",
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek, kmin, papryka wędzona, sok z limonki lub cytryny, sól"
+   "czosnek, kmin, papryka wędzona, sól"
   ],
   "razem": {
    "kcal": 1311,
@@ -2328,10 +2471,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, imbir, sól"
+   "sól"
   ],
   "razem": {
    "kcal": 1250,
@@ -2457,10 +2622,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek, majeranek, koperek, sól, pieprz"
+   "czosnek, majeranek, sól, pieprz"
   ],
   "razem": {
    "kcal": 1219,
@@ -2574,10 +2750,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 3 ząbki, imbir 1 łyżeczka, curry 2 łyżki, kurkuma, sól"
+   "czosnek 3 ząbki, curry 2 łyżki, kurkuma, sól"
   ],
   "razem": {
    "kcal": 2472,
@@ -2942,10 +3129,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 3 ząbki, kmin, kurkuma, papryka słodka, sok z cytryny, bulion 1,5 l (1 kostka na 1 l wody)"
+   "czosnek 3 ząbki, kmin, kurkuma, papryka słodka, bulion 1,5 l (1 kostka na 1 l wody)"
   ],
   "razem": {
    "kcal": 2074,
@@ -3071,10 +3269,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "dla niej mniej",
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 3 ząbki, kmin, papryka słodka i wędzona, chili (dla niej mniej), bulion 1 l (1 kostka na 1 l wody)"
+   "czosnek 3 ząbki, kmin, papryka słodka i wędzona, bulion 1 l (1 kostka na 1 l wody)"
   ],
   "razem": {
    "kcal": 2277,
@@ -4587,10 +4796,21 @@
     "grupa": "TZATZIKI",
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek, oregano, sok z cytryny, sól, pieprz"
+   "czosnek, oregano, sól, pieprz"
   ],
   "razem": {
    "kcal": 544,
@@ -4696,10 +4916,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, pieprz"
+   "pieprz"
   ],
   "razem": {
    "kcal": 452,
@@ -4812,10 +5043,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "natka, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 518,
@@ -4932,10 +5174,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z limonki lub cytryny, czosnek, chili (opcjonalnie)"
+   "czosnek"
   ],
   "razem": {
    "kcal": 547,
@@ -5169,10 +5433,43 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 1,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "dla niej mniej",
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, sok z 1 limonki, chili (dla niej mniej), szczypiorek, cukier szczypta"
+   "czosnek 2 ząbki, cukier szczypta"
   ],
   "razem": {
    "kcal": 1252,
@@ -5288,10 +5585,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 3 ząbki, imbir 1 łyżeczka, garam masala 2 łyżeczki, papryka słodka, kurkuma, sól, natka"
+   "czosnek 3 ząbki, garam masala 2 łyżeczki, papryka słodka, kurkuma, sól"
   ],
   "razem": {
    "kcal": 1143,
@@ -5418,10 +5737,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "kmin, papryka wędzona, czosnek, sok z limonki, sól, pieprz"
+   "kmin, papryka wędzona, czosnek, sól, pieprz"
   ],
   "razem": {
    "kcal": 1184,
@@ -5677,10 +6007,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "dla niej mniej",
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, kmin, papryka wędzona, chili (dla niej mniej), sok z limonki, sól"
+   "czosnek 2 ząbki, kmin, papryka wędzona, sól"
   ],
   "razem": {
    "kcal": 1219,
@@ -5795,10 +6147,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "imbir, czosnek, sok z limonki"
+   "czosnek"
   ],
   "razem": {
    "kcal": 1157,
@@ -5903,10 +6277,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, tymianek, natka, sól, pieprz, bulion 100 ml"
+   "czosnek 2 ząbki, tymianek, sól, pieprz, bulion 100 ml"
   ],
   "razem": {
    "kcal": 1073,
@@ -6010,10 +6395,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, papryka wędzona, sok z cytryny, natka, sól, pieprz"
+   "czosnek 2 ząbki, papryka wędzona, sól, pieprz"
   ],
   "razem": {
    "kcal": 1056,
@@ -6150,10 +6557,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "imbir świeży (starty)",
+    "produkt": "imbir",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "dla niej mniej",
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, imbir, chili (dla niej mniej)"
+   "czosnek 2 ząbki"
   ],
   "razem": {
    "kcal": 1120,
@@ -6257,10 +6686,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, oregano, sok z cytryny, natka, sól, pieprz"
+   "czosnek 2 ząbki, oregano, sól, pieprz"
   ],
   "razem": {
    "kcal": 920,
@@ -6504,10 +6955,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": "dla niej mniej",
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, kmin, papryka wędzona, chili (dla niej mniej), oregano, sól"
+   "czosnek 2 ząbki, kmin, papryka wędzona, oregano, sól"
   ],
   "razem": {
    "kcal": 1363,
@@ -6611,10 +7073,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 452,
@@ -6705,10 +7178,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "koperek, sok z cytryny, pieprz"
+   "pieprz"
   ],
   "razem": {
    "kcal": 447,
@@ -6821,10 +7316,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "papryczka chili",
+    "produkt": "papryczka chili",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek, kmin, papryka wędzona, chili, natka, sól"
+   "czosnek, kmin, papryka wędzona, sól"
   ],
   "razem": {
    "kcal": 680,
@@ -7474,10 +7991,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, chili płatki (opcjonalnie), sól, pieprz"
+   "chili płatki (opcjonalnie), sól, pieprz"
   ],
   "razem": {
    "kcal": 1076,
@@ -7933,10 +8461,21 @@
     "grupa": "SOS",
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "koperek",
+    "produkt": "koperek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek, koperek, sól, pieprz"
+   "czosnek, sól, pieprz"
   ],
   "razem": {
    "kcal": 1194,
@@ -8039,10 +8578,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek, sok z cytryny, papryka słodka, sól, pieprz"
+   "czosnek, papryka słodka, sól, pieprz"
   ],
   "razem": {
    "kcal": 438,
@@ -8157,10 +8707,32 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "cytryna (sok)",
+    "produkt": "cytryna",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "sok z cytryny, papryka słodka, natka, sól, pieprz"
+   "papryka słodka, sól, pieprz"
   ],
   "razem": {
    "kcal": 527,
@@ -8277,10 +8849,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, papryka słodka, sól, pieprz"
+   "papryka słodka, sól, pieprz"
   ],
   "razem": {
    "kcal": 512,
@@ -8516,10 +9099,21 @@
     "grupa": "SOS",
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "limonka (sok)",
+    "produkt": "limonka",
+    "ilosc": 0.5,
+    "jednostka": "szt.",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "kmin, papryka wędzona, sok z limonki, sól, pieprz"
+   "kmin, papryka wędzona, sól, pieprz"
   ],
   "razem": {
    "kcal": 501,
@@ -8625,10 +9219,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "świeże"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 5,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "szczypiorek, sól, pieprz"
+   "sól, pieprz"
   ],
   "razem": {
    "kcal": 486,
@@ -8730,10 +9335,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, tymianek, natka, sól, pieprz"
+   "czosnek 2 ząbki, tymianek, sól, pieprz"
   ],
   "razem": {
    "kcal": 1102,
@@ -9073,10 +9689,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "natka pietruszki",
+    "produkt": "natka pietruszki",
+    "ilosc": 15,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 3 ząbki, tymianek, natka, sól, pieprz"
+   "czosnek 3 ząbki, tymianek, sól, pieprz"
   ],
   "razem": {
    "kcal": 2462,
@@ -9830,10 +10457,21 @@
     "grupa": null,
     "uwaga": null,
     "kategoria": "zapas"
+   },
+   {
+    "nazwa": "szczypiorek",
+    "produkt": "szczypiorek",
+    "ilosc": 10,
+    "jednostka": "g",
+    "kcal": 0,
+    "bialko": 0,
+    "grupa": null,
+    "uwaga": null,
+    "kategoria": "świeże"
    }
   ],
   "przyprawy": [
-   "czosnek 2 ząbki, majeranek, papryka słodka, sól, pieprz, szczypiorek do posypania"
+   "czosnek 2 ząbki, majeranek, papryka słodka, sól, pieprz"
   ],
   "razem": {
    "kcal": 1340,

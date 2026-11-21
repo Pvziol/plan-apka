@@ -1277,3 +1277,7 @@ details.wyb-grp[open] > summary { border-bottom: 1px solid var(--line); backgrou
 details.wyb-grp .wiersz { padding: 0 8px; }
 .wyb-nazwa { min-width: 0; }
 @media (prefers-reduced-motion: reduce) { details.wyb-grp > summary::after { transition: none; } }
+/* v107: zmiana dania tylko dla jednej osoby */
+.dla-kogo { display: grid; gap: 8px; margin: 10px 0 6px; }
+.dla-kogo .seg button { min-height: 44px; }
+.dla-kogo > .btn { justify-self: start; }

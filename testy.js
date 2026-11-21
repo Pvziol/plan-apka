@@ -247,6 +247,30 @@
       listaWyboru('kurczak'); prawda([...box.querySelectorAll('details.wyb-grp')].every(g => g.open), 'przy szukaniu grupy powinny być rozsunięte'); }
     finally { box.remove(); zmienCtx = sv; }
   });
+  await test('Dla jednej osoby', 'śniadanie i obiad można zmienić tylko dla jednej osoby: kalorie dnia bez zmian, osobne sloty, listy i zakupy działają', async () => {
+    const c = cele(); let sprawdzone = 0;
+    for (let n = 0; n < 12; n++) {
+      const k = JSON.parse(JSON.stringify(kandydat())), w0 = oblicz(k, c);
+      k.dni.forEach((day, d) => {
+        for (const [b, pula] of [['sn', DB.pula.sn], ['ob', day.ob2 ? DB.pula.ob2 : DB.pula.ob1]]) {
+          if (!day[b] || (b === 'ob' && day.ob2)) continue;
+          const p = n % 2 ? 'ona' : 'on', alt = pula.find(x => x.id !== day[b] && dopuszcza(x, [p])); if (!alt) continue;
+          day.dla = { ona: {}, on: {} }; day.dla[p][b] = alt.id;
+          const w1 = oblicz(k, c), os = w1.garnki.filter(g => g.d === d && g.slot === b + p), wsp = w1.garnki.filter(g => g.d === d && g.slot === b);
+          prawda(os.length === 1 && os[0].porcje.length === 1 && os[0].porcje[0].p === p, `${b}${p} powinien mieć jedną porcję osoby ${p}`);
+          prawda(wsp.length === 1 && wsp[0].porcje.every(q => q.p !== p), `${b} powinien zostać tylko drugiej osobie`);
+          for (const pp of OS) prawda(Math.abs(w1.dni[d][pp].kcal - w0.dni[d][pp].kcal) < 0.05 * c[pp].kcal, `kcal dnia ${pp} zmieniły się po zmianie ${b} dla ${p}: ${Math.round(w0.dni[d][pp].kcal)} → ${Math.round(w1.dni[d][pp].kcal)}`);
+          const sl = slotyDania(day).map(x => x[0]); prawda(sl.includes(b + p) && sl.includes(b), 'slotyDania bez osobnego slotu');
+          prawda(w1.dni[d].sloty.every(x => isFinite(x.g.K) && x.g.K > 0), 'NaN w kcal'); naruszeniaPlanu(k);
+          day.dla = undefined; sprawdzone++;
+        }
+      });
+    }
+    prawda(sprawdzone >= 20, 'za mało sprawdzonych przypadków: ' + sprawdzone);
+    const k2 = JSON.parse(JSON.stringify(kandydat())), dd = k2.dni.findIndex(x => x.ob && x.ob2);
+    if (dd >= 0) { k2.dni[dd].dla = { ona: { ob: DB.pula.ob1[0].id }, on: {} }; prawda(!oblicz(k2, c).garnki.some(g => g.slot === 'obona'), 'obiad na 2 dni musi zostać wspólny'); }
+    prawda(osobySlotu('snona')[0] === 'ona' && bazaSlotu('obon') === 'ob' && osobaSlotu('k18') === null, 'pomocnicy slotów');
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

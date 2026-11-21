@@ -86,7 +86,7 @@ details.dzien > summary span { font-size: 12.5px; text-align: right; font-weight
 details.dzien > summary b span { font-weight: 500; font-size: 14px; }
 details.dzien[open] > summary { border-bottom: 1px solid var(--line); }
 details.dzien.dzis { box-shadow: 0 0 0 2px color-mix(in srgb, var(--zielony) 55%, transparent), var(--cien); }
-.dzis-znacz { display: inline-block; margin-left: 6px; padding: 1px 9px; border-radius: 999px; background: var(--zielony); color: #fff; font-size: 11px !important; font-weight: 800 !important; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+.dzis-znacz { display: inline-block; margin-left: 6px; padding: 1px 9px; border-radius: 999px; background: var(--zielony); color: #fff; font-size: 12px !important; font-weight: 800 !important; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
 @media (prefers-color-scheme: dark) { .dzis-znacz { color: #0b1510; } }
 .dzien-tresc { padding: 4px 16px 16px; }
 .posilek { padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -117,7 +117,7 @@ details.dzien.dzis { box-shadow: 0 0 0 2px color-mix(in srgb, var(--zielony) 55%
   box-shadow: 0 10px 32px rgba(0, 0, 0, .16);
 }
 #tabs[hidden] { display: none; }
-#tabs button { flex: 1; min-height: 54px; background: none; border: 0; border-radius: 20px; font-size: 11px; font-weight: 700; color: var(--mute); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0 2px; box-shadow: none; }
+#tabs button { flex: 1; min-height: 54px; background: none; border: 0; border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--mute); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0 2px; box-shadow: none; }
 #tabs button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #tabs button.akt { color: var(--zielony); background: var(--zielony-tlo); }
 
@@ -299,7 +299,7 @@ details.dzien.dzis { box-shadow: 0 0 0 2px var(--zielony2), var(--cien); }
 
 /* wskazówki */
 .wskazowka { background: linear-gradient(135deg, var(--zielony-tlo), color-mix(in srgb, var(--zielony-tlo) 40%, var(--card))); border-radius: 20px; padding: 14px 16px; margin: 12px 0; position: relative; }
-.wskazowka .wsk-et { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--zielony); margin-bottom: 4px; }
+.wskazowka .wsk-et { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--zielony); margin-bottom: 4px; }
 .wskazowka p { margin: 0 0 10px; font-size: 14.5px; line-height: 1.45; }
 
 /* ekran „Dziś” */
@@ -383,7 +383,7 @@ h2.krok span { display: grid; place-items: center; width: 28px; height: 28px; bo
 details.wybor-dni { padding: 0; overflow: hidden; }
 details.wybor-dni > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; }
 details.wybor-dni > summary::-webkit-details-marker { display: none; }
-details.wybor-dni .wd-tx small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--mute); }
+details.wybor-dni .wd-tx small { display: block; font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--mute); }
 details.wybor-dni .wd-tx b { font-size: 17px; letter-spacing: -.01em; }
 details.wybor-dni .wd-zmien { flex: none; font-size: 13px; font-weight: 700; color: var(--zielony); background: var(--zielony-tlo); padding: 7px 14px; border-radius: 999px; }
 details.wybor-dni > :not(summary) { margin-left: 16px; margin-right: 16px; }
@@ -396,7 +396,7 @@ details.wybor-dni > :last-child { margin-bottom: 16px; }
 .pasek-dni { display: flex; gap: 8px; overflow-x: auto; padding: 6px 16px 10px; margin: 6px -16px 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .pasek-dni::-webkit-scrollbar { display: none; }
 .pd { flex: none; width: 54px; padding: 8px 0 9px; border: 0; border-radius: 18px; background: var(--card); box-shadow: var(--cien-maly); display: flex; flex-direction: column; align-items: center; gap: 2px; scroll-snap-align: center; position: relative; color: var(--ink); }
-.pd small { font-size: 11px; font-weight: 750; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
+.pd small { font-size: 12px; font-weight: 750; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
 .pd b { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
 .pd.dzis::after { content: ''; position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--zielony); }
 .pd.akt { background: linear-gradient(145deg, var(--zielony), var(--zielony2)); color: #fff; box-shadow: 0 8px 18px color-mix(in srgb, var(--zielony) 35%, transparent); }
@@ -477,7 +477,7 @@ small.dobry, .hist-zm.dobry { color: var(--zielony); } small.zly, .hist-zm.zly {
 .wykres-pusty b { display: block; font-size: 22px; } .wykres-pusty small { color: var(--mute); }
 .wstat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
 .wstat > div { background: var(--bg); border-radius: 14px; padding: 10px 10px; min-width: 0; }
-.wstat small { display: block; font-size: 11px; color: var(--mute); font-weight: 700; }
+.wstat small { display: block; font-size: 12px; color: var(--mute); font-weight: 700; }
 .wstat b { font-size: 14.5px; overflow-wrap: anywhere; }
 .wpisz { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 4px 0 8px; }
 .wpisz-pole { display: flex; align-items: baseline; justify-content: center; gap: 6px; flex: 1; min-width: 0; }
@@ -754,7 +754,7 @@ details.sklepy-karta > summary .licznik { background: var(--zielony-tlo); color:
 .prep-dni { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 10px; margin: 0 -16px; scrollbar-width: none; }
 .prep-dni::-webkit-scrollbar { display: none; }
 .prep-dz { flex: none; position: relative; width: 58px; padding: 8px 0 10px; border: 0; border-radius: 18px; background: var(--card); box-shadow: var(--cien-maly); display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ink); }
-.prep-dz small { font-size: 11px; font-weight: 750; color: var(--mute); text-transform: uppercase; letter-spacing: .04em; }
+.prep-dz small { font-size: 12px; font-weight: 750; color: var(--mute); text-transform: uppercase; letter-spacing: .04em; }
 .prep-dz b { font-size: 19px; font-weight: 800; }
 .prep-dz em { font-style: normal; font-size: 11.5px; font-weight: 800; color: var(--zielony); min-height: 14px; }
 .prep-dz.akt { background: linear-gradient(145deg, var(--zielony), var(--zielony2)); color: #fff; box-shadow: 0 8px 18px color-mix(in srgb, var(--zielony) 35%, transparent); }
@@ -951,7 +951,7 @@ details.dzien[open] { box-shadow: 0 18px 40px -14px rgba(20, 70, 50, .28), var(-
 .kolo-tx > span { white-space: normal; overflow-wrap: anywhere; }
 @media (max-width: 360px) {
   .postep > div { gap: 8px; padding: 10px; } .kolo { width: 50px; height: 50px; } .kolo > span { font-size: 13px; }
-  .kolo-tx > span { font-size: 15px; } .kolo-tx em { display: block; font-size: 11px; }
+  .kolo-tx > span { font-size: 15px; } .kolo-tx em { display: block; font-size: 12px; }
 }
 
 /* ═════════ v55 · tryb gotowania ═════════ */
@@ -1022,7 +1022,7 @@ details.dzien[open] { box-shadow: 0 18px 40px -14px rgba(20, 70, 50, .28), var(-
 .hero.podwojny .hero-dan { margin: 8px 0 6px; gap: 12px; }
 .hero.podwojny .hero-dan b { font-size: 17.5px; }
 .hero.podwojny .obr { width: 54px; height: 54px; border-radius: 16px; flex: none; }
-.hero-kto { display: inline-block; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: .1em; padding: 2px 9px; border-radius: 999px; background: rgba(255, 255, 255, .26); margin-bottom: 3px; }
+.hero-kto { display: inline-block; font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: .1em; padding: 2px 9px; border-radius: 999px; background: rgba(255, 255, 255, .26); margin-bottom: 3px; }
 .hero.podwojny .hero-liczby { margin-bottom: 10px; }
 .hero.podwojny .rzad > .btn { min-height: 44px; }
 .kolo-tx small .bbk { color: var(--ink); font-weight: 750; }
@@ -1036,7 +1036,7 @@ select { -webkit-appearance: none; appearance: none; padding-right: 38px; backgr
 .ps-gl { display: flex; align-items: center; gap: 16px; margin: 12px 0 8px; }
 .ps-kolo { width: 84px; height: 84px; color: #fff; }
 .ps-kolo svg { stroke-width: 5; } .ps-kolo .t { stroke: rgba(255, 255, 255, .28); } .ps-kolo .w { stroke: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .6)); }
-.ps-kolo > span { color: #fff; font-size: 22px; } .ps-kolo > span small { color: rgba(255, 255, 255, .85); font-size: 11px; }
+.ps-kolo > span { color: #fff; font-size: 22px; } .ps-kolo > span small { color: rgba(255, 255, 255, .85); font-size: 12px; }
 .ps-duze { display: block; font-size: 30px; letter-spacing: -.03em; line-height: 1.1; }
 .ps-gl small { opacity: .9; font-size: 13.5px; }
 .ps-ocena { margin: 6px 0 0; font-size: 15px; font-weight: 600; line-height: 1.4; }
@@ -1055,7 +1055,7 @@ select { -webkit-appearance: none; appearance: none; padding-right: 38px; backgr
 .gosc-ster .stp { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--szklo); font-size: 20px; font-weight: 700; }
 .gosc-ster .stp:disabled { opacity: .4; }
 .dop-zm { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
-.dop-zm small { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.dop-zm small { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
 .dop-zm em { font-style: normal; color: var(--mute); font-size: 12.5px; } .dop-zm b { color: var(--zielony); }
 .dop-str { color: var(--mute); }
 .dop-uw { margin: 8px 0 0; }
@@ -1211,7 +1211,7 @@ button.link { min-height: 44px; padding: 12px 6px; margin: -12px -4px; }
 .ps-kr i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, currentColor 28%, transparent); box-sizing: border-box; }
 .ps-kr i.zj { background: linear-gradient(180deg, var(--zielony2), var(--zielony)); border-color: transparent; animation: psKropka .5s cubic-bezier(.2, .9, .3, 1.3) both; animation-delay: calc(var(--k) * 70ms); }
 @keyframes psKropka { from { transform: scale(0); } }
-.ps-dz-et { font-size: 11px; font-weight: 700; opacity: .75; }
+.ps-dz-et { font-size: 12px; font-weight: 700; opacity: .75; }
 .ps-dz small { font-size: 10.5px; color: var(--mute); }
 .ps-wyk { padding-bottom: 8px; }
 .ps-wyk-gora { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 4px; }
@@ -1285,3 +1285,24 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 .zam-link { background: none; border: 0; padding: 4px 0; min-height: 36px; font: inherit; font-size: 13px; font-weight: 700; color: var(--zielony); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 #zam-zakres { margin: 10px 0 8px; }
 #zam-zakres button { min-height: 44px; }
+
+/* v112: przegląd wyglądu i intuicyjności */
+/* nagłówek okna: półprzezroczysty z rozmyciem i łagodnym brzegiem (wcześniej pełne tło tworzyło jasny prostokąt na szklanym arkuszu) */
+.okno-gora { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; -webkit-mask-image: linear-gradient(#000 84%, transparent); mask-image: linear-gradient(#000 84%, transparent); padding-bottom: 18px; margin-bottom: -6px; }
+/* pola wyboru w jednym stylu z resztą aplikacji (wcześniej domyślne białe kwadraty 18-22 px) */
+.trening input, .zuzyj input, .poza-et input, .adapt-auto input, #par-lod { -webkit-appearance: none; appearance: none; flex: none; width: 24px; height: 24px; margin: 0; border-radius: 8px; border: 2px solid color-mix(in srgb, var(--mute) 50%, transparent); background: transparent; display: inline-grid; place-items: center; cursor: pointer; transition: background .15s, border-color .15s; }
+.trening input::after, .zuzyj input::after, .poza-et input::after, .adapt-auto input::after, #par-lod::after { content: '✓'; color: transparent; font-size: 15px; font-weight: 800; line-height: 1; }
+.trening input:checked, .zuzyj input:checked, .poza-et input:checked, .adapt-auto input:checked, #par-lod:checked { background: var(--zielony); border-color: var(--zielony); }
+.trening input:checked::after, .zuzyj input:checked::after, .poza-et input:checked::after, .adapt-auto input:checked::after, #par-lod:checked::after { color: #fff; }
+.trening input:focus-visible, .zuzyj input:focus-visible, .poza-et input:focus-visible, .adapt-auto input:focus-visible, #par-lod:focus-visible { outline: 3px solid color-mix(in srgb, var(--zielony) 45%, transparent); outline-offset: 2px; }
+.poza-et { min-height: 44px; }
+.poza-os > input[type=text] { min-height: 44px; }
+/* kod dania (K4, D32…) jako mała plakietka */
+.kod { display: inline-block; font-size: .68em; font-weight: 800; letter-spacing: .05em; padding: 1px 6px; margin-right: 4px; border-radius: 6px; background: color-mix(in srgb, currentColor 14%, transparent); opacity: .72; vertical-align: .16em; }
+.hero .kod { background: rgba(255, 255, 255, .2); opacity: .9; }
+.wor-g, .zk-hero b { white-space: normal; }
+
+#modal-box { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }   /* arkusz pełnokryjący: nagłówek ma dokładnie ten sam kolor, więc nie ma jasnego prostokąta */
+/* cele dotyku: małe przyciski w listach */
+.poza-wiersz .pos-pomin, .poza-wiersz button { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.zuzyj-btn { min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; }

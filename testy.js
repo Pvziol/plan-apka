@@ -301,6 +301,35 @@
       prawda(zamienDrobWKrokach('Kurczaka pokrój, usmaż kurczak z piersi z kurczaka.', { dish: { skladniki: [{ zam: { z: 'pierś z kurczaka' }, produkt: 'filet z indyka' }] } }) === 'Indyka pokrój, usmaż indyk z piersi z indyka.', 'podmiana kurczak → indyk');
     } finally { zamiennik = sz; }
   });
+  await test('Przegląd', 'skróty dni, prognoza bez ujemnych stanów, kolejność ONA/ON, kod dania, własny cel', async () => {
+    rowne(DNI_KR[6], 'ndz', 'skrót niedzieli'); rowne([DNI_OD.length, DNI_NA.length], [7, 7]); rowne([DNI_OD[5], DNI_NA[5], DNI_NA[6]], ['soboty', 'sobotę', 'niedzielę']);
+    rowne(zakresDni(new Set(['2026-11-21', '2026-11-22'])), 'sob 21.11 – ndz 22.11', 'data w zakresie nie łamie się');
+    const c = cele(), w = oblicz(plan, c), sl = lodowka;
+    try {
+      lodowka = { 'skyr naturalny': { g: 0 } }; const a = prognoza(w).map(x => x.produkt + x.brakuje);
+      lodowka = { 'skyr naturalny': { g: -800 } }; const b = prognoza(w).map(x => x.produkt + x.brakuje); rowne(b, a, 'ujemny stan nie powinien zwiększać braków');
+    } finally { lodowka = sl; }
+    const k = JSON.parse(JSON.stringify(kandydat())), d = k.dni.findIndex(x => x.sn); const alt1 = DB.pula.sn.find(x => x.id !== k.dni[d].sn), alt2 = DB.pula.sn.find(x => x.id !== k.dni[d].sn && x.id !== alt1.id);
+    k.dni[d].dla = { ona: { sn: alt1.id }, on: {} }; let wo = oblicz(k, c).dni[d].sloty.map(x => x.g.slot).filter(x => /^sn/.test(x));
+    prawda(wo.indexOf('sn') >= 0 && wo.indexOf('snona') >= 0, 'oba śniadania powinny być w dniu');
+    k.dni[d].dla = { ona: { sn: alt1.id }, on: { sn: alt2.id } }; wo = oblicz(k, c).dni[d].sloty.map(x => x.g.slot).filter(x => /^sn/.test(x)); rowne(wo, ['snona', 'snon'], 'ONA przed ON');
+    rowne(nazwaDania({ kod: 'K4', nazwa: 'A & B' }), '<span class="kod">K4</span> A &amp; B'); rowne(nazwaDania({ nazwa: 'Bez kodu' }), 'Bez kodu');
+    const kod = await tekst('app.js'); prawda(/data-wlasne-czysc/.test(kod) && /Własny cel zastępuje/.test(kod), 'brak informacji o własnym celu');
+  });
+  await test('Wstecz', 'przycisk „wstecz” zamyka warstwę zamiast wychodzić z aplikacji (liczba wpisów historii = liczba otwartych warstw)', async () => {
+    const m = document.getElementById('modal'), czekaj = ms => new Promise(r => setTimeout(r, ms));
+    rowne(warstwyOtwarte(), 0, 'na starcie brak warstw'); m.hidden = false; await czekaj(60); rowne([warstwyOtwarte(), histN], [1, 1], 'otwarte okno = jeden wpis');
+    m.hidden = true; await czekaj(150); rowne([warstwyOtwarte(), histN], [0, 0], 'zamknięte okno zdejmuje wpis');
+  });
+  await test('Opisz tydzień', 'dni bez planu nie wpadają na dziś, zakresy dni, „bez ryb”, „zimno”', async () => {
+    const i = dzienTyg(), dzis = rozumiemTekst('dziś bez ryb'); prawda(dzis.length === 1 && dzis[0].tryby.bezRyb, '„bez ryb” bez „bez mięsa”');
+    prawda(rozumiemTekst('dziś zimno')[0].tryby.zimno, '„zimno”');
+    const zak = rozumiemTekst('od ' + DNI_OD[i] + ' do ' + DNI_OD[i] + ' lekko'); prawda(zak.length === 1 && zak[0].d === i && zak[0].tryby.lekko, 'zakres „od X do X”');
+    if (i > 0 && tygodnieZapisane().length < 2) {          // dzień minionego poniedziałku nie ma planu, więc nie wolno zmienić dziś
+      const r = rozumiemTekst('poniedziałek bez mięsa'); rowne(r.length, 0, 'zmiana wylądowała na dziś'); rowne(r.brakDni, ['Poniedziałek'], 'brak informacji o dniu bez planu');
+      const r2 = rozumiemTekst('od poniedziałku do wtorku bez mięsa, dziś szybko'); rowne(r2.length, 1, 'tylko dziś ma plan'); prawda(r2.brakDni.includes('Poniedziałek'), 'dni bez planu w zakresie');
+    }
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

@@ -988,15 +988,14 @@ function przypomnieniaDzis(w) {
   if (pr.length) poz.push(`<b>W lodówce zaczyna brakować:</b> ${pr.slice(0, 4).map(x => `${esc(x.produkt)} (na ${DNI_NA[x.d]})`).join(', ')}${pr.length > 4 ? ' i inne' : ''} <button class="btn maly" data-tab="lodowka">Lodówka</button>`);
   return poz.length ? `<div class="przyp">${poz.map(x => `<div>${x}</div>`).join('')}</div>` : '';
 }
+const mrozDoWyjecia = g => g.dish.skladniki.filter(i => i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)).map(i => `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
 function wieczorem(w, d) {
   if (d >= 6) return [];
   const out = [];
   for (const { g, odgrzewane } of w.dni[d + 1].sloty) {
     if (odgrzewane) continue;
     if (g.dish.wieczorem && g.dish.wieczorem.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: g.dish.wieczorem.map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')) });
-    for (const i of g.dish.skladniki) {
-      if (i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)) { const tx = `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`; out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g }); }
-    }
+    for (const tx of mrozDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g });
   }
   return out;
 }
@@ -1011,7 +1010,8 @@ function pominLista(day, d) {
 function oknoPrzepis(gi) { pokazPrzepis(window._w.garnki[gi], false); }
 // ---------- zamiana składnika w daniu ----------
 // Klasy składników, które można sensownie zamienić jeden na drugi (mięso za mięso, warzywo za warzywo…). Gramatura zamiennika trzyma kalorie, a białko się zmienia.
-const KLASY_ZAM = [['wędliny', /szynk|kielbas|parowk|salami/], ['mielone', /mielon/], ['drób', /kurczak|indyk/], ['wołowina i wieprzowina', /wolowin|wieprz|schab|karkowk|lopatk|prega|poledwic/], ['ryby', /dorsz|losos|tunczyk|ryb|mintaj|makrel|pstrag/], ['strączki i tofu', /ciecierzyc|soczewic|tofu|fasola czerw|fasola biala/], ['warzywa', /brokul|kalafior|cukini|papryk|marchew|szpinak|pieczark|^por\b|seler|dynia|fasolk|groszek|pomidor|ogork|cebul|salat|rukol|burak|kapust/], ['dodatki skrobiowe', /makaron|^ryz|kasza|kuskus|bulgur|ziemniak|batat|tortill|chleb|bulk/], ['nabiał', /skyr|jogurt|twarog|serek/], ['sery', /^ser |^ser$|feta|mozzarell|parmezan|oscypek/], ['owoce', /banan|jablk|owoce mrozone|maliny|truskaw|mango|ananas|gruszk/]];
+const POM_SOS = 'pomidory w sosie';   // passata i pomidory krojone z puszki: zamieniają się 1:1 w gramach (kalorie nie są tu miarą)
+const KLASY_ZAM = [[POM_SOS, /passata|pomidory krojone/], ['wędliny', /szynk|kielbas|parowk|salami/], ['mielone', /mielon/], ['drób', /kurczak|indyk/], ['wołowina i wieprzowina', /wolowin|wieprz|schab|karkowk|lopatk|prega|poledwic/], ['ryby', /dorsz|losos|tunczyk|ryb|mintaj|makrel|pstrag/], ['strączki i tofu', /ciecierzyc|soczewic|tofu|fasola czerw|fasola biala/], ['warzywa', /brokul|kalafior|cukini|papryk|marchew|szpinak|pieczark|^por\b|seler|dynia|fasolk|groszek|pomidor|ogork|cebul|salat|rukol|burak|kapust/], ['dodatki skrobiowe', /makaron|^ryz|kasza|kuskus|bulgur|ziemniak|batat|tortill|chleb|bulk/], ['nabiał', /skyr|jogurt|twarog|serek/], ['sery', /^ser |^ser$|feta|mozzarell|parmezan|oscypek/], ['owoce', /banan|jablk|owoce mrozone|maliny|truskaw|mango|ananas|gruszk/]];
 const klasaZam = prod => { const n = znorm(prod || ''), k = KLASY_ZAM.find(([, re]) => re.test(n)); return k ? k[0] : null; };
 function zamienione(dish, day, slot) {
   if (!dish) return dish;
@@ -1022,7 +1022,7 @@ function zamienione(dish, day, slot) {
   k.skladniki = dish.skladniki.map(i => {
     const nowy = m[i.produkt]; if (!nowy || i.jednostka !== 'g' || !(i.kcal > 0)) return i;
     const t = T[nowy + '|g']; if (!t || !t[0]) return i;
-    const ilosc = Math.max(5, Math.round(i.kcal / t[0] / 5) * 5), info = DB.produkty.get(nowy);
+    const ilosc = klasaZam(i.produkt) === POM_SOS ? i.ilosc : Math.max(5, Math.round(i.kcal / t[0] / 5) * 5), info = DB.produkty.get(nowy);
     return Object.assign({}, i, { produkt: nowy, nazwa: nowy, ilosc, kcal: ilosc * t[0], bialko: ilosc * t[1], kategoria: info ? info.kat : i.kategoria, zam: { z: i.produkt, ilosc: i.ilosc, bialko: i.bialko || 0 } });
   });
   k.razem = Object.assign({}, dish.razem, { kcal: dish.razem.kcal + sum(k.skladniki, i => i.kcal || 0) - sum(dish.skladniki, i => i.kcal || 0), bialko: dish.razem.bialko + sum(k.skladniki, i => i.bialko || 0) - sum(dish.skladniki, i => i.bialko || 0) });
@@ -1035,9 +1035,9 @@ function kandydatyZamiany(g, i) {
   if (!kl) return out;
   for (const [prod] of DB.produkty) {
     if (prod === baza || klasaZam(prod) !== kl) continue;
-    const t = T[prod + '|g']; if (!t || !t[0] || /puszk|konserw|suszon|rosolow|cwiartk|skrzydl|udk/i.test(znorm(prod))) continue;
+    const t = T[prod + '|g']; if (!t || !t[0] || (kl !== POM_SOS && /puszk|konserw|suszon|rosolow|cwiartk|skrzydl|udk/i.test(znorm(prod)))) continue;
     if (kto.some(pp => wykluczProdukt(pp, prod))) continue;
-    const il = Math.max(5, Math.round(i.kcal / t[0] / 5) * 5); if (il > ilosc0 * 3 || il < ilosc0 / 4) continue;
+    const il = kl === POM_SOS ? Math.round(ilosc0) : Math.max(5, Math.round(i.kcal / t[0] / 5) * 5); if (il > ilosc0 * 3 || il < ilosc0 / 4) continue;
     out.push({ prod, ilosc: il, db: il * t[1] - b0 });
   }
   return out.sort((a, b) => Math.abs(a.db) - Math.abs(b.db) || a.prod.localeCompare(b.prod, 'pl')).slice(0, 8);
@@ -2392,6 +2392,31 @@ function kartaWieczor(wi, dzis) {
       <div class="wiecz-tx">${it.t === 'kroki' ? `<b>${esc(it.dish)}</b><ol class="wiecz-kroki">${it.kroki.map(k => `<li>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</li>`).join('')}</ol>
         <div class="wiecz-ak"><button class="btn maly" data-wiecz-przepis="${i}">Cały przepis</button><button class="btn maly" data-wiecz-got="${i}">Gotuj krok po kroku</button></div>` : `<span>${esc(it.tekst)}</span>`}</div></div>`; }).join('')}</div>`;
 }
+// ---------- śniadanie na jutro: po zjedzeniu dnia (i zawsze pod listą posiłków) ----------
+function jutroDane() {
+  const jutro = dodajDni(isoDzis(), 1), t = tygodnieZapisane().find(x => jutro >= x.start && jutro <= dodajDni(x.start, 6));
+  if (!t) return null;
+  const d = Math.round((new Date(jutro + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5);
+  const w = oblicz({ start: t.start, dni: t.dni }, cele()), sl = w.dni[d].sloty.filter(({ g, odgrzewane }) => bazaSlotu(g.slot) === 'sn' && !odgrzewane).map(x => x.g);
+  return sl.length ? { jutro, t, d, w, sl, biezacy: t.start === plan.start } : null;
+}
+function oknoJutro() {
+  const j = jutroDane(); if (!j) { pokazToast('Na jutro nie ma jeszcze zaplanowanego śniadania.'); return; }
+  window._jutro = j;
+  const dt = new Date(j.jutro + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const karta = (g, i) => {
+    const moje = g.porcje.filter(q => q.d === j.d), kto = etSlotu(g.slot) ? etSlotu(g.slot).slice(3) : moje.map(q => ETY[q.p]).join(' + ');
+    const wi = (g.dish.wieczorem || []).map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')).concat(mrozDoWyjecia(g));
+    return `<div class="hero jutro-sn"><span class="hero-et">Śniadanie · ${esc(kto)}</span>
+      <div class="hero-dan">${Obr.html(g.dish, 'duzy')}<div><b>${nazwaDania(g.dish)}</b></div></div>
+      <div class="hero-liczby">${moje.map(q => `<span>${moje.length > 1 ? ETY[q.p] + ' ' : ''}${r0(q.kcal)} kcal · ${r0(q.b)} g białka</span>`).join('')}</div>
+      ${wi.length ? `<div class="jutro-wiecz"><b>Przygotuj dziś wieczorem</b><ol>${wi.map(k => `<li>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</li>`).join('')}</ol></div>` : '<p class="jutro-nic">Nic nie trzeba przygotowywać wcześniej.</p>'}
+      <div class="rzad"><button class="btn hero-btn" data-jutro-przepis="${i}">Zobacz przepis</button>${(g.dish.wieczorem || []).length ? `<button class="btn hero-btn" data-jutro-got="${i}">Gotuj krok po kroku</button>` : ''}${j.biezacy ? `<button class="btn hero-btn jasny" data-jutro-zmien="${i}">Zmień danie</button>` : ''}</div></div>`;
+  };
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Śniadanie na jutro</h2><button class="btn maly" data-zamknij>Zamknij</button></div><p class="mute">${esc(dt.charAt(0).toUpperCase() + dt.slice(1))}</p>${j.sl.map(karta).join('')}`;
+  $('#modal').hidden = false;
+}
+const kartaJutroLink = () => { const j = jutroDane(); return j ? `<div class="karta jutro-link"><div><small class="mute">Jutro · śniadanie</small><b>${j.sl.map(g => esc(g.dish.nazwa)).join(' · ')}</b></div><button class="btn maly" data-jutro-otworz="1">Zobacz</button></div>` : ''; };
 function kartaPrepDzis(dzis) {
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
   const ok = okazjePrepu(), dz = ok[0], naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
@@ -3220,7 +3245,7 @@ function widokDzis() {
       };
       const podw = grupa.length > 1;
       o += `<div class="hero ${podw ? 'podwojny' : ''}"><span class="hero-et">${gh(nast) >= godz - 1.5 ? 'Następny posiłek' : 'Jeszcze niezjedzone'} · ${godzTxt}</span>${(podw ? grupa : [nast]).map(n => wiersz(n, podw)).join('')}</div>`;
-    } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div></div>`;
+    } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div>${jutroDane() ? '<div class="rzad"><button class="btn hero-btn" data-jutro-otworz="1">Przygotuj śniadanie na jutro</button></div>' : ''}</div>`;
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
@@ -3233,6 +3258,7 @@ function widokDzis() {
       return `<div class="pos-wiersz ${ez ? 'zjedzone' : ''} ${nast && nast.g === g ? 'nast' : ''}"><label class="pos-ptak"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''} aria-label="zjedzone"><span></span></label>
         <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${etG(g)}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
+    if (nast) o += kartaJutroLink();
     o += pozaLista(day, d);
     o += pominLista(day, d);
     o += kartaWieczor(wieczorem(w, d), dzis);
@@ -3842,6 +3868,10 @@ document.addEventListener('click', async e => {
   if (t.dataset.wiecz !== undefined) { const dz = isoDzis(), it = (window._wiecz || [])[+t.dataset.wiecz]; if (it) { const all = LS.get('wieczOk', {}) || {}, a = all[dz] || []; all[dz] = a.includes(it.klucz) ? a.filter(x => x !== it.klucz) : a.concat(it.klucz); Object.keys(all).forEach(k => { if (k < dodajDni(dz, -3)) delete all[k]; }); LS.set('wieczOk', all); rysuj(); } return; }
   if (t.dataset.wieczPrzepis !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczPrzepis]; if (it && it.g) pokazPrzepis(it.g, false); return; }
   if (t.dataset.wieczGot !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczGot]; if (it && it.g) { otworzGotowanie(it.g, false); const k = got ? got.kroki.findIndex(x => /^WIECZOREM/i.test(x)) : -1; if (k >= 0) gotIdz(k + 1); } return; }
+  if ('jutroOtworz' in t.dataset) { oknoJutro(); return; }
+  if (t.dataset.jutroPrzepis !== undefined) { const g = ((window._jutro || {}).sl || [])[+t.dataset.jutroPrzepis]; if (g) pokazPrzepis(g, false); return; }
+  if (t.dataset.jutroGot !== undefined) { const g = ((window._jutro || {}).sl || [])[+t.dataset.jutroGot]; if (g) { otworzGotowanie(g, false); const k = got ? got.kroki.findIndex(x => /^WIECZOREM/i.test(x)) : -1; if (k >= 0) gotIdz(k + 1); } return; }
+  if (t.dataset.jutroZmien !== undefined) { const j = window._jutro, g = j && j.sl[+t.dataset.jutroZmien]; if (g && j.biezacy) oknoZmien(j.d, g.slot); return; }
   if (t.dataset.dalejWiecej !== undefined) { dalejWiecej = t.dataset.dalejWiecej === '1'; rysuj(); return; }
   if (t.dataset.dopToggle) { dopDzien = !dopDzien; otwartyDzien = otwartyDzien; rysuj(); return; }
   if (t.dataset.blok) { const [dd, sl] = t.dataset.blok.split(':'), day = plan.dni[+dd]; day.blok = day.blok || {}; if (day.blok[sl]) delete day.blok[sl]; else day.blok[sl] = true; LS.set('plan', plan); Z([[['dni', +dd, 'blok'], Object.keys(day.blok).length ? day.blok : undefined]]); otwartyDzien = +dd; rysuj(); pokazToast(day.blok[sl] ? 'Zablokowane: zostanie przy ponownym losowaniu tygodnia' : 'Odblokowane'); return; }

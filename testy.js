@@ -341,6 +341,34 @@
     rowne(komendaGlosu('stop the timer').timer, true, '„stop timer” może usunąć działający timer');
     prawda(typeof GLOS_SR !== 'undefined', 'definicja rozpoznawania mowy');
   });
+  await test('Pomidory: passata i krojone', 'salsy z passaty, passata i pomidory krojone zamieniają się 1:1 w gramach, bez zamiany na brokuł', async () => {
+    for (const id of ['quesadille-z-kurczakiem-i-salsa-pomidorowa', 'burrito-wolowe-z-fasola-i-salsa']) { const dd = DB.dania.get(id), p = dd.skladniki.filter(i => /pomidor|passata/.test(i.produkt)); rowne(p.map(i => i.produkt), ['passata'], id + ': salsa z passaty'); prawda(dd.kroki.some(k => /^SALSA: passat/.test(k)), id + ': krok salsy'); }
+    rowne([klasaZam('passata'), klasaZam('pomidory krojone (puszka)')], [POM_SOS, POM_SOS], 'wspólna klasa');
+    const c = cele(), szm = zamiennik, kk = JSON.parse(JSON.stringify(kandydat()));
+    try {
+      zamiennik = {};
+      const dish = DB.dania.get('chili-z-indykiem-fasola-i-ryzem'), d0 = kk.dni.findIndex(x => x.ob && !x.ob2); prawda(dish && d0 >= 0, 'brak dania lub dnia do testu');
+      kk.dni[d0].ob = dish.id; kk.dni[d0].ob2 = false; kk.dni[d0].zam = undefined;
+      const g0 = oblicz(kk, c).garnki.find(g => g.d === d0 && g.slot === 'ob'), i0 = g0.dish.skladniki.find(i => i.produkt === 'pomidory krojone (puszka)');
+      const op = kandydatyZamiany(g0, i0); rowne(op.map(x => x.prod), ['passata'], 'jedyny zamiennik pomidorów krojonych to passata'); rowne(op[0].ilosc, i0.ilosc, 'ta sama masa');
+      kk.dni[d0].zam = { ob: { 'pomidory krojone (puszka)': 'passata' } };
+      const g1 = oblicz(kk, c).garnki.find(g => g.d === d0 && g.slot === 'ob'), i1 = g1.dish.skladniki.find(i => i.zam);
+      prawda(i1 && i1.produkt === 'passata' && i1.ilosc === i0.ilosc, 'passata w tej samej ilości');
+      const sp = g0.dish.skladniki.find(i => i.produkt === 'passata');
+    } finally { zamiennik = szm; }
+  });
+  await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
+    const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
+    const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;
+    const planowane = [day.sn].concat(OS.map(p => day.dla && day.dla[p] && day.dla[p].sn)).filter(Boolean).map(id);
+    prawda(j.sl.length >= 1 && j.sl.every(g => planowane.includes(g.dish.nazwa)), 'śniadania na jutro: ' + j.sl.map(g => g.dish.nazwa) + ' vs plan ' + planowane);
+    prawda(j.sl.every(g => bazaSlotu(g.slot) === 'sn'), 'tylko śniadania');
+    const kod = await tekst('app.js'); prawda(/Przygotuj śniadanie na jutro/.test(kod) && /data-jutro-otworz/.test(kod), 'brak przycisku w kodzie');
+    const m = document.getElementById('modal'), box = document.getElementById('modal-box'), sv = box.innerHTML, svH = m.hidden;
+    try { oknoJutro(); prawda(!m.hidden, 'okno się nie otworzyło'); prawda(box.textContent.includes('Śniadanie na jutro') && j.sl.every(g => box.textContent.includes(g.dish.nazwa)), 'okno bez nazw śniadań'); prawda(box.querySelectorAll('[data-jutro-przepis]').length === j.sl.length, 'przycisk przepisu przy każdym śniadaniu'); }
+    finally { box.innerHTML = sv; m.hidden = svH; }
+    prawda(kartaJutroLink().includes('data-jutro-otworz') && kartaJutroLink().includes(esc(j.sl[0].dish.nazwa)), 'odnośnik na Dziś');
+  });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;
   window.__TESTY = { ok, blad, wyniki };

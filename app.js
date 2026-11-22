@@ -3700,7 +3700,7 @@ function widokWaga() {
   h += `<div class="wtile-rzad">` + OS.map(p => { const x = dane(p); return `<button class="wtile ${p} ${wagaOsoba === p ? 'akt' : ''}" data-wosoba="${p}"><b>${ETY[p]}</b><span class="duze">${x.ost ? kgTxt(x.ost[1]) + ' kg' : '—'}</span><small class="${x.zm == null ? '' : dobry((profil[p] || {}).cel, x.zm) ? 'dobry' : 'zly'}">${x.zm == null ? 'dodaj pomiary' : (x.zm > 0 ? '▲ +' : x.zm < 0 ? '▼ ' : '') + kgTxt(x.zm) + ' kg od początku'}</small></button>`; }).join('') + `</div>`;
   const p = wagaOsoba, x = dane(p), e = x.e, ost = x.ost, ms = d => new Date(d + 'T12:00:00').getTime();
   h += `<div class="seg waga-seg">${[['waga', 'Waga'], ['cialo', 'Pomiary ciała']].map(([v, et]) => `<button data-wwidok="${v}" class="${wagaWidok === v ? 'akt' : ''}">${et}</button>`).join('')}</div>`;
-  if (wagaWidok === 'cialo') { h += widokCialo(p); $('#view').innerHTML = h; return; }
+  if (wagaWidok === 'cialo') { h += widokCialo(p) + kartaImportHistorii(); $('#view').innerHTML = h; return; }
   h += `<div class="karta wykres-karta ${p}"><div class="rzad-nag"><h3 style="margin:0" class="${p}">${ETY[p]} · trend</h3></div>
     <div class="seg mini" style="margin:10px 0 6px">${[[28, '4 tyg.'], [90, '3 mies.'], [365, 'Rok'], [0, 'Wszystko']].map(([v, et]) => `<button data-wzakres="${v}" class="${wagaZakres === v ? 'akt' : ''}">${et}</button>`).join('')}</div>
     ${wykresWagi(e, p)}`;
@@ -3719,6 +3719,7 @@ function widokWaga() {
   const cc = cele()[p]; if (ost && cc) h += `<p class="mute" style="margin:12px 0 0">Plan liczy się z ostatniego pomiaru (${kgTxt(ost[1])} kg): cel ${cc.kcal} kcal i ${cc.bMin}–${cc.bMax} g białka dziennie. Po zapisaniu nowej wagi gramatury dań dopasują się same.</p>`;
   h += `</div>`;
   if (e.length) h += `<h2>Historia</h2><div class="karta hist">` + e.slice(-10).reverse().map(([d, v], i, arr) => { const prev = e[e.length - 1 - i - 1], zm = prev ? v - prev[1] : null; return `<div class="hist-w"><span class="hist-d">${new Date(d + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}</span><b>${kgTxt(v)} kg</b><span class="hist-zm ${zm == null ? '' : dobry((profil[p] || {}).cel, zm) ? 'dobry' : 'zly'}">${zm == null ? '' : zm === 0 ? '=' : (zm > 0 ? '▲ ' : '▼ ') + kgTxt(Math.abs(zm))}</span><button class="btn maly" data-usun-wage="${p}|${d}" aria-label="Usuń pomiar">✕</button></div>`; }).join('') + `</div>`;
+  h += kartaImportHistorii();
   $('#view').innerHTML = h;
 }
 // ---------- pomiary ciała ----------
@@ -3728,7 +3729,8 @@ const SITY = [
   { k: 'ramie', n: 'Ramię', strona: 'p', ly: 108 },
   { k: 'talia', n: 'Talia', strona: 'l', ly: 172 },
   { k: 'biodra', n: 'Biodra', strona: 'p', ly: 212 },
-  { k: 'udo', n: 'Udo', strona: 'l', ly: 268 }
+  { k: 'udo', n: 'Udo', strona: 'l', ly: 268 },
+  { k: 'lydka', n: 'Łydka', strona: 'p', ly: 306 }
 ];
 const cm1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
 function seriaObw(p, k) { return Object.keys(obw[p] || {}).sort().filter(dd => obw[p][dd][k] != null).map(dd => [dd, obw[p][dd][k]]); }
@@ -3759,7 +3761,8 @@ function geometriaCiala(p) {
     ramie: { cx: X + g.sh + 3, cy: 124, rx: g.ramie + 2, ry: 3.4, rot: -6 },
     talia: { cx: X, cy: 152, rx: g.talia + 2.5, ry: 5.5, rot: 0 },
     biodra: { cx: X, cy: 202, rx: g.biodra + 3, ry: 6.5, rot: 0 },
-    udo: { cx: X - (g.udoZ + g.udoW) / 2, cy: 258, rx: (g.udoZ - g.udoW) / 2 + 2.5, ry: 4.2, rot: 0 }
+    udo: { cx: X - (g.udoZ + g.udoW) / 2, cy: 258, rx: (g.udoZ - g.udoW) / 2 + 2.5, ry: 4.2, rot: 0 },
+    lydka: { cx: X + (g.udoZ + g.udoW - 4) / 2, cy: 312, rx: (g.udoZ - g.udoW - 10) / 2 + 2.5, ry: 3.6, rot: 0 }
   };
 }
 function konturCiala(p) {
@@ -3839,6 +3842,45 @@ function zapiszObw(p) {
   const k0 = Object.keys(nowe)[0]; if (Object.keys(nowe).length === 1) cialoSito = k0;
   cialoNowy = true; rysuj(); pokazToast('Zapisano pomiary ciała');
 }
+// ---------- wklejanie poprzednich pomiarów ----------
+// Tekst z kolumnami (CSV z arkusza): data, osoba (ona/on), waga w kg oraz opcjonalnie obwody w cm. Pierwszy wiersz może być nagłówkiem (data, osoba, waga_kg, klatka, talia, biodra, ramie, udo).
+function parsujHistorie(tekst) {
+  const wiersze = String(tekst || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean), out = { waga: [], obw: [], pominiete: 0 };
+  if (!wiersze.length) return out;
+  const sep = /;/.test(wiersze[0]) ? ';' : /\t/.test(wiersze[0]) ? '\t' : ',';   // średnik (polski Excel, przecinek dziesiętny), tabulator albo przecinek wg pierwszego wiersza
+  const dziel = l => l.split(sep).map(x => x.replace(/^"|"$/g, '').trim());
+  const norm = x => znorm(x).replace(/[^a-z0-9]/g, '');
+  let kol = { data: 0, osoba: 2, waga: 3 }, start = 0;
+  const pierwszy = dziel(wiersze[0]);
+  if (pierwszy.some(x => /^(data|date)$/.test(norm(x)))) {   // nagłówek: szukam kolumn po nazwach
+    kol = {}; pierwszy.forEach((x, i) => { const n = norm(x).replace(/cm$/, '').replace(/^biceps$/, 'ramie'); if (/^(data|date)$/.test(n)) kol.data = i; else if (/^(osoba|kto)$/.test(n)) kol.osoba = i; else if (/^(wagakg|waga|kg)$/.test(n)) kol.waga = i; else if (/^(klatka|talia|biodra|ramie|udo|lydka)$/.test(n)) kol[n] = i; });
+    start = 1;
+    if (kol.data == null || kol.osoba == null) return out;
+  } else kol = { data: 0, osoba: 1, waga: 2 };   // bez nagłówka: data, osoba, waga
+  const liczba = x => { const v = parseFloat(String(x == null ? '' : x).replace(',', '.')); return isFinite(v) ? v : null; };
+  const data = x => { const m = String(x || '').match(/^(\d{4})-(\d{2})-(\d{2})$/) || (() => { const q = String(x || '').match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/); return q ? [0, q[3], q[2].padStart(2, '0'), q[1].padStart(2, '0')] : null; })(); if (!m) return null; const iso = `${m[1]}-${m[2]}-${m[3]}`; return isNaN(new Date(iso + 'T12:00:00')) || iso > isoDzis() ? null : iso; };
+  for (const l of wiersze.slice(start)) {
+    const c = dziel(l), dd = data(c[kol.data]), os = (n => /^ona/.test(n) ? 'ona' : /^on/.test(n) ? 'on' : '')(norm(c[kol.osoba]));
+    if (!dd || !['ona', 'on'].includes(os)) { out.pominiete++; continue; }
+    const w = kol.waga != null ? liczba(c[kol.waga]) : null;
+    let dodano = false;
+    if (w != null && w >= 25 && w <= 300) { out.waga.push([os, dd, Math.round(w * 10) / 10]); dodano = true; }
+    for (const k of ['klatka', 'talia', 'biodra', 'ramie', 'udo', 'lydka']) { if (kol[k] == null) continue; const v = liczba(c[kol[k]]); if (v != null && v >= 10 && v <= 250) { out.obw.push([os, dd, k, Math.round(v * 10) / 10]); dodano = true; } }
+    if (!dodano) out.pominiete++;
+  }
+  return out;
+}
+function importujHistorie(tekst) {
+  const h = parsujHistorie(tekst);
+  if (!h.waga.length && !h.obw.length) { pokazToast('Nie rozpoznałem pomiarów. Potrzebuję kolumn: data, osoba (ona/on), waga.'); return; }
+  const zm = [];
+  for (const [os, dd, w] of h.waga) { waga[os] = waga[os] || {}; waga[os][dd] = w; zm.push([['waga', os, dd], w]); }
+  for (const [os, dd, k, v] of h.obw) { obw[os] = obw[os] || {}; obw[os][dd] = obw[os][dd] || {}; obw[os][dd][k] = v; zm.push([['obw', os, dd, k], v]); }
+  LS.set('waga', waga); LS.set('obw', obw); if (zm.length) Z(zm);
+  rysuj();
+  pokazToast(`Dodano ${h.waga.length} ${mn(h.waga.length, 'pomiar wagi', 'pomiary wagi', 'pomiarów wagi')}${h.obw.length ? ` i ${h.obw.length} ${mn(h.obw.length, 'obwód', 'obwody', 'obwodów')}` : ''}${h.pominiete ? `, pominąłem ${h.pominiete}` : ''}`);
+}
+const kartaImportHistorii = () => `<details class="faq" style="margin-top:14px"><summary>Wklej poprzednie pomiary</summary><div style="padding:6px 0 4px"><p class="mute" style="margin:0 0 8px">Wklej tekst z arkusza (kolumny: data, osoba „ona”/„on”, waga w kg, opcjonalnie klatka, talia, biodra, ramie lub biceps, udo, lydka w cm; nagłówki mogą mieć końcówkę _cm). Istniejące pomiary z tą samą datą zostaną nadpisane.</p><textarea id="imp-tekst" rows="6" placeholder="data,osoba,waga_kg&#10;2026-01-10,ona,65.0&#10;2026-01-10,on,80.0" style="width:100%;box-sizing:border-box"></textarea><button class="btn szeroki" data-import-hist="1" style="margin-top:8px">Dodaj pomiary</button></div></details>`;
 function zapiszWage(p) {
   const v = parseFloat(String(($('#wk-' + p) || {}).value).replace(',', '.')), d = ($('#wd-' + p) || {}).value || isoDzis();
   if (!(v >= 25 && v <= 300)) { pokazToast('Wpisz wagę w kilogramach, np. 62,4.'); return; }
@@ -4336,6 +4378,7 @@ document.addEventListener('click', async e => {
   else if (t.dataset.korOdloz) { korekta[t.dataset.korOdloz].odloz = dodajDni(isoDzis(), 7); LS.set('korekta', korekta); Z([[['korekta', t.dataset.korOdloz], korekta[t.dataset.korOdloz]]]); rysuj(); pokazToast('Dam znać za tydzień'); }
   else if (t.dataset.korReset) { const pp = t.dataset.korReset; korekta[pp].kcal = 0; korekta[pp].od = null; korekta[pp].odloz = null; LS.set('korekta', korekta); Z([[['korekta', pp], korekta[pp]]]); rysuj(); pokazToast('Korekta wyzerowana. Plan przeliczony.'); }
   else if (t.dataset.wosoba) { wagaOsoba = t.dataset.wosoba; cialoNowy = true; rysuj(); }
+  else if (t.dataset.importHist) importujHistorie(($('#imp-tekst') || {}).value || '');
   else if (t.dataset.wwidok) { wagaWidok = t.dataset.wwidok; cialoNowy = true; rysuj(); }
   else if (t.dataset.sito) { cialoSito = t.dataset.sito; rysuj(); }
   else if (t.dataset.zapiszObw) zapiszObw(t.dataset.zapiszObw);

@@ -458,15 +458,24 @@
   await test('Pomiary ciała', 'sylwetka z pięcioma obwodami, ocena zmian wg celu, wartości z jedną cyfrą, widok bez błędów', async () => {
     const so = obw;
     try {
-      obw = { ona: { '2026-11-01': { klatka: 92, talia: 78, biodra: 100, ramie: 28, udo: 58 }, '2026-11-15': { talia: 76.5, biodra: 99 } }, on: {} };
-      rowne(seriaObw('ona', 'talia'), [['2026-11-01', 78], ['2026-11-15', 76.5]], 'seria obwodu talii');
+      obw = { ona: { '2026-11-01': { klatka: 92, talia: 78, biodra: 100, ramie: 28, udo: 58 }, '2026-11-15': { talia: 75.5, biodra: 99 } }, on: {} };
+      rowne(seriaObw('ona', 'talia'), [['2026-11-01', 78], ['2026-11-15', 75.5]], 'seria obwodu talii');
       rowne(seriaObw('ona', 'klatka').length, 1, 'obwód zmierzony raz');
       rowne([oceniObw('talia', 'redukcja', -1.5), oceniObw('talia', 'redukcja', 1), oceniObw('ramie', 'redukcja', 1), oceniObw('ramie', 'masa', 0.5), oceniObw('talia', 'masa', 1)], ['dobry', 'zly', '', 'dobry', ''], 'ocena zmian zależy od celu');
       const h = figuraCialo('ona', false), div = document.createElement('div'); div.innerHTML = h;
-      rowne(div.querySelectorAll('.sito-et').length, 5, 'pięć podpisów obwodów'); rowne(div.querySelectorAll('.pas-przod').length, 5, 'pięć opasek na sylwetce');
-      prawda(/76,5<i> cm/.test(h) && /▼ 1,5/.test(h), 'talia: ostatnia wartość i zmiana z jedną cyfrą po przecinku');
+      rowne(div.querySelectorAll('.sito-et').length, 6, 'sześć podpisów obwodów'); rowne(div.querySelectorAll('.pas-przod').length, 6, 'sześć opasek na sylwetce');
+      prawda(/75,5<i> cm/.test(h) && /▼ 2,5/.test(h), 'talia: ostatnia wartość i zmiana z jedną cyfrą po przecinku');
       const sk = zakladka, w = wagaWidok; wagaWidok = 'cialo'; try { widokWaga(); prawda(!!document.querySelector('.cialo-scena') && !!document.querySelector('[data-zapisz-obw]'), 'widok pomiarów ciała się rysuje'); } finally { wagaWidok = w; zakladka = sk; }
     } finally { obw = so; }
+  });
+  await test('Import pomiarów', 'wklejone CSV z wagą i obwodami: nagłówek, ona/on, polskie daty, błędne wiersze pomijane', async () => {
+    const h = parsujHistorie('data,dzien,osoba,waga_kg,uwagi\n2026-01-10,sobota,ona,64.5,start\n2026-01-10,sobota,on,81.0,start\n2026-02-07,sobota,ona,63.8,brak pomiaru; woda');
+    rowne(h.waga, [['ona', '2026-01-10', 64.5], ['on', '2026-01-10', 81], ['ona', '2026-02-07', 63.8]], 'waga z nagłówkiem i uwagą ze średnikiem');
+    const k = parsujHistorie('data;osoba;waga;talia;biodra\n8.11.2026;ona;74,2;76;99\n2099-01-01;on;80;;\nbzdura');
+    rowne([k.waga, k.obw, k.pominiete], [[['ona', '2026-11-08', 74.2]], [['ona', '2026-11-08', 'talia', 76], ['ona', '2026-11-08', 'biodra', 99]], 2], 'polska data, przecinek, obwody; przyszłość i śmieci pominięte');
+    const o = parsujHistorie('data,osoba,biceps_cm,klatka_cm,talia_cm,biodra_cm,udo_cm,lydka_cm,uwagi\n2026-01-10,ona,30,90,70,95,55,35,start');
+    rowne(o.obw.map(q => q[2] + '=' + q[3]), ['klatka=90', 'talia=70', 'biodra=95', 'ramie=30', 'udo=55', 'lydka=35'], 'nagłówki z _cm, biceps jako ramię, łydka');
+    rowne(parsujHistorie('').waga.length, 0, 'pusty tekst');
   });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');

@@ -1020,9 +1020,11 @@ function przypomnieniaDzis(w) {
 }
 const mrozDoWyjecia = g => g.dish.skladniki.filter(i => i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)).map(i => `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
 function wieczorem(w, d) {
-  if (d >= 6) return [];
+  // w niedzielę „jutro” to poniedziałek następnego tygodnia (jeśli jest ułożony)
+  let jutro = d < 6 ? w.dni[d + 1] : null;
+  if (!jutro) { const ns = dodajDni(plan.start, 7), t2 = tygodnieZapisane().find(q => q.start === ns); if (!t2) return []; jutro = oblicz({ start: t2.start, dni: t2.dni }, cele()).dni[0]; }
   const out = [];
-  for (const { g, odgrzewane } of w.dni[d + 1].sloty) {
+  for (const { g, odgrzewane } of jutro.sloty) {
     if (odgrzewane) continue;
     if (g.dish.wieczorem && g.dish.wieczorem.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: g.dish.wieczorem.map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')) });
     for (const tx of mrozDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g });

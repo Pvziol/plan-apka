@@ -462,8 +462,10 @@
       rowne(seriaObw('ona', 'talia'), [['2026-11-01', 78], ['2026-11-15', 75.5]], 'seria obwodu talii');
       rowne(seriaObw('ona', 'klatka').length, 1, 'obwód zmierzony raz');
       rowne([oceniObw('talia', 'redukcja', -1.5), oceniObw('talia', 'redukcja', 1), oceniObw('ramie', 'redukcja', 1), oceniObw('ramie', 'masa', 0.5), oceniObw('talia', 'masa', 1)], ['dobry', 'zly', '', 'dobry', ''], 'ocena zmian zależy od celu');
+      const du = duchCiala('ona'); prawda(du && du.mn.talia > 1.02 && du.mn.talia < 1.1 && du.ruszyla, 'duch: pierwsza talia szersza od obecnej, mnożnik w rozsądnych granicach');
+      const wag = waga; try { waga = { ona: { '2026-01-01': 90, '2026-02-01': 80 }, on: {} }; rowne([duchCiala('ona').dKg, duchCiala('ona').mn.klatka > 1], [-10, true], 'bez obwodu sylwetka ducha wynika z wagi'); } finally { waga = wag; }
       const h = figuraCialo('ona', false), div = document.createElement('div'); div.innerHTML = h;
-      rowne(div.querySelectorAll('.sito-et').length, 6, 'sześć podpisów obwodów'); rowne(div.querySelectorAll('.pas-przod').length, 6, 'sześć opasek na sylwetce');
+      rowne(div.querySelectorAll('.sito-et').length, 6, 'sześć podpisów obwodów'); rowne(div.querySelectorAll('canvas.cialo-canvas').length, 1, 'płótno sylwetki 3D'); const sm = siatkaCiala(obwodyCiala('ona', 'teraz'), true); prawda(sm.Q.length > 500 && Object.keys(sm.bandy).length === 6, 'siatka ma czworokąty i sześć pierścieni obwodów');
       prawda(/75,5<i> cm/.test(h) && /▼ 2,5/.test(h), 'talia: ostatnia wartość i zmiana z jedną cyfrą po przecinku');
       const sk = zakladka, w = wagaWidok; wagaWidok = 'cialo'; try { widokWaga(); prawda(!!document.querySelector('.cialo-scena') && !!document.querySelector('[data-zapisz-obw]'), 'widok pomiarów ciała się rysuje'); } finally { wagaWidok = w; zakladka = sk; }
     } finally { obw = so; }

@@ -479,6 +479,13 @@
     rowne(o.obw.map(q => q[2] + '=' + q[3]), ['klatka=90', 'talia=70', 'biodra=95', 'ramie=30', 'udo=55', 'lydka=35'], 'nagłówki z _cm, biceps jako ramię, łydka');
     rowne(parsujHistorie('').waga.length, 0, 'pusty tekst');
   });
+  await test('Zmiana tygodnia: bez duplikatów', 'drugi slot z tą samą datą co plan jest usuwany, a różne daty zostają', async () => {
+    const p0 = plan, i0 = inny, del = LS.del;
+    try { LS.del = () => {};
+      plan = { start: '2026-11-16', dni: [] }; inny = { start: '2026-11-16', dni: [] }; prawda(uporzadkujTygodnie() && inny === null, 'duplikat usunięty');
+      inny = { start: '2026-11-23', dni: [] }; prawda(!uporzadkujTygodnie() && inny && inny.start === '2026-11-23', 'różne tygodnie zostają');
+    } finally { plan = p0; inny = i0; LS.del = del; }
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

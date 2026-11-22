@@ -549,6 +549,10 @@ function poniedzialek() {
 }
 // Tydzień jest „żywy”, dopóki nie minął jego ostatni dzień (w niedzielę kończący się tydzień nadal trwa, choć poniedzialek() wskazuje już następny).
 const tydzienZywy = start => dodajDni(start, 6) >= isoDzis();
+function uporzadkujTygodnie() {   // dwa zapisane tygodnie nie mogą zaczynać się tego samego dnia (np. po jednoczesnych zmianach z dwóch telefonów): zostaje bieżący plan
+  if (inny && plan && inny.start === plan.start) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); return true; }
+  return false;
+}
 const biezPon = () => { const dz = isoDzis(); return dodajDni(dz, -((new Date(dz + 'T12:00:00').getDay() + 6) % 7)); };
 const dodajDni = (iso, n) => { const t = new Date(iso + 'T12:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
 const krotkaData = iso => new Date(iso + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });
@@ -1689,19 +1693,78 @@ async function pdfObrazy(buf) {
   }
   return wyniki;
 }
-let ocrWorker = null;
-// Obraz → skala szarości, powiększenie ×2 (drobny druk paragonu) → rozpoznanie tekstu (Tesseract, język polski).
-async function ocrObraz(cv, postep) {
-  const sk = Math.min(2, 2600 / Math.max(cv.width, cv.height)), wi = Math.max(1, Math.round(cv.width * sk)), he = Math.max(1, Math.round(cv.height * sk)), c2 = document.createElement('canvas'); c2.width = wi; c2.height = he;   // drobny druk ×2, ale nigdy większe niż ok. 2600 px (większe płótno wyłącza aplikację na telefonie)
+let ocrWorker = null, ocrPostep = null;
+// Przycięcie do samego paragonu: jasny prostokąt na ciemniejszym tle (blat, dłoń). Gdy nie da się go pewnie znaleźć, zwraca obraz bez zmian.
+function przytnijDoParagonu(cv) {
+  try {
+    const w0 = 240, k = w0 / cv.width, h0 = Math.max(1, Math.round(cv.height * k)), s = document.createElement('canvas'); s.width = w0; s.height = h0;
+    const x = s.getContext('2d'); x.drawImage(cv, 0, 0, w0, h0); const dd = x.getImageData(0, 0, w0, h0).data, N = w0 * h0, lum = new Float32Array(N), hist = new Uint32Array(256);
+    for (let i = 0; i < N; i++) { const l = 0.299 * dd[i * 4] + 0.587 * dd[i * 4 + 1] + 0.114 * dd[i * 4 + 2]; lum[i] = l; hist[l | 0]++; }
+    let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sB = 0, wB = 0, naj = 0, thr = 128; for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = N - wB; if (!wF) break; sB += t * hist[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) * (mB - mF); if (v > naj) { naj = v; thr = t; } }
+    const kol = new Float32Array(w0), wie = new Float32Array(h0);
+    for (let y = 0; y < h0; y++) for (let xx = 0; xx < w0; xx++) if (lum[y * w0 + xx] > thr) { kol[xx]++; wie[y]++; }
+    const zakres = (arr, n) => { let a1 = -1, b1 = -1; for (let i = 0; i < arr.length; i++) if (arr[i] >= 0.35 * n) { if (a1 < 0) a1 = i; b1 = i; } return [a1, b1]; };
+    const [xa, xb] = zakres(kol, h0), [ya, yb] = zakres(wie, w0);
+    if (xa < 0 || ya < 0 || (xb - xa + 1) * (yb - ya + 1) < 0.22 * N || (xb - xa + 1) * (yb - ya + 1) > 0.94 * N) return cv;
+    const pad = 0.025, X0 = Math.max(0, Math.floor((xa / w0 - pad) * cv.width)), X1 = Math.min(cv.width, Math.ceil(((xb + 1) / w0 + pad) * cv.width)), Y0 = Math.max(0, Math.floor((ya / h0 - pad) * cv.height)), Y1 = Math.min(cv.height, Math.ceil(((yb + 1) / h0 + pad) * cv.height));
+    const o = document.createElement('canvas'); o.width = X1 - X0; o.height = Y1 - Y0; o.getContext('2d').drawImage(cv, X0, Y0, o.width, o.height, 0, 0, o.width, o.height); return o;
+  } catch (e) { return cv; }
+}
+// Binaryzacja adaptacyjna (średnia z okna): ratuje zdjęcia z cieniem i bladym drukiem termicznym.
+function progAdaptacyjny(cv) {
+  const w = cv.width, h = cv.height, im = cv.getContext('2d').getImageData(0, 0, w, h), dd = im.data, g = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) g[i] = (299 * dd[i * 4] + 587 * dd[i * 4 + 1] + 114 * dd[i * 4 + 2]) / 1000;
+  const W1 = w + 1, I = new Uint32Array(W1 * (h + 1));
+  for (let y = 0; y < h; y++) { let rz = 0; for (let x = 0; x < w; x++) { rz += g[y * w + x]; I[(y + 1) * W1 + x + 1] = I[y * W1 + x + 1] + rz; } }
+  const r = Math.max(8, Math.round(Math.min(w, h) / 45));
+  for (let y = 0; y < h; y++) { const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1); for (let x = 0; x < w; x++) { const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1), sr = (I[y1 * W1 + x1] - I[y0 * W1 + x1] - I[y1 * W1 + x0] + I[y0 * W1 + x0]) / ((x1 - x0) * (y1 - y0)), v = g[y * w + x] < sr * 0.9 ? 0 : 255, o = (y * w + x) * 4; dd[o] = dd[o + 1] = dd[o + 2] = v; dd[o + 3] = 255; } }
+  const o = document.createElement('canvas'); o.width = w; o.height = h; o.getContext('2d').putImageData(im, 0, 0); return o;
+}
+function obrocCanvas(cv, kat) {
+  const o = document.createElement('canvas'), q = kat === 90 || kat === 270; o.width = q ? cv.height : cv.width; o.height = q ? cv.width : cv.height;
+  const c = o.getContext('2d'); c.translate(o.width / 2, o.height / 2); c.rotate(kat * Math.PI / 180); c.drawImage(cv, -cv.width / 2, -cv.height / 2); return o;
+}
+// Obraz → skala szarości (drobny druk powiększony do ok. 2600 px, nigdy więcej: za duże płótno wyłącza aplikację na telefonie) → tekst (Tesseract, język polski).
+async function ocrObraz(cv, postep, psm) {
+  const sk = Math.min(2, 2600 / Math.max(cv.width, cv.height)), wi = Math.max(1, Math.round(cv.width * sk)), he = Math.max(1, Math.round(cv.height * sk)), c2 = document.createElement('canvas'); c2.width = wi; c2.height = he;
   const cx = c2.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.filter = 'grayscale(1) contrast(1.4)'; cx.drawImage(cv, 0, 0, wi, he);
   await zaladujSkrypt(TESS_URL);
-  if (!ocrWorker) ocrWorker = await Tesseract.createWorker('pol', 1, { workerPath: TESS_WORKER, corePath: TESS_CORE, langPath: TESS_LANG, workerBlobURL: false, logger: m => postep && postep(m) });
-  await ocrWorker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
-  try { return (await ocrWorker.recognize(c2)).data.text; } finally { c2.width = c2.height = 0; cv.width = cv.height = 0; }   // zwalniam pamięć płócien
+  ocrPostep = postep;
+  if (!ocrWorker) ocrWorker = await Tesseract.createWorker('pol', 1, { workerPath: TESS_WORKER, corePath: TESS_CORE, langPath: TESS_LANG, workerBlobURL: false, logger: m => ocrPostep && ocrPostep(m) });
+  await ocrWorker.setParameters({ tessedit_pageseg_mode: String(psm || 6), preserve_interword_spaces: '1' });
+  try { return (await ocrWorker.recognize(c2)).data.text; } finally { c2.width = c2.height = 0; }
+}
+// Czytanie paragonu z kilku prób: przycięty, przycięty z binaryzacją, obrócony o 90° i o 270° (zdjęcia z telefonu bywają bokiem). Wybieram tę, w której parser znajduje najwięcej pozycji.
+async function ocrParagonu(cv, postep) {
+  const ocena = t => { try { const w = parsujParagon(t); return w.poz.length * 10 + (w.suma != null ? 5 : 0); } catch (e) { return 0; } };
+  const baza = przytnijDoParagonu(cv), proby = [['plain', 0, 6], ['adapt', 0, 4], ['plain', 90, 6], ['plain', 270, 6]];
+  let naj = { t: '', s: -1 };
+  for (let i = 0; i < proby.length; i++) {
+    const [tryb, kat, psm] = proby[i]; if (postep) postep({ info: i ? `Próbuję inaczej (${i + 1} z ${proby.length})…` : 'Rozpoznaję tekst…' });
+    let c = kat ? obrocCanvas(baza, kat) : baza; if (tryb === 'adapt') { const a = progAdaptacyjny(c); c = a; }
+    let t = ''; try { t = await ocrObraz(c, postep, psm); } finally { if (c !== baza && c !== cv) c.width = c.height = 0; }
+    const sc = ocena(t); if (sc > naj.s) naj = { t, s: sc };
+    if (sc >= 30) break;
+  }
+  if (baza !== cv) baza.width = baza.height = 0; cv.width = cv.height = 0;
+  return naj.t;
 }
 function oknoPostepu(tekst, proc) {
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Czytam paragon</h2><button class="btn maly" data-zamknij>Anuluj</button></div><p class="pusty" style="padding:26px 0 8px" id="postep-tx">${esc(tekst)}</p><div class="pasek" style="color:var(--zielony);margin:0 0 24px"><i id="postep-pas" style="width:${proc || 8}%"></i></div><p class="mute" style="text-align:center">Za pierwszym razem pobieram moduł rozpoznawania tekstu (kilka MB). Potem działa szybciej.</p>`;
   $('#modal').hidden = false;
+}
+// Zdjęcie → płótno do 3200 px dłuższego boku, z orientacją EXIF (iPhone zapisuje zdjęcia „na bok”).
+async function obrazZPliku(f) {
+  const url = URL.createObjectURL(f);
+  try {
+    const im = new Image(); im.src = url; await im.decode();
+    const w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, 3200 / Math.max(w, h)), cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+    cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); return cv;
+  } catch (e) {
+    const bm = await createImageBitmap(f, { imageOrientation: 'from-image' }), k = Math.min(1, 3200 / Math.max(bm.width, bm.height)), cv = document.createElement('canvas'); cv.width = Math.round(bm.width * k); cv.height = Math.round(bm.height * k);
+    cv.getContext('2d').drawImage(bm, 0, 0, cv.width, cv.height); if (bm.close) bm.close(); return cv;
+  } finally { URL.revokeObjectURL(url); }
 }
 async function wczytajPlik(f) {
   const typ = (f.type || '').toLowerCase(), nazwa = (f.name || '').toLowerCase();
@@ -1710,11 +1773,11 @@ async function wczytajPlik(f) {
     oknoPostepu('Otwieram plik…', 5);
     let obrazy;
     if (/pdf/.test(typ) || /\.pdf$/.test(nazwa)) { obrazy = await pdfObrazy(await f.arrayBuffer()); if (!obrazy.length) throw new Error('W tym PDF-ie nie znalazłem obrazu paragonu.'); }
-    else if (/^image\//.test(typ)) { const bm = await createImageBitmap(f), k = Math.min(1, 3200 / Math.max(bm.width, bm.height)), cv = document.createElement('canvas'); cv.width = Math.round(bm.width * k); cv.height = Math.round(bm.height * k); cv.getContext('2d').drawImage(bm, 0, 0, cv.width, cv.height); if (bm.close) bm.close(); obrazy = [cv]; }
+    else if (/^image\//.test(typ)) { obrazy = [await obrazZPliku(f)]; }
     else throw new Error('Ten typ pliku nie jest obsługiwany. Wybierz PDF, zdjęcie, JSON albo plik tekstowy.');
     let tekst = '';
     for (let i = 0; i < obrazy.length; i++) {
-      tekst += (i ? '\n' : '') + await ocrObraz(obrazy[i], m => { const t = $('#postep-tx'), pa = $('#postep-pas'); if (t) t.textContent = (m.status === 'recognizing text' ? 'Rozpoznaję tekst… ' : 'Pobieram moduł… ') + Math.round((m.progress || 0) * 100) + '%'; if (pa) pa.style.width = Math.max(8, Math.round((m.progress || 0) * 100)) + '%'; });
+      let info = ''; tekst += (i ? '\n' : '') + await ocrParagonu(obrazy[i], m => { const t = $('#postep-tx'), pa = $('#postep-pas'); if (m.info) info = m.info; if (t) t.textContent = m.info ? m.info : (m.status === 'recognizing text' ? (info || 'Rozpoznaję tekst…') + ' ' : 'Pobieram moduł… ') + Math.round((m.progress || 0) * 100) + '%'; if (pa && m.progress != null) pa.style.width = Math.max(8, Math.round((m.progress || 0) * 100)) + '%'; });
     }
     wczytajParagon(tekst, true);
   } catch (e) { oknoParagonWklej(); pokazToast(e && e.message ? e.message : 'Nie udało się odczytać pliku'); }
@@ -3562,6 +3625,7 @@ function rysuj() {
   naprawBrakujace();
   if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); migrujScalenia(); migrujLyzkiStanow(); migrujOwoceMroz(); }
   if (inny && !tydzienZywy(inny.start)) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
+  uporzadkujTygodnie();
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
       $('#tabs').hidden = false;
@@ -4528,7 +4592,6 @@ window.App = {
     const noweOdh = data.odhaczone || {};
     const przed = stabilny({ profil, plan, odhaczone, oceny, waga, obw, lodowka, zuzyte, inny });
     const paragonyPrzed = paragony, cenyPrzed = ceny, mapaParPrzed = mapaPar, pakietyPrzed = pakiety;
-    const staryTydz = plan && plan.dni && plan.dni.length === 7 && tydzienZywy(plan.start) ? paczka() : null;
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
@@ -4536,7 +4599,6 @@ window.App = {
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     obw = { ona: (data.obw && data.obw.ona) || {}, on: (data.obw && data.obw.on) || {} };
-    if (staryTydz && plan && staryTydz.start !== plan.start && !(inny && tydzienZywy(inny.start)) && DB.dania.size) { inny = staryTydz; LS.set('inny', inny); Z([[['inny'], paczkaDoChmury(inny)]]); }   // nie gubię trwającego tygodnia, który zniknął ze wspólnego planu
     {   // paragon zapisany na tym telefonie, a jeszcze niewidoczny we wspólnym planie, zostaje (razem z cenami) i jest wysyłany ponownie
       const oczek = LS.get('parOczek', []), ids = new Set(paragony.map(x => x.id)), zostaje = oczek.filter(id => !ids.has(id) && paragonyPrzed.some(x => x.id === id));
       if (zostaje.length) {
@@ -4547,6 +4609,7 @@ window.App = {
       }
       LS.set('parOczek', zostaje);
     }
+    uporzadkujTygodnie();
     if (stabilny({ profil, plan, odhaczone, oceny, waga, obw, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
     LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneDania', wlasneDania); LS.set('lodData', lodData); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);

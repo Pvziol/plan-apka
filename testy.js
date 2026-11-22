@@ -448,6 +448,26 @@
     prawda(Math.abs(wg(lem, 'kcal') - lem.razem.kcal) < 400, 'kcal dania nie rozjechały się ze składnikami');
     prawda(DB.opak.koperek && DB.opak.koperek.jednostka === 'g', 'koperek ma opakowanie (pęczek)');
   });
+  await test('Zmiana tygodnia', 'tydzień trwa do swojej niedzieli włącznie, więc w niedzielę nie jest „miniony” i nie znika po ułożeniu następnego', async () => {
+    const dz = isoDzis();
+    prawda(tydzienZywy(dodajDni(dz, -6)), 'tydzień kończący się dziś jeszcze trwa');
+    prawda(tydzienZywy(dz) && tydzienZywy(dodajDni(dz, 7)), 'bieżący i przyszły tydzień trwają');
+    prawda(!tydzienZywy(dodajDni(dz, -7)), 'tydzień zakończony wczoraj już nie trwa');
+    const pon = poniedzialek(); prawda(new Date(pon + 'T12:00:00').getDay() === 1 && pon >= dz, 'poniedzialek() to najbliższy poniedziałek (w niedzielę jutrzejszy)');
+  });
+  await test('Pomiary ciała', 'sylwetka z pięcioma obwodami, ocena zmian wg celu, wartości z jedną cyfrą, widok bez błędów', async () => {
+    const so = obw;
+    try {
+      obw = { ona: { '2026-11-01': { klatka: 92, talia: 78, biodra: 100, ramie: 28, udo: 58 }, '2026-11-15': { talia: 76.5, biodra: 99 } }, on: {} };
+      rowne(seriaObw('ona', 'talia'), [['2026-11-01', 78], ['2026-11-15', 76.5]], 'seria obwodu talii');
+      rowne(seriaObw('ona', 'klatka').length, 1, 'obwód zmierzony raz');
+      rowne([oceniObw('talia', 'redukcja', -1.5), oceniObw('talia', 'redukcja', 1), oceniObw('ramie', 'redukcja', 1), oceniObw('ramie', 'masa', 0.5), oceniObw('talia', 'masa', 1)], ['dobry', 'zly', '', 'dobry', ''], 'ocena zmian zależy od celu');
+      const h = figuraCialo('ona', false), div = document.createElement('div'); div.innerHTML = h;
+      rowne(div.querySelectorAll('.sito-et').length, 5, 'pięć podpisów obwodów'); rowne(div.querySelectorAll('.pas-przod').length, 5, 'pięć opasek na sylwetce');
+      prawda(/76,5<i> cm/.test(h) && /▼ 1,5/.test(h), 'talia: ostatnia wartość i zmiana z jedną cyfrą po przecinku');
+      const sk = zakladka, w = wagaWidok; wagaWidok = 'cialo'; try { widokWaga(); prawda(!!document.querySelector('.cialo-scena') && !!document.querySelector('[data-zapisz-obw]'), 'widok pomiarów ciała się rysuje'); } finally { wagaWidok = w; zakladka = sk; }
+    } finally { obw = so; }
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

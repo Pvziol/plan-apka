@@ -1347,3 +1347,59 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 .jutro-link > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .jutro-link b { font-size: 15px; overflow-wrap: anywhere; }
 .jutro-link .btn { flex: none; }
+
+/* ---------- pomiary ciała: sylwetka z opaskami ---------- */
+.waga-seg { margin: 4px 0 10px; }
+.cialo-karta.ona { color: var(--ona); } .cialo-karta.on { color: var(--on); }
+.cialo-karta h3, .cialo-karta p { color: var(--ink); } .cialo-karta p.mute { color: var(--mute); }
+.cialo-scena { position: relative; width: 100%; max-width: 420px; margin: 10px auto 0; aspect-ratio: 340 / 380; color: inherit; isolation: isolate; }
+.cialo-scena::before { content: ''; position: absolute; left: 22%; right: 22%; top: 2%; bottom: 4%; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, currentColor, transparent); opacity: .13; filter: blur(14px); }
+.cialo-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cialo-svg .syl { stroke-opacity: .55; stroke-width: 1.3; stroke-linejoin: round; }
+.cialo-svg .syl .wlosy { fill: currentColor; fill-opacity: .42; stroke: none; }
+.cialo-svg .pas-tyl, .cialo-svg .pas-przod { fill: none; stroke: currentColor; stroke-linecap: round; }
+.cialo-svg .pas-tyl { stroke-width: 1.4; stroke-opacity: .22; stroke-dasharray: 3 3; }
+.cialo-svg .pas-przod { stroke-width: 2.2; stroke-opacity: .42; }
+.cialo-svg .lacz { stroke: currentColor; stroke-opacity: .28; stroke-width: 1; stroke-dasharray: 2 3; }
+.cialo-svg .kropka { fill: currentColor; fill-opacity: .45; }
+.cialo-svg .halo { fill: currentColor; fill-opacity: 0; }
+.cialo-svg .sito.ma .pas-przod { stroke-opacity: .85; } .cialo-svg .sito.ma .pas-tyl { stroke-opacity: .4; } .cialo-svg .sito.ma .kropka { fill-opacity: .95; }
+.cialo-svg .sito.sel .pas-przod { stroke-width: 3.4; stroke-opacity: 1; filter: drop-shadow(0 0 3px currentColor); }
+.cialo-svg .sito.sel .pas-tyl { stroke-opacity: .6; } .cialo-svg .sito.sel .lacz { stroke-opacity: .7; }
+.cialo-svg .sito.sel .kropka { fill-opacity: 1; }
+.cialo-svg .sito.sel .halo { fill-opacity: .22; transform-box: fill-box; transform-origin: center; animation: cialoPuls 2s ease-in-out infinite; }
+.cialo-svg .skan { opacity: 0; }
+.cialo-svg .oddech { transform-origin: 100px 210px; animation: cialoOddech 5.5s ease-in-out infinite; }
+.cialo-scena.anim .syl { animation: cialoWejscie .8s cubic-bezier(.2, .8, .2, 1) both; }
+.cialo-scena.anim .skan { animation: cialoSkan 1.5s ease-in-out .15s both; }
+.cialo-scena.anim .pas-przod { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: cialoPas .8s cubic-bezier(.3, .7, .2, 1) forwards; animation-delay: calc(.7s + var(--i) * .13s); }
+.cialo-scena.anim .sito .pas-tyl, .cialo-scena.anim .lacz, .cialo-scena.anim .kropka { animation: cialoWejscie .5s ease both; animation-delay: calc(.9s + var(--i) * .13s); }
+.cialo-scena.anim .sito-et { animation: cialoEt .5s ease both; animation-delay: calc(.8s + var(--i) * .13s); }
+.sito-et { position: absolute; width: 27%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 0; padding: 5px 8px; border: 0; border-radius: 14px; background: var(--bg); color: var(--ink); box-shadow: var(--cien-maly); min-width: 0; outline: 2px solid transparent; transition: outline-color .2s, background .2s, transform .15s; font: inherit; }
+.sito-et:active { transform: translateY(-50%) scale(.97); }
+.sito-et.lewo { left: 0; text-align: left; align-items: flex-start; } .sito-et.prawo { right: 0; text-align: right; align-items: flex-end; }
+.sito-et.akt { outline-color: currentColor; background: var(--card); }
+.cialo-scena.ona .sito-et.akt { color: var(--ona); } .cialo-scena.on .sito-et.akt { color: var(--on); }
+.sito-et small { font-size: 10.5px; font-weight: 700; color: var(--mute); letter-spacing: .02em; }
+.sito-et b { font-size: 17px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); white-space: nowrap; }
+.sito-et b i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--mute); }
+.sito-et span { font-size: 10.5px; min-height: 12px; font-weight: 700; color: var(--mute); }
+.sito-et span.dobry { color: var(--zielony); } .sito-et span.zly { color: #d9534f; }
+.ob-siatka { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.ob-siatka .pole { min-width: 0; } .ob-siatka input { width: 100%; min-width: 0; box-sizing: border-box; }
+.ob-w { flex-wrap: wrap; } .ob-w .ob-wart { flex: 1 1 0; min-width: 0; font-size: 13px; color: var(--mute); overflow-wrap: anywhere; } .ob-w .ob-wart b { color: var(--ink); }
+@keyframes cialoWejscie { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes cialoPas { to { stroke-dashoffset: 0; } }
+@keyframes cialoSkan { 0% { opacity: 0; transform: translateY(0); } 15% { opacity: .9; } 85% { opacity: .9; } 100% { opacity: 0; transform: translateY(375px); } }
+@keyframes cialoEt { from { opacity: 0; transform: translateY(-50%) scale(.92); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+@keyframes cialoOddech { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.006); } }
+@keyframes cialoPuls { 0%, 100% { transform: scale(.8); } 50% { transform: scale(1.7); } }
+@media (prefers-reduced-motion: reduce) { .cialo-svg .oddech, .cialo-svg .sito.sel .halo, .cialo-scena.anim * { animation: none !important; } .cialo-scena.anim .pas-przod { stroke-dashoffset: 0; } .cialo-svg .skan { display: none; } }
+@media (max-width: 340px) { .sito-et { padding: 5px 6px; width: 28%; } .sito-et b { font-size: 15px; } .ob-siatka { gap: 0 8px; } }
+
+/* długie nazwy w wierszach list nie wypychają przycisków poza kartę */
+.wpis > span:first-child { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+.wpis > .rzad { flex: none; max-width: 100
+/* długie nazwy w wierszach list nie wypychają przycisków poza kartę */
+.wpis > span:first-child { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+.wpis > .rzad { flex: none; max-width: 100%; }

@@ -52,6 +52,7 @@ let plan = LS.get('plan', null);
 let odhaczone = LS.get('odhaczone', {});
 let oceny = LS.get('oceny', {});                       // id dania -> 1 (ulubione) lub -1 (ukryte); wspólne dla pary
 let waga = LS.get('waga', { ona: {}, on: {} });        // waga[osoba][RRRR-MM-DD] = kg; wspólne
+let obw = LS.get('obw', { ona: {}, on: {} });          // obw[osoba][RRRR-MM-DD] = { klatka, talia, biodra, ramie, udo } w cm; wspólne
 let lodowka = LS.get('lodowka', {});                   // lodowka[produkt][jednostka] = ilość; wspólne
 let zuzyte = LS.get('zuzyte', {});                     // "start|dzień|slot" -> co zdjęto z lodówki przy tym daniu; wspólne
 let inny = LS.get('inny', null);                         // drugi zapisany tydzień (bieżący albo następny): { start, dni, odhaczone, zuzyte }
@@ -546,6 +547,8 @@ function poniedzialek() {
   t.setDate(t.getDate() + (wd === 0 ? 1 : 1 - wd));
   return t.toISOString().slice(0, 10);
 }
+// Tydzień jest „żywy”, dopóki nie minął jego ostatni dzień (w niedzielę kończący się tydzień nadal trwa, choć poniedzialek() wskazuje już następny).
+const tydzienZywy = start => dodajDni(start, 6) >= isoDzis();
 const dodajDni = (iso, n) => { const t = new Date(iso + 'T12:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
 const krotkaData = iso => new Date(iso + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });
 // ---------- czego nie jecie ----------
@@ -664,7 +667,7 @@ function przelaczTydzien() {
   if (!inny) return false;
   const b = inny; inny = paczka();
   plan = { start: b.start, dni: b.dni }; odhaczone = b.odhaczone || {}; zuzyte = b.zuzyte || {};
-  if (inny.start < poniedzialek()) inny = null;                // miniony tydzień nie jest już potrzebny
+  if (!tydzienZywy(inny.start)) inny = null;                // miniony tydzień nie jest już potrzebny
   LS.set('plan', plan); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
   Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], odhaczone], [['zuzyte'], zuzyte], [['inny'], paczkaDoChmury(inny)]]);
   otwartyDzien = null;
@@ -726,7 +729,7 @@ function ulozTydzien(start, zachowaj) {
     try { poprawUklad(naj, c, blok, 2500); } finally { _zwKontekst = null; }
   }
   // układam drugi tydzień obok: obecny (bieżący lub przyszły) zostaje zapisany i da się do niego wrócić
-  if (zachowaj && plan && plan.dni && plan.start >= poniedzialek() && plan.start !== naj.start) inny = paczka();
+  if (zachowaj && plan && plan.dni && tydzienZywy(plan.start) && plan.start !== naj.start) inny = paczka();
   plan = naj; odhaczone = {}; zuzyte = {};
   LS.set('plan', plan); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
   Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], {}], [['zuzyte'], {}], [['inny'], paczkaDoChmury(inny)]]);
@@ -921,7 +924,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
   const d = otwartyDzien, x = w.dni[d], day = plan.dni[d], iso = dodajDni(t.start, d), jestDzis = iso === dzisIso;
   const dzisRz = Math.round((new Date(dzisIso + 'T12:00:00') - dataDnia(0)) / 864e5), tydzDzis = dzisRz >= 0 && dzisRz <= 6;
   const sr = p => sredniaOsoby(w, p, 'b'), srK = p => sredniaOsoby(w, p, 'kcal');
-  const biez = poniedzialek(), znacz = t.start === biez ? 'bieżący' : t.start === dodajDni(biez, 7) ? 'następny' : t.start < biez ? 'miniony' : '';
+  const biez = poniedzialek(), znacz = t.start === biez || (t.start < biez && tydzienZywy(t.start)) ? 'bieżący' : t.start === dodajDni(biez, 7) ? 'następny' : t.start < biez ? 'miniony' : '';
   let h = `<section data-wk="${t.start}"><div data-d="${d}">`;
   h += `<div class="dnia-gora"><button class="strz" data-pdzien="${nawig.prev || ''}" ${nawig.prev ? '' : 'disabled'} aria-label="Poprzedni dzień">‹</button>
     <div class="dnia-tyt"><h2>${DNI[d]}${jestDzis ? '<span class="dzis-znacz">dziś</span>' : ''}</h2><small>${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${stanKto(day) !== 'oboje' ? ` · tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}` : ''}</small></div>
@@ -974,9 +977,9 @@ function widokTydzien() {
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
   h += zTygodniem(t, () => kartaDnia(t, c, dzisIso, { prev: idx > 0 ? `${wszystkie[idx - 1].start}:${wszystkie[idx - 1].d}` : '', next: idx < wszystkie.length - 1 ? `${wszystkie[idx + 1].start}:${wszystkie[idx + 1].d}` : '' }));
-  const biez = poniedzialek(), nast = dodajDni(biez, 7), ma = s => tyg.some(q => q.start === s);
-  if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>Bieżący tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
-  if (!ma(nast)) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
+  const biez = poniedzialek(), nast = dodajDni(biez, 7), ma = s => tyg.some(q => q.start === s), trwa = tyg.some(q => q.start < biez && tydzienZywy(q.start));   // w niedzielę trwa jeszcze poprzedni tydzień, a „biez” to już następny
+  if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>${trwa ? 'Następny' : 'Bieżący'} tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż ${trwa ? 'następny' : 'bieżący'} tydzień</button></div>`;
+  if (!ma(nast) && !trwa) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
   h += `<button class="btn glowny szeroki" id="doZakupow" style="margin-top:12px">Lista zakupów</button>`;
   $('#view').innerHTML = h;
   window._w = window._wBy[plan.start];
@@ -1370,7 +1373,7 @@ const ALIASY = [
   ['pomidory krojone (puszka)', /pomidory krojone|pomidory w puszce|pomidory (w )?sosie wlasnym/], ['ketchup', /ketchup/], ['musztarda', /musztard/], ['dżem', /dzem|konfitur/], ['sos sojowy', /sos sojowy/],
   ['kukurydza konserwowa', /^kukurydza|kukurydza (konserw|z puszki|w puszce|slodka)/], ['ciecierzyca z puszki (odsączona)', /ciecierzyc/], ['fasola czerwona z puszki (odsączona)', /fasol/], ['soczewica czerwona', /soczewic/], ['ogórek kiszony', /korniszon|ogorki kiszon|ogorek kiszon/],
   ['ogórek świeży', /ogork|ogorek/], ['cebula', /^cebul(?!k|a prazon)/], ['papryka', /^papryk(?!a mielon|a wedzon)/], ['pomidorki koktajlowe', /koktajl|cherry|^pomidor(?!y krojon|y w |y suszon|y pelati)/],
-  ['marchew', /marchew/], ['ziemniaki', /ziemniak/], ['bataty', /batat/], ['por', /^por\b/], ['seler korzeniowy', /^seler/], ['pietruszka (korzeń)', /pietruszk/], ['brokuł', /brokul/], ['kalafior', /kalafior/], ['cukinia', /cukini/],
+  ['marchew', /marchew/], ['ziemniaki', /ziemniak/], ['bataty', /batat/], ['por', /^por\b/], ['seler korzeniowy', /^seler/], ['natka pietruszki', /natk/], ['koperek', /koper/], ['szczypiorek', /szczypior/], ['imbir', /imbir/], ['papryczka chili', /^papryczk|^chili/], ['cytryna', /^cytryn/], ['limonka', /^limonk/], ['pietruszka (korzeń)', /pietruszk/], ['brokuł', /brokul/], ['kalafior', /kalafior/], ['cukinia', /cukini/],
   ['sałata', /^salat|rukola|roszponka|mix salat/], ['szpinak świeży', /szpinak/], ['pieczarki', /pieczark/], ['awokado', /awokad/], ['banan', /banan/], ['jabłko', /jablk/], ['dynia piżmowa', /^dyni/], ['rzodkiewka (pęczek)', /rzodkiew/],
   ['tortilla pełnoziarnista', /tortill/], ['chleb żytni', /chleb|pieczywo (zytnie|razowe)/], ['bułka pełnoziarnista', /^bulk/], ['pieczywo chrupkie', /chrupk/], ['paluszki rybne', /paluszki rybne/],
   ['owoce mrożone', /maliny|truskawk|jagod|owoce mrozon|mrozone owoce|mieszanka owocow mrozon|^mango|tropikaln/], ['ananas z puszki (mała 230 g)', /ananas/],
@@ -1814,6 +1817,9 @@ function listaProduktowPar(i, q) {
     })();
 }
 async function zapiszParagon() {
+  try { await zapiszParagonCore(); } catch (e) { console.error(e); pokazToast('Nie udało się zapisać paragonu: ' + (e && e.message ? e.message : e)); }
+}
+async function zapiszParagonCore() {
   const { w, wiersze } = parag, sklep = ($('#par-sklep') || {}).value || parag.sklep, data = ($('#par-data') || {}).value || parag.data;
   if (!sklep) { pokazToast('Wybierz sklep'); return; }
   if (parag.dubel && !(await pytaj('Ten paragon wygląda na już dodany', 'Dodać go jeszcze raz?', 'Dodaj jeszcze raz', false))) return;
@@ -1831,8 +1837,9 @@ async function zapiszParagon() {
   paragony.unshift({ id: Date.now().toString(36), data, sklep, lokal: w.lokal || '', suma: w.suma != null ? w.suma : w.sumaPoz, poz });
   paragony = paragony.slice(0, 40);
   LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
-  Z([[['paragony'], paragony], [['ceny'], ceny], [['mapaPar'], mapaPar], [['pakiety'], pakiety]]);
-  parag = null; $('#modal').hidden = true; rysuj();
+  parag = null; $('#modal').hidden = true;
+  try { Z([[['paragony'], paragony], [['ceny'], ceny], [['mapaPar'], mapaPar], [['pakiety'], pakiety]]); } catch (e) { console.error(e); pokazToast('Paragon zapisany na tym telefonie, ale nie wysłał się do wspólnego planu'); }
+  rysuj();
   pokazToast(`Zapisano paragon z ${sklep}: ${nCen} ${mn(nCen, 'cena', 'ceny', 'cen')}${nLod ? `, ${nLod} ${mn(nLod, 'produkt', 'produkty', 'produktów')} w lodówce` : ''}`);
 }
 const mn = (n, a, b, c) => n === 1 ? a : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? b : c;   // odmiana: 1 / 2–4 / 5+
@@ -3290,7 +3297,7 @@ function widokUstawienia(pierwszy) {
     $('#wyczysc').onclick = async () => {
       if (!(await pytaj('Usunąć dane z tego telefonu?', 'Zniknie zapisany plan, odhaczone zakupy i lodówka.' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu, u drugiej osoby plan zostaje.' : ''), 'Usuń dane'))) return;
       if (window.Sync && window.Sync.kod) window.Sync.odlacz();
-      ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'lodowka', 'zuzyte', 'inny', 'tury', 'zakWlasne', 'zakDni'].forEach(LS.del); profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
+      ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'obw', 'lodowka', 'zuzyte', 'inny', 'tury', 'zakWlasne', 'zakDni'].forEach(LS.del); profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; obw = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
     };
   }
 }
@@ -3503,7 +3510,7 @@ function widokWiecej() {
   $('#view').innerHTML = `<h1>Więcej</h1>${motywWiersz()}
     <h3>Ty i plan</h3>
     ${kafel('podsum', 'Podsumowanie tygodnia', 'Jak Wam poszło: posiłki, kalorie, białko, waga, wydatki', 'M5 20V10M12 20V4M19 20v-7')}
-    ${kafel('waga', 'Waga', 'Pomiary i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
+    ${kafel('waga', 'Waga i pomiary ciała', 'Waga, obwody i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
     ${kafel('swipe', 'Co lubicie?', Object.keys(smaki).length ? 'Ocenionych dań: ' + Object.keys(smaki).length + '. Przesuwaj kolejne' : 'Przesuwaj dania i ucz plan Waszego smaku', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z')}
     ${kafel('wlasne', 'Własne dania', wlasneDania.length ? wlasneDania.length + ' ' + mn(wlasneDania.length, 'danie', 'dania', 'dań') + ' dodanych przez Was' : 'Dodaj własny przepis', 'M12 5v14M5 12h14')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
@@ -3550,7 +3557,7 @@ function rysuj() {
   if (!profil || !zapotrzebowanie(profil.ona) || !zapotrzebowanie(profil.on)) { ekranStartowy = true; $('#tabs').hidden = true; widokUstawienia(true); return; }
   naprawBrakujace();
   if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); migrujScalenia(); migrujLyzkiStanow(); migrujOwoceMroz(); }
-  if (inny && inny.start < poniedzialek()) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
+  if (inny && !tydzienZywy(inny.start)) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
       $('#tabs').hidden = false;
@@ -3578,7 +3585,7 @@ function kartaUkryte() {
 
 // ---------- waga ----------
 const kgTxt = v => String(Math.round(v * 10) / 10).replace('.', ',');
-let wagaOsoba = 'ona', wagaZakres = 90;
+let wagaOsoba = 'ona', wagaZakres = 90, wagaWidok = 'waga', cialoSito = 'talia', cialoNowy = true;
 function gladkaSciezka(pts, yMin, yMax) {
   let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -3588,12 +3595,12 @@ function gladkaSciezka(pts, yMin, yMax) {
   }
   return d;
 }
-function wykresWagi(e, p) {
+function wykresWagi(e, p, etyk = 'Wykres wagi', jedn = 'kg') {
   if (!e.length) return `<div class="wykres-pusty"><b>Brak pomiarów</b><small>Dodaj pierwszy poniżej. Wykres pojawi się od dwóch pomiarów.</small></div>`;
   const ms = d => new Date(d + 'T12:00:00').getTime(), ost = ms(e[e.length - 1][0]);
   let pt = wagaZakres ? e.filter(([d]) => ms(d) >= ost - wagaZakres * 864e5) : e;
   if (pt.length < 2) pt = e.slice(-2);
-  if (pt.length < 2) return `<div class="wykres-pusty"><b>${kgTxt(e[0][1])} kg</b><small>Dodaj kolejny pomiar, a pojawi się wykres.</small></div>`;
+  if (pt.length < 2) return `<div class="wykres-pusty"><b>${kgTxt(e[0][1])} ${jedn}</b><small>Dodaj kolejny pomiar, a pojawi się wykres.</small></div>`;
   const W = 340, H = 190, L = 42, R = 16, T = 22, B = 28;
   const t0 = ms(pt[0][0]), t1 = ms(pt[pt.length - 1][0]), vs = pt.map(q => q[1]), mn = Math.min(...vs), mx = Math.max(...vs), pad = Math.max(0.4, (mx - mn) * 0.25), lo = mn - pad, hi = mx + pad;
   const X = t => L + (t1 === t0 ? 0.5 : (t - t0) / (t1 - t0)) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
@@ -3602,11 +3609,11 @@ function wykresWagi(e, p) {
   const lin = gladkaSciezka(pts, T, H - B), pole = `${lin} L${ostP[0].toFixed(1)},${H - B} L${pts[0][0].toFixed(1)},${H - B} Z`;
   const siatka = [hi - pad * 0.3, (hi + lo) / 2, lo + pad * 0.3].map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="3 4"/><text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" text-anchor="end">${kgTxt(v)}</text>`).join('');
   const lx = Math.min(Math.max(ostP[0], L + 22), W - R - 22);
-  return `<svg class="wykres ${p}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Wykres wagi"><defs><linearGradient id="gw${p}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+  return `<svg class="wykres ${p}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(etyk)}"><defs><linearGradient id="gw${p}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
     ${siatka}<path d="${pole}" fill="url(#gw${p})"/><path d="${lin}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
     ${pts.slice(0, -1).map(q => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="2.6" fill="var(--card)" stroke="currentColor" stroke-width="1.6"/>`).join('')}
     <circle cx="${ostP[0].toFixed(1)}" cy="${ostP[1].toFixed(1)}" r="9" fill="currentColor" fill-opacity=".18"/><circle cx="${ostP[0].toFixed(1)}" cy="${ostP[1].toFixed(1)}" r="5" fill="currentColor" stroke="var(--card)" stroke-width="2"/>
-    <g transform="translate(${lx.toFixed(1)},${(ostP[1] - 20).toFixed(1)})"><rect x="-26" y="-12" width="52" height="20" rx="10" fill="currentColor"/><text x="0" y="2.5" text-anchor="middle" class="bab">${kgTxt(ostV)} kg</text></g>
+    <g transform="translate(${lx.toFixed(1)},${(ostP[1] - 20).toFixed(1)})"><rect x="-26" y="-12" width="52" height="20" rx="10" fill="currentColor"/><text x="0" y="2.5" text-anchor="middle" class="bab">${kgTxt(ostV)} ${jedn}</text></g>
     <text x="${L}" y="${H - 8}">${f(t0)}</text><text x="${W - R}" y="${H - 8}" text-anchor="end">${f(t1)}</text></svg>`;
 }
 // Adaptacyjne kalorie: z trendu wagi (regresja z ostatnich 4 tygodni) porównuję realne tempo z celem diety i proponuję małą korektę kcal (maks. 150 na raz, ±400 łącznie).
@@ -3688,6 +3695,8 @@ function widokWaga() {
   let h = `<h1>Waga</h1>` + wskazowka('waga', 'Ważcie się raz w tygodniu, rano, na czczo. Jeden pomiar waha się przez wodę, liczy się trend. To szacunek, nie zalecenie medyczne.');
   h += `<div class="wtile-rzad">` + OS.map(p => { const x = dane(p); return `<button class="wtile ${p} ${wagaOsoba === p ? 'akt' : ''}" data-wosoba="${p}"><b>${ETY[p]}</b><span class="duze">${x.ost ? kgTxt(x.ost[1]) + ' kg' : '—'}</span><small class="${x.zm == null ? '' : dobry((profil[p] || {}).cel, x.zm) ? 'dobry' : 'zly'}">${x.zm == null ? 'dodaj pomiary' : (x.zm > 0 ? '▲ +' : x.zm < 0 ? '▼ ' : '') + kgTxt(x.zm) + ' kg od początku'}</small></button>`; }).join('') + `</div>`;
   const p = wagaOsoba, x = dane(p), e = x.e, ost = x.ost, ms = d => new Date(d + 'T12:00:00').getTime();
+  h += `<div class="seg waga-seg">${[['waga', 'Waga'], ['cialo', 'Pomiary ciała']].map(([v, et]) => `<button data-wwidok="${v}" class="${wagaWidok === v ? 'akt' : ''}">${et}</button>`).join('')}</div>`;
+  if (wagaWidok === 'cialo') { h += widokCialo(p); $('#view').innerHTML = h; return; }
   h += `<div class="karta wykres-karta ${p}"><div class="rzad-nag"><h3 style="margin:0" class="${p}">${ETY[p]} · trend</h3></div>
     <div class="seg mini" style="margin:10px 0 6px">${[[28, '4 tyg.'], [90, '3 mies.'], [365, 'Rok'], [0, 'Wszystko']].map(([v, et]) => `<button data-wzakres="${v}" class="${wagaZakres === v ? 'akt' : ''}">${et}</button>`).join('')}</div>
     ${wykresWagi(e, p)}`;
@@ -3707,6 +3716,124 @@ function widokWaga() {
   h += `</div>`;
   if (e.length) h += `<h2>Historia</h2><div class="karta hist">` + e.slice(-10).reverse().map(([d, v], i, arr) => { const prev = e[e.length - 1 - i - 1], zm = prev ? v - prev[1] : null; return `<div class="hist-w"><span class="hist-d">${new Date(d + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}</span><b>${kgTxt(v)} kg</b><span class="hist-zm ${zm == null ? '' : dobry((profil[p] || {}).cel, zm) ? 'dobry' : 'zly'}">${zm == null ? '' : zm === 0 ? '=' : (zm > 0 ? '▲ ' : '▼ ') + kgTxt(Math.abs(zm))}</span><button class="btn maly" data-usun-wage="${p}|${d}" aria-label="Usuń pomiar">✕</button></div>`; }).join('') + `</div>`;
   $('#view').innerHTML = h;
+}
+// ---------- pomiary ciała ----------
+// Obwody w cm. Pozycje i kształt opasek na sylwetce: cx/cy/rx/ry w układzie figury (środek x = 100), strona = po której stronie leży podpis.
+const SITY = [
+  { k: 'klatka', n: 'Klatka', strona: 'l', ly: 80 },
+  { k: 'ramie', n: 'Ramię', strona: 'p', ly: 108 },
+  { k: 'talia', n: 'Talia', strona: 'l', ly: 172 },
+  { k: 'biodra', n: 'Biodra', strona: 'p', ly: 212 },
+  { k: 'udo', n: 'Udo', strona: 'l', ly: 268 }
+];
+const cm1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
+function seriaObw(p, k) { return Object.keys(obw[p] || {}).sort().filter(dd => obw[p][dd][k] != null).map(dd => [dd, obw[p][dd][k]]); }
+function oceniObw(k, cel, zm) {      // czy zmiana obwodu jest po myśli celu (puste = bez oceny)
+  if (cel === 'redukcja') return ['talia', 'biodra', 'udo'].includes(k) ? (zm < 0 ? 'dobry' : zm > 0 ? 'zly' : '') : '';
+  if (cel === 'masa') return ['ramie', 'klatka', 'udo'].includes(k) ? (zm > 0 ? 'dobry' : zm < 0 ? 'zly' : '') : '';
+  return Math.abs(zm) < 1 ? 'dobry' : '';
+}
+// Gładka krzywa przez punkty (Catmull-Rom → Béziery). Zwraca fragment ścieżki bez początkowego M.
+function gladkaKrzywa(pts, zamknieta) {
+  const n = pts.length, P = i => zamknieta ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))];
+  let dd = '';
+  for (let i = 0; i < (zamknieta ? n : n - 1); i++) {
+    const a = P(i - 1), b = P(i), c = P(i + 1), e = P(i + 2);
+    dd += ` C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)},${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)},${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)},${c[1].toFixed(1)}`;
+  }
+  return dd;
+}
+// Kształt sylwetki: ona ma węższe ramiona i talię, szersze biodra; on szersze ramiona i klatkę.
+const SYLWETKA = {
+  ona: { sh: 36, klatka: 31, talia: 24, biodra: 37, udoZ: 33, udoW: 8, ramie: 5.5 },
+  on: { sh: 44, klatka: 35, talia: 30, biodra: 34, udoZ: 32, udoW: 8, ramie: 7 }
+};
+function geometriaCiala(p) {
+  const g = SYLWETKA[p] || SYLWETKA.on, X = 100;
+  return {
+    klatka: { cx: X, cy: 108, rx: g.klatka + 2.5, ry: 6.5, rot: 0 },
+    ramie: { cx: X + g.sh + 3, cy: 124, rx: g.ramie + 2, ry: 3.4, rot: -6 },
+    talia: { cx: X, cy: 152, rx: g.talia + 2.5, ry: 5.5, rot: 0 },
+    biodra: { cx: X, cy: 202, rx: g.biodra + 3, ry: 6.5, rot: 0 },
+    udo: { cx: X - (g.udoZ + g.udoW) / 2, cy: 258, rx: (g.udoZ - g.udoW) / 2 + 2.5, ry: 4.2, rot: 0 }
+  };
+}
+function konturCiala(p) {
+  const g = SYLWETKA[p] || SYLWETKA.on, X = 100, kobieta = p === 'ona';
+  const sh = g.sh, wy = (dx, y) => [X + dx, y];
+  // prawa strona od szyi w dół (zewnętrzna linia tułowia i nogi)
+  const zew = [wy(9, 46), wy(10, 67), wy(sh * 0.62, 73), wy(sh, 82), wy(sh - 4, 100), wy(g.klatka, 112), wy(g.talia + 3, 134), wy(g.talia, 152), wy(g.biodra - 3, 178), wy(g.biodra, 204), wy(g.udoZ + 1, 240), wy(g.udoZ - 1, 270), wy(g.udoZ - 5, 298), wy(g.udoZ - 7, 324), wy(g.udoZ - 17, 350)];
+  const stopaZ = wy(g.udoZ - 12, 368), stopaW = wy(g.udoW - 1, 368);
+  const wew = [wy(g.udoW + 1, 350), wy(g.udoW + 3, 324), wy(g.udoW + 3, 298), wy(g.udoW + 1, 262), wy(g.udoW - 2, 238), wy(4, 226)];
+  const lu = ([x, y]) => [2 * X - x, y];
+  const zewL = zew.map(lu).reverse(), wewL = wew.map(lu).reverse(), stopaZL = lu(stopaZ), stopaWL = lu(stopaW);
+  let dd = `M${zew[0][0]},${zew[0][1]}` + gladkaKrzywa(zew) + ` L${stopaZ[0]},${stopaZ[1]} Q${(stopaZ[0] + stopaW[0]) / 2},${stopaZ[1] + 4} ${stopaW[0]},${stopaW[1]}`;
+  dd += ` L${wew[0][0]},${wew[0][1]}` + gladkaKrzywa(wew) + ` Q${X},${216} ${wewL[0][0]},${wewL[0][1]}` + gladkaKrzywa(wewL);
+  dd += ` L${stopaWL[0]},${stopaWL[1]} Q${(stopaZL[0] + stopaWL[0]) / 2},${stopaZL[1] + 4} ${stopaZL[0]},${stopaZL[1]} L${zewL[0][0]},${zewL[0][1]}` + gladkaKrzywa(zewL) + ' Z';
+  // ręka (prawa i lustrzana lewa): zamknięta gładka linia
+  const r = [wy(sh - 1, 84), wy(sh + 6, 98), wy(sh + 10, 126), wy(sh + 13, 156), wy(sh + 17, 190), wy(sh + 19, 214), wy(sh + 13, 218), wy(sh + 8, 196), wy(sh + 3, 160), wy(sh - 2, 128), wy(sh - 5, 104)];
+  const reka = 'M' + r[0][0] + ',' + r[0][1] + gladkaKrzywa(r, true) + ' Z', rekaL = 'M' + lu(r[0])[0] + ',' + lu(r[0])[1] + gladkaKrzywa(r.map(lu), true) + ' Z';
+  const wlosy = kobieta ? 'M82,30 C80,6 120,6 118,30 C121,48 122,66 115,80 C110,72 108,56 108,48 L92,48 C92,56 90,72 85,80 C78,66 79,48 82,30 Z' : 'M83,29 C83,9 117,9 117,29 C113,20 105,17 100,17 C95,17 87,20 83,29 Z';
+  return { tulow: dd, reka, rekaL, wlosy };
+}
+function figuraCialo(p, anim) {
+  const cel = (profil[p] || {}).cel, W = 340, H = 380, DX = 70, geo = geometriaCiala(p), k = konturCiala(p);
+  const ser = Object.fromEntries(SITY.map(si => [si.k, seriaObw(p, si.k)]));
+  const pol = q => Math.round(Math.PI * Math.sqrt((q.rx * q.rx + q.ry * q.ry) / 2));
+  const pasy = SITY.map((si, i) => {
+    const q = geo[si.k], sel = cialoSito === si.k, ma = ser[si.k].length > 0, bx = DX + q.cx + (si.strona === 'l' ? -q.rx : q.rx), by = q.cy + (si.strona === 'l' ? q.rot : -q.rot) * 0.12, ax = si.strona === 'l' ? 96 : W - 96, cx = DX + q.cx;
+    const tyl = `M${(cx - q.rx).toFixed(1)},${q.cy} A${q.rx},${q.ry} 0 0 1 ${(cx + q.rx).toFixed(1)},${q.cy}`, przod = `M${(cx - q.rx).toFixed(1)},${q.cy} A${q.rx},${q.ry} 0 0 0 ${(cx + q.rx).toFixed(1)},${q.cy}`;
+    return `<g class="sito ${sel ? 'sel' : ''} ${ma ? 'ma' : ''}" style="--i:${i};--len:${pol(q)}">
+      <line class="lacz" x1="${ax}" y1="${si.ly}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>
+      <g transform="rotate(${q.rot} ${cx} ${q.cy})"><path class="pas-tyl" d="${tyl}"/><path class="pas-przod" d="${przod}"/></g>
+      <circle class="halo" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="7"/><circle class="kropka" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="3.4"/></g>`;
+  }).join('');
+  const et = SITY.map(si => {
+    const sr = ser[si.k], ost = sr[sr.length - 1], zm = sr.length > 1 ? ost[1] - sr[0][1] : null, ocena = zm == null ? '' : oceniObw(si.k, cel, zm);
+    return `<button class="sito-et ${si.strona === 'l' ? 'lewo' : 'prawo'} ${cialoSito === si.k ? 'akt' : ''}" style="top:${(si.ly / H * 100).toFixed(2)}%;--i:${SITY.indexOf(si)}" data-sito="${si.k}" aria-label="${si.n}: ${ost ? kgTxt(ost[1]) + ' cm' : 'brak pomiaru'}"><small>${si.n}</small><b>${ost ? cm1(ost[1]) : '—'}<i>${ost ? ' cm' : ''}</i></b><span class="${ocena}">${zm == null ? (ost ? '' : 'dodaj') : zm === 0 ? '=' : (zm > 0 ? '▲ +' : '▼ ') + cm1(Math.abs(zm))}</span></button>`;
+  }).join('');
+  return `<div class="cialo-scena ${p} ${anim ? 'anim' : ''}">
+    <svg class="cialo-svg" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+      <defs>
+        <linearGradient id="cg-${p}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".38"/><stop offset=".55" stop-color="currentColor" stop-opacity=".2"/><stop offset="1" stop-color="currentColor" stop-opacity=".1"/></linearGradient>
+        <radialGradient id="cs-${p}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient>
+        <linearGradient id="sk-${p}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="currentColor" stop-opacity="0"/><stop offset=".5" stop-color="currentColor" stop-opacity=".9"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient>
+      </defs>
+      <ellipse class="podloga" cx="${DX + 100}" cy="372" rx="62" ry="7" fill="url(#cs-${p})"/>
+      <g transform="translate(${DX},0)"><g class="oddech"><g class="syl" fill="url(#cg-${p})" stroke="currentColor">
+        <path class="wlosy" d="${k.wlosy}"/>
+        <path d="${k.reka}"/><path d="${k.rekaL}"/>
+        <path d="${k.tulow}"/>
+        <ellipse cx="100" cy="34" rx="17" ry="21"/>
+      </g></g></g>
+      ${pasy}
+      <rect class="skan" x="${DX + 20}" y="0" width="120" height="3" fill="url(#sk-${p})"/>
+    </svg>${et}</div>`;
+}
+function widokCialo(p) {
+  const anim = cialoNowy; cialoNowy = false;
+  const si = SITY.find(q => q.k === cialoSito) || SITY[0], sr = seriaObw(p, si.k), daty = Object.keys(obw[p] || {}).sort();
+  let h = `<div class="karta cialo-karta ${p}"><div class="rzad-nag"><h3 style="margin:0" class="${p}">${ETY[p]} · sylwetka</h3></div>
+    <p class="mute" style="margin:4px 0 0">Dotknij obwodu, żeby zobaczyć jego trend. Mierz miarką krawiecką, rano, w tym samym miejscu.</p>
+    ${figuraCialo(p, anim)}</div>`;
+  h += `<div class="karta wykres-karta ${p}"><div class="rzad-nag"><h3 style="margin:0" class="${p}">${si.n} · trend</h3></div>${wykresWagi(sr, p, 'Wykres obwodu: ' + si.n, 'cm')}`;
+  if (sr.length > 1) { const wart = sr.map(q => q[1]); h += `<div class="wstat"><div><small>Najmniej</small><b>${cm1(Math.min(...wart))} cm</b></div><div><small>Najwięcej</small><b>${cm1(Math.max(...wart))} cm</b></div><div><small>Zmiana</small><b>${(zm => (zm > 0 ? '+' : '') + cm1(zm) + ' cm')(sr[sr.length - 1][1] - sr[0][1])}</b></div></div>`; }
+  h += `</div>`;
+  h += `<div class="karta"><h3 style="margin:0 0 10px">Nowy pomiar ciała</h3><p class="mute" style="margin:0 0 10px">Wpisz tylko te obwody, które zmierzyłeś. Reszta zostaje bez zmian.</p>
+    <div class="ob-siatka">${SITY.map(q => { const o = seriaObw(p, q.k), ost = o[o.length - 1]; return `<label class="pole"><span>${q.n} (cm)</span><input type="text" inputmode="decimal" id="ob-${p}-${q.k}" placeholder="${ost ? kgTxt(ost[1]) : 'np. 80'}" autocomplete="off"></label>`; }).join('')}</div>
+    <label class="pole"><span>Data</span><input type="date" id="ob-d-${p}" value="${isoDzis()}" max="${isoDzis()}"></label>
+    <button class="btn glowny szeroki" data-zapisz-obw="${p}">Zapisz pomiary</button></div>`;
+  if (daty.length) h += `<h2>Historia pomiarów</h2><div class="karta hist">` + daty.slice(-8).reverse().map(dd => `<div class="hist-w ob-w"><span class="hist-d">${new Date(dd + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</span><span class="ob-wart">${SITY.filter(q => obw[p][dd][q.k] != null).map(q => `${q.n} <b>${cm1(obw[p][dd][q.k])}</b>`).join(' · ')}</span><button class="btn maly" data-usun-obw="${p}|${dd}" aria-label="Usuń pomiar">✕</button></div>`).join('') + `</div>`;
+  return h;
+}
+function zapiszObw(p) {
+  const d = ($('#ob-d-' + p) || {}).value || isoDzis(), nowe = {};
+  for (const si of SITY) { const raw = String((($('#ob-' + p + '-' + si.k)) || {}).value || '').trim(); if (!raw) continue; const v = parseFloat(raw.replace(',', '.')); if (!(v >= 10 && v <= 250)) { pokazToast(`${si.n}: wpisz obwód w centymetrach, np. 78,5.`); return; } nowe[si.k] = Math.round(v * 10) / 10; }
+  if (!Object.keys(nowe).length) { pokazToast('Wpisz przynajmniej jeden obwód w cm.'); return; }
+  obw[p] = obw[p] || {}; obw[p][d] = Object.assign(obw[p][d] || {}, nowe);
+  LS.set('obw', obw); Z(Object.entries(nowe).map(([k, v]) => [['obw', p, d, k], v]));
+  const k0 = Object.keys(nowe)[0]; if (Object.keys(nowe).length === 1) cialoSito = k0;
+  cialoNowy = true; rysuj(); pokazToast('Zapisano pomiary ciała');
 }
 function zapiszWage(p) {
   const v = parseFloat(String(($('#wk-' + p) || {}).value).replace(',', '.')), d = ($('#wd-' + p) || {}).value || isoDzis();
@@ -4109,7 +4236,7 @@ document.addEventListener('click', async e => {
   }
   else if (t.id === 'odswiezBaze') wczytajBaze().then(rysuj);
   else if (t.id === 'nowyNast' || t.id === 'nowyBiez') {
-    const st = t.id === 'nowyNast' ? dodajDni(poniedzialek(), 7) : poniedzialek();
+    const dzisBezPlanu = !tygodnieZapisane().some(q => isoDzis() >= q.start && isoDzis() <= dodajDni(q.start, 6)), st = t.id === 'nowyNast' ? dodajDni(poniedzialek(), 7) : (dzisBezPlanu && poniedzialek() > isoDzis() ? dodajDni(poniedzialek(), -7) : poniedzialek());   // w niedzielę bez planu na dziś układam kończący się tydzień, nie następny
     if (plan.start !== st) { if (inny && inny.start === st) przelaczTydzien(); else ulozTydzien(st, true); }   // drugi tydzień zostaje zapisany
     otwartyDzien = null; zakladka = 'tydzien'; rysuj(); window.scrollTo(0, 0);
   }
@@ -4204,7 +4331,11 @@ document.addEventListener('click', async e => {
   else if (t.dataset.korZastosuj) { const [pp, dl] = t.dataset.korZastosuj.split(':'); zastosujKorekte(pp, +dl, false); }
   else if (t.dataset.korOdloz) { korekta[t.dataset.korOdloz].odloz = dodajDni(isoDzis(), 7); LS.set('korekta', korekta); Z([[['korekta', t.dataset.korOdloz], korekta[t.dataset.korOdloz]]]); rysuj(); pokazToast('Dam znać za tydzień'); }
   else if (t.dataset.korReset) { const pp = t.dataset.korReset; korekta[pp].kcal = 0; korekta[pp].od = null; korekta[pp].odloz = null; LS.set('korekta', korekta); Z([[['korekta', pp], korekta[pp]]]); rysuj(); pokazToast('Korekta wyzerowana. Plan przeliczony.'); }
-  else if (t.dataset.wosoba) { wagaOsoba = t.dataset.wosoba; rysuj(); }
+  else if (t.dataset.wosoba) { wagaOsoba = t.dataset.wosoba; cialoNowy = true; rysuj(); }
+  else if (t.dataset.wwidok) { wagaWidok = t.dataset.wwidok; cialoNowy = true; rysuj(); }
+  else if (t.dataset.sito) { cialoSito = t.dataset.sito; rysuj(); }
+  else if (t.dataset.zapiszObw) zapiszObw(t.dataset.zapiszObw);
+  else if (t.dataset.usunObw) { const [pp, dd] = t.dataset.usunObw.split('|'); if (obw[pp]) { delete obw[pp][dd]; LS.set('obw', obw); Z([[['obw', pp, dd], undefined]]); rysuj(); } }
   else if (t.dataset.wzakres) { wagaZakres = +t.dataset.wzakres; rysuj(); }
   else if (t.dataset.wkstep) { const [pp, dl] = t.dataset.wkstep.split(':'), el = $('#wk-' + pp); const v = parseFloat(String(el.value).replace(',', '.')) || 70; el.value = kgTxt(Math.max(25, v + +dl)); }
   else if (t.dataset.zapiszWage) zapiszWage(t.dataset.zapiszWage);
@@ -4289,7 +4420,7 @@ document.addEventListener('change', e => {
 
 // ---------- interfejs dla sync.js ----------
 window.App = {
-  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa, wlasneDania, lodData, zamiennik }),
+  stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, obw, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa, wlasneDania, lodData, zamiennik }),
   zdalny(data) {
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
@@ -4298,17 +4429,18 @@ window.App = {
       if (dni.every(Boolean)) nowyPlan = { start: data.start, dni: dni.map(d => Object.assign({ ratio: {}, tr: { ona: false, on: false } }, d)) };
     }
     const noweOdh = data.odhaczone || {};
-    const przed = stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny });
+    const przed = stabilny({ profil, plan, odhaczone, oceny, waga, obw, lodowka, zuzyte, inny });
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
     paragony = data.paragony || []; ceny = data.ceny || {}; mapaPar = data.mapaPar || {}; pakiety = data.pakiety || {}; sesje = data.sesje || []; historia = data.historia || []; trasa = data.trasa || {}; wlasneDania = data.wlasneDania || []; lodData = data.lodData || {}; zamiennik = data.zamiennik || {}; LS.set('zamiennik', zamiennik); zastosujWlasneDania(); wlasneProd = data.wlasneProd || {}; kody = data.kody || {}; zastosujWlasne(); zastosujPakiety(); migrujPuszki();
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
-    if (stabilny({ profil, plan, odhaczone, oceny, waga, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
+    obw = { ona: (data.obw && data.obw.ona) || {}, on: (data.obw && data.obw.on) || {} };
+    if (stabilny({ profil, plan, odhaczone, oceny, waga, obw, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
     LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneDania', wlasneDania); LS.set('lodData', lodData); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);
-    LS.set('oceny', oceny); LS.set('waga', waga); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
+    LS.set('oceny', oceny); LS.set('waga', waga); LS.set('obw', obw); LS.set('lodowka', lodowka); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
     if (!$('#modal').hidden) { odroczone = true; return; }                        // nie zamykam otwartego przepisu
     if (zakladka === 'ustawienia' && !ekranStartowy && !ekranCzekania) return;    // nie kasuję wypełnianego formularza
     if ((zakladka === 'waga' || zakladka === 'lodowka') && document.activeElement && document.activeElement.matches('input, textarea, select')) return;

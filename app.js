@@ -2987,12 +2987,12 @@ function oknoZmien(d, slot) {
   const day = plan.dni[d];
   const teraz = slot === 'm13' ? day.m13.wsp : slot === 'm13ona' ? day.m13.ona : slot === 'm13on' ? day.m13.on : osobaSlotu(slot) ? dlaOsoby(day, osobaSlotu(slot), bazaSlotu(slot)) : day[slot];
   const tryb = bazaSlotu(slot) === 'm13' && ((DB.dania.get(teraz) || {}).typ !== 'koktajl') ? 'dania' : 'kokt';
-  const pula = bazaSlotu(slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : bazaSlotu(slot) === 'm13' ? (tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania) : DB.pula[bazaSlotu(slot)];
+  const pula = bazaSlotu(slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : bazaSlotu(slot) === 'm13' ? (tryb === 'kokt' ? DB.pula.m13kokt : pulaSniadan()) : (bazaSlotu(slot) === 'sn' || slot === 'm13on') ? pulaSniadan() : DB.pula[bazaSlotu(slot)];
   const moznaDla = BAZY_OS.includes(bazaSlotu(slot)) && !(bazaSlotu(slot) === 'ob' && day.ob2) && !(bazaSlotu(slot) === 'm13' && !day.m13.wsp);
   const solo = BAZY_OS.includes(bazaSlotu(slot)) ? OS.filter(p => !dlaOsoby(day, p, bazaSlotu(slot))) : OS;
   zmienCtx = { d, slot, teraz, pula, dla: osobaSlotu(slot) || (moznaDla && solo.length === 1 ? solo[0] : 'oboje') };
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zmień: ${bazaSlotu(slot) === 'm13' ? 'drugie śniadanie' : esc(PORA[slot].split(' · ')[1])}${esc(etSlotu(slot))}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
-    <p class="mute">${DNI[d]}. Kalorie zostają takie same, a gramatury nowego dania dobiorę tak, żeby białko też się zgadzało.</p>
+    <p class="mute">${DNI[d]}. Kalorie zostają takie same, a gramatury nowego dania dobiorę tak, żeby białko też się zgadzało.${(bazaSlotu(slot) === 'sn' || slot === 'm13on' || (bazaSlotu(slot) === 'm13' && tryb === 'dania')) ? ' Śniadanie i drugie śniadanie wybierasz z tej samej listy; danie, które jest już w drugim z nich, nie pokazuje się tutaj.' : ''}</p>
     ${moznaDla ? `<div class="dla-kogo"><span class="mute">Dla kogo zmieniasz?</span><div class="seg" id="dla-seg" role="group" aria-label="Dla kogo">${[['oboje', 'Dla obojga'], ['ona', 'Tylko ONA'], ['on', 'Tylko ON']].map(([k, et]) => `<button data-dla="${k}" class="${zmienCtx.dla === k ? 'akt' : ''}">${et}</button>`).join('')}</div>${osobaSlotu(slot) ? `<button class="btn maly" data-dla-wspolne="${d}:${slot}">Wróć do wspólnego dania</button>` : ''}</div>` : ''}
     ${bazaSlotu(slot) === 'm13' ? `<p class="mute" style="margin-bottom:6px">Na 13:00 pijecie koktajl czy jecie drugie danie?</p><div class="seg"><button data-tryb="kokt" class="${tryb === 'kokt' ? 'akt' : ''}">Koktajl</button><button data-tryb="dania" class="${tryb === 'dania' ? 'akt' : ''}">Drugie danie</button></div>` : ''}
     <label class="pole"><span>Szukaj po słowach (nazwa lub składnik, np. „kurczak ryż”)</span><input id="szukaj" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. kuskus"></label>
@@ -3002,25 +3002,37 @@ function oknoZmien(d, slot) {
   $('#modal').hidden = false;
 }
 // Grupy dań w wyborze: obiady i drugie dania wg mięsa (zupy, ryby, mielone, kurczak…), śniadania wg rodzaju, koktajle wg smaku.
-const GRUPY_MIESO = ['Zupy', 'Z kurczakiem', 'Z mielonym', 'Z indykiem', 'Z wołowiną i wieprzowiną', 'Ryby', 'Z wędliną', 'Skyr i słodkie', 'Bez mięsa', 'Inne'];
-const GRUPY_SN = ['Owsianki i kasze', 'Naleśniki, gofry i placki', 'Kanapki i tosty', 'Jajka', 'Skyr, jogurt i twaróg', 'Inne'];
+const GRUPY_MIESO = ['Zupy', 'Kurczak', 'Indyk', 'Wołowina i wieprzowina', 'Ryby', 'Inne'];
+const GRUPY_SN = ['Jajecznica, omlety i szakszuka', 'Jajka w kanapkach, tostach i sałatkach', 'Kurczak', 'Indyk', 'Ryby i tuńczyk', 'Wędliny, ser i twaróg', 'Sałatki i bowle', 'Słodkie: owsianki, kasze i ryż', 'Słodkie: naleśniki, gofry i syrniki', 'Słodkie: skyr, puddingi i desery', 'Inne'];
 const GRUPY_KOKT = ['Owocowe', 'Kakaowe i czekoladowe', 'Z masłem orzechowym', 'Inne'];
-function grupaDania(x, slot) {
-  const n = znorm(x.nazwa), sk = znorm((x.skladniki || []).map(i => i.produkt || '').join(' | '));
-  if (/^koktajl/.test(x.typ || '')) return /kakao|czekolad/.test(n) ? GRUPY_KOKT[1] : /maslem orzech|maslo orzech/.test(n) ? GRUPY_KOKT[2] : /owoce mrozone|malin|jagod|truskaw|mango|brzoskw|wisni|jablk|banan/.test(n + ' ' + sk) ? GRUPY_KOKT[0] : GRUPY_KOKT[3];
-  if (slot === 'sn') return /owsiank|jaglank|platk|granol|kasza manna|kaszk|pudding|chia|musli|ryz na mleku|kuskus/.test(n) ? GRUPY_SN[0] : /nalesnik|gofr|placki|syrnik|tosty francusk|nalesn/.test(n) ? GRUPY_SN[1] : /kanapk|tost|chleb|wrap|tortill|bagiet|bulk|zapiek/.test(n) ? GRUPY_SN[2] : /jajk|jaja|szakszuk|omlet|jajecz|frittat/.test(n) ? GRUPY_SN[3] : /skyr|jogurt|twarog|serniczek|twarozk/.test(n) ? GRUPY_SN[4] : GRUPY_SN[5];
-  if (x.typ === 'obiad_zupa' || /^(zupa|krem|barszcz|zurek|rosol|chlodnik)/.test(n) || /\b(zupa|krem z)\b/.test(n)) return GRUPY_MIESO[0];
-  if (/dorsz|losos|tunczyk|ryb|makrel|sledz|mintaj|pstrag|sandacz/.test(sk + ' ' + n)) return GRUPY_MIESO[5];
-  if (/mielon/.test(sk + ' ' + n)) return GRUPY_MIESO[2];
-  if (/kurczak|piers z kurcz|udko|skrzydl/.test(sk + ' ' + n)) return GRUPY_MIESO[1];
-  if (/indyk/.test(sk + ' ' + n)) return GRUPY_MIESO[3];
-  if (/wolowin|wieprz|schab|karkowk|poledwic|boczek|zeberk|pregi|lopatk/.test(sk + ' ' + n)) return GRUPY_MIESO[4];
-  if (/szynk|kielbas|parowk|wedlin|salami|boczek/.test(sk + ' ' + n)) return GRUPY_MIESO[6];
-  if (/skyr|snickers|overnight|owsiank|granol|jogurt|pudding|chia|serniczek|twarozek slodk/.test(n)) return GRUPY_MIESO[7];
-  if (/jaj|ser |feta|twarog|tofu|ciecierzyc|fasol|soczewic|kuskus|kasza|ryz|makaron|ziemniak|warzyw|salatk|szpinak|kanapk|tost|wrap/.test(sk + ' ' + n)) return GRUPY_MIESO[8];
-  return GRUPY_MIESO[9];
+// Główny składnik = ten, który w nazwie dania występuje jako pierwszy („Sałatka z tuńczykiem i jajkiem” to ryby, „Jajecznica z szynką” to jajka).
+const SKLADNIKI_GL = [
+  ['jajka', /jajk|jajec|\bjaja\b|omlet|frittat|szakszuk/], ['kurczak', /kurczak/], ['indyk', /indyk/], ['ryby', /tunczyk|losos|dorsz|\bryb|makrel|sledz/],
+  ['mieso', /wolow|wieprz|schab|poledwic|mielon|klopsik|bolognese|lasagne|carne|burger|karkowk/], ['wedliny', /szynk|kielbas|wedlin|salami|\bser(?!nicz)\w*|twarog|twarozek|feta/],
+  ['s_owsianki', /owsiank|jaglank|kasza manna|na slodko|ryz na mleku|kuskus na cieplo|baked oats|overnight/], ['s_nalesniki', /nalesnik|gofr|syrnik|placki owsiano|tosty francusk/], ['s_skyr', /skyr|jogurt|pudding|serniczek|snickers|granol/]
+];
+function skladnikGlowny(nazwa) {
+  const n = znorm(nazwa); let naj = null;
+  for (const [k, re] of SKLADNIKI_GL) { const m = re.exec(n); if (m && (!naj || m.index < naj.i || (m.index === naj.i && m[0].length > naj.l))) naj = { k, i: m.index, l: m[0].length }; }
+  return naj ? naj.k : '';
 }
-function grupyDlaSlotu(x, slot) { return /^koktajl/.test(x.typ || '') ? GRUPY_KOKT : slot === 'sn' ? GRUPY_SN : GRUPY_MIESO; }
+function grupaDania(x, slot) {
+  const n = znorm(x.nazwa), sk = znorm((x.skladniki || []).map(i => i.produkt || '').join(' | ')), k = skladnikGlowny(x.nazwa);
+  if (/^koktajl/.test(x.typ || '')) return /kakao|czekolad/.test(n) ? GRUPY_KOKT[1] : /maslem orzech|maslo orzech/.test(n) ? GRUPY_KOKT[2] : /owoce mrozone|malin|jagod|truskaw|mango|brzoskw|wisni|jablk|banan/.test(n + ' ' + sk) ? GRUPY_KOKT[0] : GRUPY_KOKT[3];
+  if (bazaSlotu(slot) !== 'ob') return ({ jajka: /kanapk|tost|bulk|salatk|bowl|serek/.test(n) ? GRUPY_SN[1] : GRUPY_SN[0], kurczak: GRUPY_SN[2], indyk: GRUPY_SN[3], ryby: GRUPY_SN[4], wedliny: GRUPY_SN[5], s_owsianki: GRUPY_SN[7], s_nalesniki: GRUPY_SN[8], s_skyr: GRUPY_SN[9] })[k] || (/salatk|bowl/.test(n) ? GRUPY_SN[6] : GRUPY_SN[10]);
+  if (x.typ === 'obiad_zupa' || /^(zupa|krem|barszcz|zurek|rosol|chlodnik)/.test(n) || /\b(zupa|krem z)\b/.test(n)) return GRUPY_MIESO[0];
+  return ({ kurczak: GRUPY_MIESO[1], indyk: GRUPY_MIESO[2], mieso: GRUPY_MIESO[3], ryby: GRUPY_MIESO[4] })[k] || GRUPY_MIESO[5];
+}
+function grupyDlaSlotu(x, slot) { return /^koktajl/.test(x.typ || '') ? GRUPY_KOKT : bazaSlotu(slot) !== 'ob' ? GRUPY_SN : GRUPY_MIESO; }
+// Śniadanie i drugie śniadanie (danie) wybierasz z tej samej listy; to, co jest już w drugim z nich tego dnia, nie pokazuje się na liście.
+const pulaSniadan = () => DB.pula.sn.concat(DB.pula.m13dania.filter(x => !DB.pula.sn.includes(x)));
+function zajeteSniadania(d, slot) {
+  const day = plan.dni[d], b = bazaSlotu(slot), mojeSn = b === 'sn', moje13 = b === 'm13' || slot === 'm13on';
+  if (!day || (!mojeSn && !moje13)) return new Set();
+  const dl = OS.map(p => day.dla && day.dla[p]).filter(Boolean), m = day.m13 || {};
+  const sn = [day.sn, ...dl.map(q => q.sn)], m13 = [m.wsp, m.on, ...dl.map(q => q.m13)];
+  return new Set((mojeSn ? m13 : sn).filter(Boolean));
+}
 document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.wyb-grp') && zmienCtx) { zmienCtx.otw = zmienCtx.otw || {}; zmienCtx.otw[d.dataset.grp] = d.open; } }, true);
 function wierszWyboru(x, teraz, d, slot) {
   return `<div class="wiersz ${ukryte(x.id) ? 'ukryte' : ''}"><button class="wybor ${x.id === teraz ? 'teraz' : ''}" data-wybierz="${d}:${slot}:${esc(x.id)}">${Obr.html(x)}<span class="tx"><b>${oceny[x.id] === 1 ? '★ ' : ''}${nazwaDania(x)}</b>
@@ -3032,7 +3044,7 @@ function listaWyboru(q) {
   const slowa = slowaZ(q);
   const rang = x => oceny[x.id] === 1 ? 0 : ukryte(x.id) ? 2 : 1;
   const kto = BAZY_OS.includes(bazaSlotu(slot)) ? (zmienCtx.dla && zmienCtx.dla !== 'oboje' ? [zmienCtx.dla] : OS) : osobySlotu(slot), zakazane = pula.filter(x => !dopuszcza(x, kto)), pokaz = !!zmienCtx.pokazZakazane;
-  const lista = pula.filter(x => (pokaz || dopuszcza(x, kto) || x.id === teraz) && slowa.every(w => szukany(x).includes(w))).sort((x, y) => rang(x) - rang(y) || x.nazwa.localeCompare(y.nazwa, 'pl'));
+  const zaj = zajeteSniadania(d, slot), lista = pula.filter(x => (pokaz || dopuszcza(x, kto) || x.id === teraz) && (x.id === teraz || !zaj.has(x.id)) && slowa.every(w => szukany(x).includes(w))).sort((x, y) => rang(x) - rang(y) || x.nazwa.localeCompare(y.nazwa, 'pl'));
   const info = zakazane.length ? `<p class="mute" style="margin:4px 0">${pokaz ? 'Pokazuję też' : 'Ukryłem'} ${zakazane.length} ${mn(zakazane.length, 'danie', 'dania', 'dań')} z wykluczonymi składnikami. <button class="btn maly" data-pokaz-zakazane>${pokaz ? 'Ukryj je' : 'Pokaż mimo to'}</button></p>` : '';
   if (!lista.length) { $('#lista-wyboru').innerHTML = info + '<p class="pusty">Nic nie pasuje do tych słów.</p>'; return; }
   // grupy rozsuwane: ulubione na górze, potem rodzaje dań; przy szukaniu wszystko rozsunięte, inaczej otwarta tylko grupa z obecnym daniem
@@ -4517,7 +4529,7 @@ document.addEventListener('click', async e => {
   }
   else if ('pokazZakazane' in t.dataset && zmienCtx) { zmienCtx.pokazZakazane = !zmienCtx.pokazZakazane; listaWyboru(($('#szukaj') || {}).value || ''); }
   else if (t.dataset.tryb && zmienCtx) {
-    zmienCtx.pula = t.dataset.tryb === 'kokt' ? DB.pula.m13kokt : DB.pula.m13dania;
+    zmienCtx.pula = t.dataset.tryb === 'kokt' ? DB.pula.m13kokt : pulaSniadan();
     document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('akt', b === t));
     listaWyboru(($('#szukaj') || {}).value || '');
   }

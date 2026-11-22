@@ -516,6 +516,21 @@
       rowne([otwartyTyg, otwartyDzien], [plan.start, 3], 'po zamianie niepasujących widok zostaje na tym samym dniu');
     } finally { plan = sp; inny = si; zakladka = sk; otwartyTyg = sT; otwartyDzien = sD; LS.set = lset; LS.del = ldel; rysuj = ry; zamknijOkno = zo; pokazToast = pt; window._dop = sd; }
   });
+  await test('Wybór śniadań', 'podział wg głównego składnika, wspólna lista śniadania i drugiego śniadania, danie z jednego nie pokazuje się w drugim', async () => {
+    const po = n => [...DB.dania.values()].find(x => x.nazwa === n), gr = n => grupaDania(po(n), 'sn');
+    rowne(gr('Sałatka makaronowa z tuńczykiem'), 'Ryby i tuńczyk', 'sałatka z tuńczykiem to ryby');
+    rowne(gr('Sałatka z kurczakiem, kaszą i kukurydzą'), 'Kurczak', 'sałatka z kurczakiem to kurczak');
+    rowne(gr('Jajecznica z szynką i serem + chleb'), 'Jajecznica, omlety i szakszuka', 'jajecznica to jajka');
+    rowne(gr('Owsianka z masłem orzechowym i bananem').slice(0, 7), 'Słodkie', 'owsianka jest słodka');
+    const pula = pulaSniadan(); prawda(pula.length === new Set(pula.map(x => x.id)).size && pula.length >= DB.pula.sn.length + 1, 'wspólna lista bez powtórzeń');
+    prawda(DB.pula.m13dania.every(x => pula.includes(x)) && DB.pula.sn.every(x => pula.includes(x)), 'na liście są śniadania i drugie dania');
+    const sp = plan; try {
+      plan = JSON.parse(JSON.stringify(plan)); const day = plan.dni[0];
+      prawda(zajeteSniadania(0, 'sn').has(day.m13.on) && !zajeteSniadania(0, 'sn').has(day.sn), 'przy śniadaniu znika danie z drugiego śniadania');
+      prawda(zajeteSniadania(0, 'm13on').has(day.sn) && !zajeteSniadania(0, 'm13on').has(day.m13.on), 'przy drugim śniadaniu znika danie ze śniadania');
+      rowne(zajeteSniadania(0, 'ob').size, 0, 'obiad bez wykluczeń');
+    } finally { plan = sp; }
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

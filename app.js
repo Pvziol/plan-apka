@@ -549,6 +549,7 @@ function poniedzialek() {
 }
 // Tydzień jest „żywy”, dopóki nie minął jego ostatni dzień (w niedzielę kończący się tydzień nadal trwa, choć poniedzialek() wskazuje już następny).
 const tydzienZywy = start => dodajDni(start, 6) >= isoDzis();
+const biezPon = () => { const dz = isoDzis(); return dodajDni(dz, -((new Date(dz + 'T12:00:00').getDay() + 6) % 7)); };
 const dodajDni = (iso, n) => { const t = new Date(iso + 'T12:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
 const krotkaData = iso => new Date(iso + 'T12:00:00').toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' });
 // ---------- czego nie jecie ----------
@@ -924,7 +925,7 @@ function kartaDnia(t, c, dzisIso, nawig) {
   const d = otwartyDzien, x = w.dni[d], day = plan.dni[d], iso = dodajDni(t.start, d), jestDzis = iso === dzisIso;
   const dzisRz = Math.round((new Date(dzisIso + 'T12:00:00') - dataDnia(0)) / 864e5), tydzDzis = dzisRz >= 0 && dzisRz <= 6;
   const sr = p => sredniaOsoby(w, p, 'b'), srK = p => sredniaOsoby(w, p, 'kcal');
-  const biez = poniedzialek(), znacz = t.start === biez || (t.start < biez && tydzienZywy(t.start)) ? 'bieżący' : t.start === dodajDni(biez, 7) ? 'następny' : t.start < biez ? 'miniony' : '';
+  const biez = biezPon(), znacz = t.start === biez ? 'bieżący' : t.start === dodajDni(biez, 7) ? 'następny' : t.start < biez ? 'miniony' : '';
   let h = `<section data-wk="${t.start}"><div data-d="${d}">`;
   h += `<div class="dnia-gora"><button class="strz" data-pdzien="${nawig.prev || ''}" ${nawig.prev ? '' : 'disabled'} aria-label="Poprzedni dzień">‹</button>
     <div class="dnia-tyt"><h2>${DNI[d]}${jestDzis ? '<span class="dzis-znacz">dziś</span>' : ''}</h2><small>${dataDnia(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${stanKto(day) !== 'oboje' ? ` · tylko ${stanKto(day) === 'bezon' ? 'ONA' : 'ON'}` : ''}</small></div>
@@ -977,9 +978,9 @@ function widokTydzien() {
   h += `<div class="pasek-dni" id="pasekDni">` + wszystkie.map((x, i) => `${x.d === 0 && i ? '<span class="pd-sep"></span>' : ''}<button class="pd ${i === idx ? 'akt' : ''} ${x.iso === dzisIso ? 'dzis' : ''}" data-pdzien="${x.start}:${x.d}"><small>${DNI_P[x.d]}</small><b>${new Date(x.iso + 'T12:00:00').getDate()}</b></button>`).join('') + `</div>`;
   const t = tyg.find(q => q.start === wyb.start);
   h += zTygodniem(t, () => kartaDnia(t, c, dzisIso, { prev: idx > 0 ? `${wszystkie[idx - 1].start}:${wszystkie[idx - 1].d}` : '', next: idx < wszystkie.length - 1 ? `${wszystkie[idx + 1].start}:${wszystkie[idx + 1].d}` : '' }));
-  const biez = poniedzialek(), nast = dodajDni(biez, 7), ma = s => tyg.some(q => q.start === s), trwa = tyg.some(q => q.start < biez && tydzienZywy(q.start));   // w niedzielę trwa jeszcze poprzedni tydzień, a „biez” to już następny
-  if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>${trwa ? 'Następny' : 'Bieżący'} tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż ${trwa ? 'następny' : 'bieżący'} tydzień</button></div>`;
-  if (!ma(nast) && !trwa) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
+  const biez = biezPon(), nast = dodajDni(biez, 7), ma = s => tyg.some(q => q.start === s);   // prawdziwy bieżący tydzień (w niedzielę nadal ten, który się kończy)
+  if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>Bieżący tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
+  if (!ma(nast)) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
   h += `<button class="btn glowny szeroki" id="doZakupow" style="margin-top:12px">Lista zakupów</button>`;
   $('#view').innerHTML = h;
   window._w = window._wBy[plan.start];
@@ -1689,12 +1690,12 @@ async function pdfObrazy(buf) {
 let ocrWorker = null;
 // Obraz → skala szarości, powiększenie ×2 (drobny druk paragonu) → rozpoznanie tekstu (Tesseract, język polski).
 async function ocrObraz(cv, postep) {
-  const wi = cv.width * 2, he = cv.height * 2, c2 = document.createElement('canvas'); c2.width = wi; c2.height = he;
+  const sk = Math.min(2, 2600 / Math.max(cv.width, cv.height)), wi = Math.max(1, Math.round(cv.width * sk)), he = Math.max(1, Math.round(cv.height * sk)), c2 = document.createElement('canvas'); c2.width = wi; c2.height = he;   // drobny druk ×2, ale nigdy większe niż ok. 2600 px (większe płótno wyłącza aplikację na telefonie)
   const cx = c2.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.filter = 'grayscale(1) contrast(1.4)'; cx.drawImage(cv, 0, 0, wi, he);
   await zaladujSkrypt(TESS_URL);
   if (!ocrWorker) ocrWorker = await Tesseract.createWorker('pol', 1, { workerPath: TESS_WORKER, corePath: TESS_CORE, langPath: TESS_LANG, workerBlobURL: false, logger: m => postep && postep(m) });
   await ocrWorker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
-  return (await ocrWorker.recognize(c2)).data.text;
+  try { return (await ocrWorker.recognize(c2)).data.text; } finally { c2.width = c2.height = 0; cv.width = cv.height = 0; }   // zwalniam pamięć płócien
 }
 function oknoPostepu(tekst, proc) {
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Czytam paragon</h2><button class="btn maly" data-zamknij>Anuluj</button></div><p class="pusty" style="padding:26px 0 8px" id="postep-tx">${esc(tekst)}</p><div class="pasek" style="color:var(--zielony);margin:0 0 24px"><i id="postep-pas" style="width:${proc || 8}%"></i></div><p class="mute" style="text-align:center">Za pierwszym razem pobieram moduł rozpoznawania tekstu (kilka MB). Potem działa szybciej.</p>`;
@@ -1707,7 +1708,7 @@ async function wczytajPlik(f) {
     oknoPostepu('Otwieram plik…', 5);
     let obrazy;
     if (/pdf/.test(typ) || /\.pdf$/.test(nazwa)) { obrazy = await pdfObrazy(await f.arrayBuffer()); if (!obrazy.length) throw new Error('W tym PDF-ie nie znalazłem obrazu paragonu.'); }
-    else if (/^image\//.test(typ)) { const bm = await createImageBitmap(f), cv = document.createElement('canvas'); cv.width = bm.width; cv.height = bm.height; cv.getContext('2d').drawImage(bm, 0, 0); obrazy = [cv]; }
+    else if (/^image\//.test(typ)) { const bm = await createImageBitmap(f), k = Math.min(1, 3200 / Math.max(bm.width, bm.height)), cv = document.createElement('canvas'); cv.width = Math.round(bm.width * k); cv.height = Math.round(bm.height * k); cv.getContext('2d').drawImage(bm, 0, 0, cv.width, cv.height); if (bm.close) bm.close(); obrazy = [cv]; }
     else throw new Error('Ten typ pliku nie jest obsługiwany. Wybierz PDF, zdjęcie, JSON albo plik tekstowy.');
     let tekst = '';
     for (let i = 0; i < obrazy.length; i++) {
@@ -1836,6 +1837,7 @@ async function zapiszParagonCore() {
   }
   paragony.unshift({ id: Date.now().toString(36), data, sklep, lokal: w.lokal || '', suma: w.suma != null ? w.suma : w.sumaPoz, poz });
   paragony = paragony.slice(0, 40);
+  LS.set('parOczek', [paragony[0].id].concat(LS.get('parOczek', [])).slice(0, 20));   // do potwierdzenia przez wspólny plan (patrz zdalny)
   LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
   parag = null; $('#modal').hidden = true;
   try { Z([[['paragony'], paragony], [['ceny'], ceny], [['mapaPar'], mapaPar], [['pakiety'], pakiety]]); } catch (e) { console.error(e); pokazToast('Paragon zapisany na tym telefonie, ale nie wysłał się do wspólnego planu'); }
@@ -4236,7 +4238,7 @@ document.addEventListener('click', async e => {
   }
   else if (t.id === 'odswiezBaze') wczytajBaze().then(rysuj);
   else if (t.id === 'nowyNast' || t.id === 'nowyBiez') {
-    const dzisBezPlanu = !tygodnieZapisane().some(q => isoDzis() >= q.start && isoDzis() <= dodajDni(q.start, 6)), st = t.id === 'nowyNast' ? dodajDni(poniedzialek(), 7) : (dzisBezPlanu && poniedzialek() > isoDzis() ? dodajDni(poniedzialek(), -7) : poniedzialek());   // w niedzielę bez planu na dziś układam kończący się tydzień, nie następny
+    const st = t.id === 'nowyNast' ? dodajDni(biezPon(), 7) : biezPon();
     if (plan.start !== st) { if (inny && inny.start === st) przelaczTydzien(); else ulozTydzien(st, true); }   // drugi tydzień zostaje zapisany
     otwartyDzien = null; zakladka = 'tydzien'; rysuj(); window.scrollTo(0, 0);
   }
@@ -4262,7 +4264,7 @@ document.addEventListener('click', async e => {
   else if (t.dataset.parPominPoz) { const r = parag.wiersze[+t.dataset.parPominPoz]; Object.assign(r, { pomin: true, wlacz: false, powod: 'pomijasz tę pozycję', zmieniony: true }); oknoParagon(); }
   else if (t.id === 'parZapisz') zapiszParagon()
   else if (t.dataset.cenyTryb) { cenyTryb = t.dataset.cenyTryb; LS.set('cenyTryb', cenyTryb); rysuj(); }
-  else if (t.dataset.parUsun) { if (await pytaj('Usunąć ten paragon z historii?', 'Zapamiętane ceny zostaną.', 'Usuń paragon')) { paragony = paragony.filter(x => x.id !== t.dataset.parUsun); LS.set('paragony', paragony); Z([[['paragony'], paragony]]); rysuj(); } }
+  else if (t.dataset.parUsun) { if (await pytaj('Usunąć ten paragon z historii?', 'Zapamiętane ceny zostaną.', 'Usuń paragon')) { paragony = paragony.filter(x => x.id !== t.dataset.parUsun); LS.set('parOczek', LS.get('parOczek', []).filter(id => id !== t.dataset.parUsun)); LS.set('paragony', paragony); Z([[['paragony'], paragony]]); rysuj(); } }
   else if (t.dataset.smakUkryj) { oceny[t.dataset.smakUkryj] = -1; LS.set('oceny', oceny); Z([[['oceny', t.dataset.smakUkryj], -1]]); rysuj(); pokazToast('Danie ukryte'); }
   else if (t.dataset.smakCzysc) { delete smaki[t.dataset.smakCzysc]; LS.set('smaki', smaki); Z([[['smaki', t.dataset.smakCzysc], undefined]]); rysuj(); }
   else if (t.dataset.wosoba2) { wyklOsoba = t.dataset.wosoba2; rysuj(); }
@@ -4430,6 +4432,8 @@ window.App = {
     }
     const noweOdh = data.odhaczone || {};
     const przed = stabilny({ profil, plan, odhaczone, oceny, waga, obw, lodowka, zuzyte, inny });
+    const paragonyPrzed = paragony, cenyPrzed = ceny, mapaParPrzed = mapaPar, pakietyPrzed = pakiety;
+    const staryTydz = plan && plan.dni && plan.dni.length === 7 && tydzienZywy(plan.start) ? paczka() : null;
     profil = nowyProfil; plan = nowyPlan; odhaczone = noweOdh;
     oceny = data.oceny || {}; zuzyte = data.zuzyte || {}; lodowka = data.lodowka || {}; inny = paczkaZChmury(data.inny);
     wyklucz = { ona: (data.wyklucz && data.wyklucz.ona) || [], on: (data.wyklucz && data.wyklucz.on) || [] }; smaki = data.smaki || {};
@@ -4437,6 +4441,17 @@ window.App = {
     korekta = { ona: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.ona), on: Object.assign({ kcal: 0, od: null, hist: [] }, data.korekta && data.korekta.on) };
     waga = { ona: (data.waga && data.waga.ona) || {}, on: (data.waga && data.waga.on) || {} };
     obw = { ona: (data.obw && data.obw.ona) || {}, on: (data.obw && data.obw.on) || {} };
+    if (staryTydz && plan && staryTydz.start !== plan.start && !(inny && tydzienZywy(inny.start)) && DB.dania.size) { inny = staryTydz; LS.set('inny', inny); Z([[['inny'], paczkaDoChmury(inny)]]); }   // nie gubię trwającego tygodnia, który zniknął ze wspólnego planu
+    {   // paragon zapisany na tym telefonie, a jeszcze niewidoczny we wspólnym planie, zostaje (razem z cenami) i jest wysyłany ponownie
+      const oczek = LS.get('parOczek', []), ids = new Set(paragony.map(x => x.id)), zostaje = oczek.filter(id => !ids.has(id) && paragonyPrzed.some(x => x.id === id));
+      if (zostaje.length) {
+        zostaje.slice().reverse().forEach(id => paragony.unshift(paragonyPrzed.find(x => x.id === id)));
+        paragony = paragony.slice(0, 40); ceny = cenyPrzed; mapaPar = Object.assign({}, mapaPar, mapaParPrzed); pakiety = Object.assign({}, pakiety, pakietyPrzed);
+        LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety);
+        Z([[['paragony'], paragony], [['ceny'], ceny], [['mapaPar'], mapaPar], [['pakiety'], pakiety]]);
+      }
+      LS.set('parOczek', zostaje);
+    }
     if (stabilny({ profil, plan, odhaczone, oceny, waga, obw, lodowka, zuzyte, inny }) === przed && !ekranCzekania) return;   // nic nowego (np. potwierdzenie własnej zmiany)
     LS.set('profil', profil); LS.set('plan', plan); LS.set('odhaczone', odhaczone);
     LS.set('wyklucz', wyklucz); LS.set('smaki', smaki); LS.set('korekta', korekta); LS.set('paragony', paragony); LS.set('ceny', ceny); LS.set('mapaPar', mapaPar); LS.set('pakiety', pakiety); LS.set('sesje', sesje); LS.set('historia', historia); LS.set('trasa', trasa); LS.set('wlasneDania', wlasneDania); LS.set('lodData', lodData); LS.set('wlasneProd', wlasneProd); LS.set('kody', kody);

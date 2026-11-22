@@ -3739,9 +3739,53 @@ function oceniObw(k, cel, zm) {      // czy zmiana obwodu jest po myśli celu (p
   if (cel === 'masa') return ['ramie', 'klatka', 'udo'].includes(k) ? (zm > 0 ? 'dobry' : zm < 0 ? 'zly' : '') : '';
   return Math.abs(zm) < 1 ? 'dobry' : '';
 }
-// ---------- sylwetka 3D: ona gładka i metaliczna, on siatka; wymiary z obwodów w cm ----------
+// Gładka krzywa przez punkty (Catmull-Rom → Béziery). Zwraca fragment ścieżki bez początkowego M.
+function gladkaKrzywa(pts, zamknieta) {
+  const n = pts.length, P = i => zamknieta ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))];
+  let dd = '';
+  for (let i = 0; i < (zamknieta ? n : n - 1); i++) {
+    const a = P(i - 1), b = P(i), c = P(i + 1), e = P(i + 2);
+    dd += ` C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)},${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)},${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)},${c[1].toFixed(1)}`;
+  }
+  return dd;
+}
+// Kształt sylwetki: ona ma węższe ramiona i talię, szersze biodra; on szersze ramiona i klatkę.
+const SYLWETKA = {
+  ona: { sh: 36, klatka: 31, talia: 24, biodra: 37, udoZ: 33, udoW: 8, ramie: 5.5 },
+  on: { sh: 44, klatka: 35, talia: 30, biodra: 34, udoZ: 32, udoW: 8, ramie: 7 }
+};
+function geometriaCiala(p) {
+  const g = SYLWETKA[p] || SYLWETKA.on, X = 100;
+  return {
+    klatka: { cx: X, cy: 108, rx: g.klatka + 2.5, ry: 6.5, rot: 0 },
+    ramie: { cx: X + g.sh + 3, cy: 124, rx: g.ramie + 2, ry: 3.4, rot: -6 },
+    talia: { cx: X, cy: 152, rx: g.talia + 2.5, ry: 5.5, rot: 0 },
+    biodra: { cx: X, cy: 202, rx: g.biodra + 3, ry: 6.5, rot: 0 },
+    udo: { cx: X - (g.udoZ + g.udoW) / 2, cy: 258, rx: (g.udoZ - g.udoW) / 2 + 2.5, ry: 4.2, rot: 0 },
+    lydka: { cx: X + (g.udoZ + g.udoW - 4) / 2, cy: 312, rx: (g.udoZ - g.udoW - 10) / 2 + 2.5, ry: 3.6, rot: 0 }
+  };
+}
+function konturCiala(p, mn = {}) {
+  const g0 = SYLWETKA[p] || SYLWETKA.on, X = 100, kobieta = p === 'ona', m = k => mn[k] || 1;
+  const g = Object.assign({}, g0, { sh: g0.sh * (1 + (m('klatka') - 1) * 0.6), klatka: g0.klatka * m('klatka'), talia: g0.talia * m('talia'), biodra: g0.biodra * m('biodra'), udoZ: g0.udoW + (g0.udoZ - g0.udoW) * m('udo') });
+  const sh = g.sh, wy = (dx, y) => [X + dx, y], lc = (g.udoZ + g.udoW) / 2, cf = dx => lc + (dx - lc) * m('lydka'), ar = (m('ramie') - 1) * 6;
+  // prawa strona od szyi w dół (zewnętrzna linia tułowia i nogi)
+  const zew = [wy(9, 46), wy(10, 67), wy(sh * 0.62, 73), wy(sh, 82), wy(sh - 4, 100), wy(g.klatka, 112), wy(g.talia + 3, 134), wy(g.talia, 152), wy(g.biodra - 3, 178), wy(g.biodra, 204), wy(g.udoZ + 1, 240), wy(g.udoZ - 1, 270), wy(cf(g.udoZ - 5), 298), wy(cf(g.udoZ - 7), 324), wy(cf(g.udoZ - 17), 350)];
+  const stopaZ = wy(g.udoZ - 12, 368), stopaW = wy(g.udoW - 1, 368);
+  const wew = [wy(cf(g.udoW + 1), 350), wy(cf(g.udoW + 3), 324), wy(cf(g.udoW + 3), 298), wy(g.udoW + 1, 262), wy(g.udoW - 2, 238), wy(4, 226)];
+  const lu = ([x, y]) => [2 * X - x, y];
+  const zewL = zew.map(lu).reverse(), wewL = wew.map(lu).reverse(), stopaZL = lu(stopaZ), stopaWL = lu(stopaW);
+  let dd = `M${zew[0][0]},${zew[0][1]}` + gladkaKrzywa(zew) + ` L${stopaZ[0]},${stopaZ[1]} Q${(stopaZ[0] + stopaW[0]) / 2},${stopaZ[1] + 4} ${stopaW[0]},${stopaW[1]}`;
+  dd += ` L${wew[0][0]},${wew[0][1]}` + gladkaKrzywa(wew) + ` Q${X},${216} ${wewL[0][0]},${wewL[0][1]}` + gladkaKrzywa(wewL);
+  dd += ` L${stopaWL[0]},${stopaWL[1]} Q${(stopaZL[0] + stopaWL[0]) / 2},${stopaZL[1] + 4} ${stopaZL[0]},${stopaZL[1]} L${zewL[0][0]},${zewL[0][1]}` + gladkaKrzywa(zewL) + ' Z';
+  // ręka (prawa i lustrzana lewa): zamknięta gładka linia
+  const r = [wy(sh - 1, 84), wy(sh + 6 + ar, 98), wy(sh + 10 + ar, 126), wy(sh + 13 + ar, 156), wy(sh + 17 + ar * 0.6, 190), wy(sh + 19, 214), wy(sh + 13, 218), wy(sh + 8 - ar * 0.6, 196), wy(sh + 3 - ar, 160), wy(sh - 2 - ar, 128), wy(sh - 5 - ar * 0.5, 104)];
+  const reka = 'M' + r[0][0] + ',' + r[0][1] + gladkaKrzywa(r, true) + ' Z', rekaL = 'M' + lu(r[0])[0] + ',' + lu(r[0])[1] + gladkaKrzywa(r.map(lu), true) + ' Z';
+  const wlosy = kobieta ? 'M82,30 C80,6 120,6 118,30 C121,48 122,66 115,80 C110,72 108,56 108,48 L92,48 C92,56 90,72 85,80 C78,66 79,48 82,30 Z' : 'M83,29 C83,9 117,9 117,29 C113,20 105,17 100,17 C95,17 87,20 83,29 Z';
+  return { tulow: dd, reka, rekaL, wlosy };
+}
 const KLAMP = v => Math.max(0.78, Math.min(1.4, v));
-function duchCiala(p) {   // { dKg, dCm, od, ruszyla } albo null, gdy nie ma z czym porównać
+function duchCiala(p) {   // { mn, dKg, dCm, od } albo null, gdy nie ma z czym porównać
   const w = Object.entries(waga[p] || {}).sort(), wFirst = w[0], wLast = w[w.length - 1], rw = w.length > 1 ? KLAMP(Math.pow(wFirst[1] / wLast[1], 0.55)) : null;
   const mn = {}; let dCm = 0, ile = 0, od = w.length > 1 ? wFirst[0] : null;
   for (const si of SITY) {
@@ -3752,184 +3796,71 @@ function duchCiala(p) {   // { dKg, dCm, od, ruszyla } albo null, gdy nie ma z c
   if (!Object.keys(mn).length) return null;
   return { mn, dKg: w.length > 1 ? wLast[1] - wFirst[1] : null, dCm: ile ? dCm : null, od, ruszyla: Object.values(mn).some(v => Math.abs(v - 1) > 0.012) };
 }
-const CIALO_DOM = {
-  ona: { wzrost: 168, klatka: 92, talia: 74, biodra: 98, ramie: 28, udo: 56, lydka: 36, bark: 38, szyja: 32, nadg: 15, kostka: 21, waga: 66 },
-  on: { wzrost: 180, klatka: 102, talia: 86, biodra: 100, ramie: 33, udo: 58, lydka: 38, bark: 45, szyja: 38, nadg: 17, kostka: 23, waga: 84 }
-};
-// Wymiary ciała w cm: zmierzone obwody (ostatni albo pierwszy pomiar), a brakujące z wartości domyślnych skalowanych wagą.
-function obwodyCiala(p, kiedy) {
-  const dom = CIALO_DOM[p] || CIALO_DOM.on, pr = profil[p] || {}, w = Object.entries(waga[p] || {}).sort();
-  const wAt = w.length ? (kiedy === 'start' ? w[0][1] : w[w.length - 1][1]) : (pr.waga || dom.waga), f = Math.sqrt(wAt / dom.waga), c = {};
-  for (const si of SITY) { const sr = seriaObw(p, si.k); c[si.k] = sr.length ? (kiedy === 'start' ? sr[0][1] : sr[sr.length - 1][1]) : dom[si.k] * f; }
-  return { H: pr.wzrost || dom.wzrost, c, bark: dom.bark * Math.sqrt(c.klatka / dom.klatka), szyja: dom.szyja * Math.pow(f, 0.5), nadg: dom.nadg * Math.pow(f, 0.4), kostka: dom.kostka * Math.pow(f, 0.4) };
-}
-const interpK = (keys, t) => { if (t <= keys[0][0]) return keys[0][1]; for (let i = 0; i < keys.length - 1; i++) { const [t0, v0] = keys[i], [t1, v1] = keys[i + 1]; if (t <= t1) { const u = (t - t0) / (t1 - t0), q = (1 - Math.cos(u * Math.PI)) / 2; return v0 + (v1 - v0) * q; } } return keys[keys.length - 1][1]; };
-const abObw = (c, r) => { const a = c / (2 * Math.PI * Math.sqrt((1 + r * r) / 2)); return [a, a * r]; };
-const gaus = u => Math.exp(-u * u);
-// Siatka ciała: wierzchołki w układzie cm (x w prawo, y w dół od czubka głowy, z do kamery), czworokąty z normalnymi i krawędzie; pierścienie obwodów do opasek.
-function siatkaCiala(o, kob, opcje) {
-  const H = o.H, c = o.c, sh = o.bark / 2, VX = [], VY = [], VZ = [], Q = [], E = [], rzadkie = opcje && opcje.rzadkie;
-  const czesc = (R, n, fn) => {
-    const base = VX.length, cen = [];
-    for (let j = 0; j < R; j++) { const r = fn(j); cen.push(r); for (let k = 0; k < n; k++) { const t = k / n * 2 * Math.PI, x0 = r.a * Math.cos(t), z0 = r.b * Math.sin(t); VX.push(r.cx + x0 + (r.dx ? r.dx(x0, z0) : 0)); VY.push(r.cy); VZ.push(r.cz + z0 + (r.dz ? r.dz(x0, z0) : 0)); } }
-    for (let j = 0; j < R; j++) for (let k = 0; k < n; k++) {
-      const a1 = base + j * n + k, b1 = base + j * n + (k + 1) % n;
-      if (!rzadkie || j % 2 === 0) E.push(a1, b1);
-      if (j < R - 1) {
-        const d1 = base + (j + 1) * n + k, c1 = base + (j + 1) * n + (k + 1) % n;
-        if (!rzadkie || k % 4 === 0) E.push(a1, d1);
-        if (!(opcje && opcje.bezQuadow)) {
-          const e1 = [VX[b1] - VX[a1], VY[b1] - VY[a1], VZ[b1] - VZ[a1]], e2 = [VX[d1] - VX[a1], VY[d1] - VY[a1], VZ[d1] - VZ[a1]];
-          let nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
-          const ox = VX[a1] - cen[j].cx, oz = VZ[a1] - cen[j].cz; if (nx * ox + nz * oz < 0) { nx = -nx; ny = -ny; nz = -nz; }
-          const l = Math.hypot(nx, ny, nz) || 1; Q.push([a1, b1, c1, d1, nx / l, ny / l, nz / l]);
-        }
-      }
-    }
-  };
-  // tułów: szyja, barki, klatka, talia, biodra (klucze: wysokość jako ułamek wzrostu, półosie a i b)
-  const n1 = abObw(o.szyja, 1), n2 = abObw(o.szyja * 1.15, 1), kl = abObw(c.klatka, 0.7), ta = abObw(c.talia, 0.66), bi = abObw(c.biodra, 0.7);
-  const m1 = abObw(c.talia + (c.klatka - c.talia) * 0.4, 0.68), m2 = abObw(c.talia + (c.biodra - c.talia) * 0.55, 0.68), ko = abObw(c.biodra * 0.9, 0.66);
-  const tk = [[0.125, n1], [0.152, n2], [0.166, [sh * 0.52, sh * 0.34]], [0.178, [sh * 0.86, sh * 0.42]], [0.19, [sh, sh * 0.46]], [0.21, [sh * 0.96, kl[1] * 0.9]], [0.265, kl], [0.33, m1], [0.385, ta], [0.45, m2], [0.5, bi], [0.532, [bi[0] * 0.93, bi[1] * 0.93]], [0.56, [bi[0] * 0.5, bi[1] * 0.5]]];
-  const tAB = y => [interpK(tk.map(q => [q[0], q[1][0]]), y), interpK(tk.map(q => [q[0], q[1][1]]), y)];
-  const RT = 48;
-  czesc(RT, 44, j => { const y = 0.125 + (0.56 - 0.125) * j / (RT - 1), [a, b] = tAB(y);
-    return { cx: 0, cy: y * H, cz: 0, a, b, dz: kob ? (x, z) => 1.5 * gaus((y - 0.268) / 0.03) * gaus((Math.abs(x) - a * 0.45) / (a * 0.3)) * (z > 0 ? 1 : 0) - 1.7 * gaus((y - 0.51) / 0.04) * gaus((Math.abs(x) - a * 0.42) / (a * 0.3)) * (z < 0 ? 1 : 0) : (x, z) => 0.9 * gaus((y - 0.27) / 0.035) * gaus((Math.abs(x) - a * 0.45) / (a * 0.35)) * (z > 0 ? 1 : 0) }; });
-  // nogi (obie), stopy jako dwa pierścienie wysunięte do przodu
-  const lk = [[0.46, c.udo * 0.95], [0.5, c.udo * 1.12], [0.54, c.udo * 1.22], [0.59, c.udo * 1.1], [0.62, c.udo], [0.7, c.udo * 0.74], [0.73, c.udo * 0.68], [0.8, c.lydka], [0.9, c.lydka * 0.72], [0.945, o.kostka], [0.975, o.kostka * 1.02]];
-  const legX = y => interpK([[0.46, bi[0] * 0.3], [0.5, bi[0] * 0.38], [0.56, bi[0] * 0.43], [0.62, bi[0] * 0.47], [0.8, bi[0] * 0.42], [1, bi[0] * 0.4]], y);
-  const RL = 34;
-  for (const sd of [-1, 1]) czesc(RL + 2, 28, j => {
-    if (j >= RL) { const a = abObw(o.kostka, 0.9)[0] * (j === RL ? 1.05 : 0.95), y = j === RL ? 0.987 : 1; return { cx: sd * legX(y), cy: y * H, cz: j === RL ? 2.2 : 4.4, a, b: a * (j === RL ? 1.7 : 2.4) }; }
-    const y = 0.46 + (0.975 - 0.46) * j / (RL - 1), [a, b] = abObw(interpK(lk, y), 0.9); return { cx: sd * legX(y), cy: y * H, cz: 0, a, b };
-  });
-  // ręce: pozycja A (ona szerzej), obwody z pomiaru ramienia
-  const kat = (kob ? 21 : 10) * Math.PI / 180, L = 0.27 * H, rk = [[-0.14, c.ramie * 0.42], [-0.07, c.ramie * 0.78], [0, c.ramie * 0.92], [0.15, c.ramie], [0.3, c.ramie], [0.5, c.ramie * 0.83], [0.68, c.ramie * 0.78], [0.9, o.nadg], [1, o.nadg * 1.05], [1.12, o.nadg * 1.4], [1.24, o.nadg * 0.9]];
-  const armPos = (sd, t) => ({ cx: sd * (sh + 1 + L * Math.sin(kat) * t), cy: 0.195 * H + L * Math.cos(kat) * t });
-  const RA = 26;
-  for (const sd of [-1, 1]) czesc(RA, 18, j => { const t = -0.14 + 1.38 * j / (RA - 1), q = armPos(sd, t), [a, b] = abObw(interpK(rk, t), 0.95); return { cx: q.cx, cy: q.cy, cz: 0, a, b: t > 1.02 ? b * 0.55 : b }; });
-  // głowa: elipsoida
-  const RH = 19;
-  czesc(RH, 30, j => { const f = -Math.PI / 2 * 0.97 + Math.PI * 0.97 * j / (RH - 1), cy = 0.067 * H, ry = 0.067 * H; return { cx: 0, cy: cy + ry * Math.sin(f), cz: 0.6, a: 7.8 * Math.cos(f) + 0.01, b: 9.4 * Math.cos(f) + 0.01 }; });
-  // pierścienie obwodów (opaski pomiarowe)
-  const pierscien = (cx, y, cz, a, b, n = 56) => { const v = []; for (let k = 0; k < n; k++) { const t = k / n * 2 * Math.PI; v.push([cx + a * Math.cos(t), y, cz + b * Math.sin(t)]); } return v; };
-  const bandy = {}, pAB = (yy) => tAB(yy);
-  bandy.klatka = pierscien(0, 0.265 * H, 0.4, pAB(0.265)[0] + 0.6, pAB(0.265)[1] + 1.1);
-  bandy.talia = pierscien(0, 0.385 * H, 0, ta[0] + 0.5, ta[1] + 0.5);
-  bandy.biodra = pierscien(0, 0.5 * H, -0.3, bi[0] + 0.6, bi[1] + 1.1);
-  { const y = 0.62, [a, b] = abObw(c.udo, 0.9); bandy.udo = pierscien(-legX(y), y * H, 0, a + 0.4, b + 0.4); }
-  { const y = 0.8, [a, b] = abObw(c.lydka, 0.9); bandy.lydka = pierscien(legX(y), y * H, 0, a + 0.4, b + 0.4); }
-  { const t = 0.28, q = armPos(1, t), [a, b] = abObw(interpK(rk, t), 0.95); bandy.ramie = pierscien(q.cx, q.cy, 0, a + 0.4, b + 0.4); }
-  if (Q.length) {
-    const NX = new Float32Array(VX.length), NY = new Float32Array(VX.length), NZ = new Float32Array(VX.length);
-    for (const q of Q) for (let i = 0; i < 4; i++) { NX[q[i]] += q[4]; NY[q[i]] += q[5]; NZ[q[i]] += q[6]; }
-    for (const q of Q) { let x = 0, y = 0, z = 0; for (let i = 0; i < 4; i++) { x += NX[q[i]]; y += NY[q[i]]; z += NZ[q[i]]; } const l = Math.hypot(x, y, z) || 1; q[4] = x / l; q[5] = y / l; q[6] = z / l; }
-    for (let i = 0; i < NX.length; i++) { const l = Math.hypot(NX[i], NY[i], NZ[i]) || 1; NX[i] /= l; NY[i] /= l; NZ[i] /= l; }
-    return { VX, VY, VZ, Q, E, bandy, H, NX, NY, NZ };
-  }
-  return { VX, VY, VZ, Q, E, bandy, H };
-}
-let cialoKat = -0.55;
-const CIALO_VS = `attribute vec3 aP; attribute vec3 aN; uniform float uYaw, uSc, uCp, uSp, uY0; uniform vec2 uRes; varying vec3 vN; varying float vZ;
-void main() { float c = cos(uYaw), s = sin(uYaw); float x = aP.x * c + aP.z * s; float z = -aP.x * s + aP.z * c; float sx = uRes.x * 0.5 + x * uSc; float sy = uY0 + (aP.y * uCp + z * uSp) * uSc;
-  gl_Position = vec4(sx / uRes.x * 2.0 - 1.0, 1.0 - sy / uRes.y * 2.0, -z / 90.0, 1.0); vN = vec3(aN.x * c + aN.z * s, aN.y, -aN.x * s + aN.z * c); vZ = z; }`;
-const CIALO_FS_GLADKI = `precision mediump float; varying vec3 vN; varying float vZ; uniform vec3 uTint, uL, uV;
-void main() { vec3 n = normalize(vN); float dif = max(dot(n, uL), 0.0); vec3 h = normalize(uL + uV); float sp = pow(max(dot(n, h), 0.0), 46.0); float env = 0.5 - 0.5 * n.y; float ndv = max(dot(n, uV), 0.0); float fr = pow(1.0 - ndv, 2.4);
-  float it = 0.16 + 0.52 * dif + 0.34 * env; vec3 col = vec3(0.80, 0.82, 0.89) * it + vec3(1.0) * sp * 0.95 + uTint * fr * 0.8 + uTint * max(dot(n, normalize(vec3(0.8, -0.1, -0.3))), 0.0) * 0.16;
-  col += vec3(0.9, 0.93, 1.0) * pow(max(dot(n, normalize(vec3(-0.2, -0.9, 0.3))), 0.0), 8.0) * 0.18; gl_FragColor = vec4(min(col, vec3(1.0)), 1.0); }`;
-const CIALO_FS_SIATKA = `precision mediump float; varying vec3 vN; varying float vZ; uniform vec3 uTint; uniform float uA;
-void main() { float a = uA * (0.12 + 0.88 * smoothstep(-14.0, 12.0, vZ)); gl_FragColor = vec4(uTint * a, a); }`;
-function cialoGL(gl, teraz, start) {
-  try {
-    const sh = (typ, src) => { const x = gl.createShader(typ); gl.shaderSource(x, src); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
-    const prog = fs => { const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, CIALO_VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error('link'); return pr; };
-    const pG = prog(CIALO_FS_GLADKI), pS = prog(CIALO_FS_SIATKA);
-    const bufor = (typ, dane) => { const b = gl.createBuffer(); gl.bindBuffer(typ, b); gl.bufferData(typ, dane, gl.STATIC_DRAW); return b; };
-    const poz = m => { const a = new Float32Array(m.VX.length * 3); for (let i = 0; i < m.VX.length; i++) { a[i * 3] = m.VX[i]; a[i * 3 + 1] = m.VY[i]; a[i * 3 + 2] = m.VZ[i]; } return a; };
-    const nor = m => { const a = new Float32Array(m.VX.length * 3); if (m.NX) for (let i = 0; i < m.VX.length; i++) { a[i * 3] = m.NX[i]; a[i * 3 + 1] = m.NY[i]; a[i * 3 + 2] = m.NZ[i]; } return a; };
-    const tri = []; for (const q of teraz.Q) tri.push(q[0], q[1], q[2], q[0], q[2], q[3]);
-    const M = { poz: bufor(gl.ARRAY_BUFFER, poz(teraz)), nor: bufor(gl.ARRAY_BUFFER, nor(teraz)), tri: bufor(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(tri)), nTri: tri.length, lin: bufor(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(teraz.E)), nLin: teraz.E.length };
-    const D = start ? { poz: bufor(gl.ARRAY_BUFFER, poz(start)), lin: bufor(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(start.E)), nLin: start.E.length } : null;
-    const uni = (pr, n, ...v) => { const l = gl.getUniformLocation(pr, n); if (v.length === 1) gl.uniform1f(l, v[0]); else if (v.length === 2) gl.uniform2f(l, ...v); else gl.uniform3f(l, ...v); };
-    const wspolne = (pr, par) => { gl.useProgram(pr); uni(pr, 'uYaw', par.yaw); uni(pr, 'uSc', par.sc); uni(pr, 'uCp', par.cp); uni(pr, 'uSp', par.sp); uni(pr, 'uY0', par.y0); uni(pr, 'uRes', par.cw, par.ch); uni(pr, 'uTint', ...par.tint); };
-    const atrybuty = (pr, pozB, norB) => { const lp = gl.getAttribLocation(pr, 'aP'), ln = gl.getAttribLocation(pr, 'aN'); gl.bindBuffer(gl.ARRAY_BUFFER, pozB); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 3, gl.FLOAT, false, 0, 0); if (norB) { gl.bindBuffer(gl.ARRAY_BUFFER, norB); gl.enableVertexAttribArray(ln); gl.vertexAttribPointer(ln, 3, gl.FLOAT, false, 0, 0); } else gl.disableVertexAttribArray(ln); };
-    return { rysuj(par) {
-      gl.viewport(0, 0, par.W, par.H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      if (par.rev != null) { gl.enable(gl.SCISSOR_TEST); gl.scissor(0, Math.round(par.H * (1 - par.rev)), par.W, Math.ceil(par.H * par.rev) + 1); } else gl.disable(gl.SCISSOR_TEST);
-      gl.disable(gl.CULL_FACE);
-      if (D) { gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); wspolne(pS, par); uni(pS, 'uA', par.duchA); atrybuty(pS, D.poz, null); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, D.lin); gl.drawElements(gl.LINES, D.nLin, gl.UNSIGNED_SHORT, 0); }
-      if (par.gladki) {
-        gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.disable(gl.BLEND); wspolne(pG, par); uni(pG, 'uL', ...par.L); uni(pG, 'uV', ...par.V); atrybuty(pG, M.poz, M.nor); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, M.tri); gl.drawElements(gl.TRIANGLES, M.nTri, gl.UNSIGNED_SHORT, 0);
-      } else {
-        gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); wspolne(pS, par); uni(pS, 'uA', 1.0); atrybuty(pS, M.poz, null); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, M.lin); gl.drawElements(gl.LINES, M.nLin, gl.UNSIGNED_SHORT, 0); gl.drawElements(gl.LINES, M.nLin, gl.UNSIGNED_SHORT, 0);
-      }
-    } };
-  } catch (e) { console.error('WebGL sylwetki:', e); return null; }
-}
-function cialoStart(p, anim) {
-  const cv = document.querySelector('canvas.cialo-canvas'), cg = document.querySelector('canvas.cialo-gl'); if (!cv) return;
-  cancelAnimationFrame(window._cialoRaf);
-  const ctx = cv.getContext('2d'), kob = p === 'ona', teraz = siatkaCiala(obwodyCiala(p, 'teraz'), kob), du = duchCiala(p), start = du && du.ruszyla ? siatkaCiala(obwodyCiala(p, 'start'), kob, { rzadkie: true, bezQuadow: true }) : null;
-  let gl = null; try { gl = cg && (cg.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true }) || cg.getContext('experimental-webgl')); } catch (e) { gl = null; }
-  const GL = gl ? cialoGL(gl, teraz, start) : null;
-  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now();
-  let drag = null, idle = 0, ost = t0, dirty = true;
-  cv.onpointerdown = e => { drag = { x: e.clientX }; idle = 1e12; dirty = true; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* nic */ } };
-  cv.onpointermove = e => { if (!drag) return; cialoKat += (e.clientX - drag.x) * 0.013; drag.x = e.clientX; dirty = true; };
-  cv.onpointerup = cv.onpointercancel = () => { drag = null; idle = performance.now() + 2200; };
-  const pitch = 0.17, cp = Math.cos(pitch), sp = Math.sin(pitch), V = [0, -sp, cp], LJ = (() => { const l = [-0.5, -0.62, 0.62], m = Math.hypot(...l); return l.map(x => x / m); })();
-  const kadr = tm => {
-    if (!cv.isConnected) { try { const x = gl && gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* nic */ } return; }
-    window._cialoRaf = requestAnimationFrame(kadr);
-    const dt = (tm - ost) / 1000; ost = tm;
-    const spin = !reduce && !drag && tm > idle; if (spin) cialoKat += dt * 0.38;
-    const el = (tm - t0) / 1000, rev = anim && !reduce && el < 1.7 ? Math.min(1, el / 1.5) : null;
-    if (reduce && !dirty && rev == null) return;
-    dirty = false;
-    const dpr = Math.min(2, window.devicePixelRatio || 1), cw = cv.clientWidth, ch = cv.clientHeight; if (!cw || !ch) return;
-    const W = Math.round(cw * dpr), Hh = Math.round(ch * dpr);
-    for (const c of [cv, cg]) if (c && (c.width !== W || c.height !== Hh)) { c.width = W; c.height = Hh; }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, cw, ch);
-    const kolS = getComputedStyle(cv).color, rgb = (kolS.match(/\d+(\.\d+)?/g) || [120, 160, 255]).slice(0, 3).map(Number);
-    const sc = ch * 0.885 / teraz.H, xc = cw / 2, y0 = ch * 0.04, ct = Math.cos(cialoKat), st = Math.sin(cialoKat);
-    const proj = (X, Y, Z) => { const x = X * ct + Z * st, z = -X * st + Z * ct; return [xc + x * sc, y0 + (Y * cp + z * sp) * sc, z]; };
-    if (GL) GL.rysuj({ W, H: Hh, cw, ch, yaw: cialoKat, sc, cp, sp, y0, rev, gladki: kob, tint: rgb.map(x => x / 255), L: LJ, V, duchA: 0.32 + 0.14 * Math.sin(tm / 700) });
-    ctx.save();
-    if (rev != null) { ctx.beginPath(); ctx.rect(0, 0, cw, y0 + (ch - y0) * rev); ctx.clip(); }
-    if (!GL) {   // zapas bez WebGL: sama siatka na płótnie 2D
-      const B = [new Path2D(), new Path2D(), new Path2D()];
-      for (let i = 0; i < teraz.E.length; i += 2) { const a = proj(teraz.VX[teraz.E[i]], teraz.VY[teraz.E[i]], teraz.VZ[teraz.E[i]]), b = proj(teraz.VX[teraz.E[i + 1]], teraz.VY[teraz.E[i + 1]], teraz.VZ[teraz.E[i + 1]]), z = (a[2] + b[2]) / 22, pa = z > 0.25 ? B[0] : z > -0.3 ? B[1] : B[2]; pa.moveTo(a[0], a[1]); pa.lineTo(b[0], b[1]); }
-      ctx.strokeStyle = kolS; ctx.lineWidth = 0.85; ctx.globalAlpha = 0.14; ctx.stroke(B[2]); ctx.globalAlpha = 0.4; ctx.stroke(B[1]); ctx.globalAlpha = 0.95; ctx.stroke(B[0]); ctx.globalAlpha = 1;
-    }
-    const bandyS = {}; for (const k in teraz.bandy) bandyS[k] = teraz.bandy[k].map(v => proj(v[0], v[1], v[2]));
-    for (const si of SITY) {   // opaski pomiarowe: przód zawsze, tył tylko przy siatce (przy gładkim ciele zasłania go postać)
-      const pts = bandyS[si.k], sel = cialoSito === si.k, ma = seriaObw(p, si.k).length > 0, n = pts.length;
-      for (const tyl of kob ? [false] : [true, false]) {
-        ctx.save(); ctx.strokeStyle = kolS; ctx.lineCap = 'round'; ctx.lineWidth = sel ? 3.2 : ma ? 1.9 : 1.1; if (sel && !tyl) { ctx.shadowColor = kolS; ctx.shadowBlur = 8 + 5 * Math.sin(tm / 260); }
-        ctx.globalAlpha = tyl ? (sel ? 0.35 : 0.14) : (sel ? 1 : ma ? 0.9 : 0.45); ctx.beginPath();
-        for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n], zz = (a[2] + b[2]) / 2; if ((zz > 0) === !tyl) { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } }
-        ctx.stroke(); ctx.restore();
-      }
-    }
-    for (const si of SITY) {   // łączniki do podpisów i kropki
-      const pts = bandyS[si.k], sel = cialoSito === si.k; let bp = pts[0]; for (const q of pts) if (si.strona === 'l' ? q[0] < bp[0] : q[0] > bp[0]) bp = q;
-      const ax = (si.strona === 'l' ? 96 : 340 - 96) / 340 * cw, ay = si.ly / 380 * ch;
-      ctx.save(); ctx.strokeStyle = kolS; ctx.globalAlpha = sel ? 0.75 : 0.3; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bp[0], bp[1]); ctx.stroke(); ctx.restore();
-      ctx.save(); ctx.fillStyle = kolS; ctx.globalAlpha = 0.95; ctx.beginPath(); ctx.arc(bp[0], bp[1], sel ? 4 : 3, 0, 7); ctx.fill(); if (sel) { ctx.globalAlpha = 0.25 * (0.6 + 0.4 * Math.sin(tm / 300)); ctx.beginPath(); ctx.arc(bp[0], bp[1], 9, 0, 7); ctx.fill(); } ctx.restore();
-    }
-    ctx.restore();
-    if (rev != null) { const yy = y0 + (ch - y0) * rev, g = ctx.createLinearGradient(xc - cw * 0.3, 0, xc + cw * 0.3, 0); g.addColorStop(0, `rgba(${rgb.join(',')},0)`); g.addColorStop(0.5, `rgba(${rgb.join(',')},.95)`); g.addColorStop(1, `rgba(${rgb.join(',')},0)`); ctx.fillStyle = g; ctx.fillRect(xc - cw * 0.3, yy - 1.5, cw * 0.6, 3); }
-  };
-  window._cialoRaf = requestAnimationFrame(kadr);
+// Postać: skóra z objętością (cieniowanie krawędzi, światło z lewej), twarz, fryzura, ubranie sportowe i buty. Ubranie w kolorze osoby (currentColor).
+function ubranie(p, k, id) {
+  const kob = p === 'ona', cia = `<path d="${k.reka}"/><path d="${k.rekaL}"/><path d="${k.tulow}"/><ellipse cx="100" cy="34" rx="17" ry="21"/>`;
+  const defs = `<defs>
+    <linearGradient id="sk-sk-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d9c4"/><stop offset=".5" stop-color="#eebfa3"/><stop offset="1" stop-color="#dfa586"/></linearGradient>
+    <linearGradient id="sk-ub-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity="1"/><stop offset="1" stop-color="currentColor" stop-opacity=".78"/></linearGradient>
+    <linearGradient id="sk-dol-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f55"/><stop offset="1" stop-color="#22263a"/></linearGradient>
+    <linearGradient id="sk-wl-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${kob ? '#7a4a33' : '#5a4033'}"/><stop offset="1" stop-color="${kob ? '#3d2218' : '#2a1d17'}"/></linearGradient>
+    <radialGradient id="sk-hl-${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="sk-bl-${id}" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="3.6"/></filter>
+  </defs>`;
+  const wlosyTyl = kob ? `<path d="M115,21 C138,22 148,48 141,82 C138,96 133,104 129,114 C127,94 129,72 125,56 C122,44 118,32 115,21 Z" fill="url(#sk-wl-${id})"/><path d="M128,50 C132,66 132,86 130,102" stroke="#fff" stroke-opacity=".18" stroke-width="1.2" fill="none" stroke-linecap="round"/>` : '';
+  const twarz = `<g class="twarz"><ellipse cx="93.6" cy="34.5" rx="1.5" ry="1.8" fill="#35231f"/><ellipse cx="106.4" cy="34.5" rx="1.5" ry="1.8" fill="#35231f"/><circle cx="94.1" cy="33.8" r=".5" fill="#fff"/><circle cx="106.9" cy="33.8" r=".5" fill="#fff"/>
+    <path d="M90.6,30.4 Q93.6,28.6 96.4,30.2 M103.6,30.2 Q106.4,28.6 109.4,30.4" stroke="${kob ? '#4a2c20' : '#3a281f'}" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    <path d="M100,36 Q101.8,39.4 99.4,40" stroke="#c98c70" stroke-opacity=".7" stroke-width=".9" fill="none" stroke-linecap="round"/>
+    <path d="M95.8,43.4 Q100,46.6 104.2,43.4" stroke="#b3524f" stroke-width="1.3" fill="none" stroke-linecap="round"/>${kob ? '<ellipse cx="89.6" cy="40" rx="3.2" ry="2" fill="#f08a8a" fill-opacity=".35"/><ellipse cx="110.4" cy="40" rx="3.2" ry="2" fill="#f08a8a" fill-opacity=".35"/>' : ''}</g>`;
+  const wlosyPrzod = kob
+    ? `<path d="M81,33 C78,6 122,6 119,33 C114,23 108,17 100,16 C92,17 86,22 81,33 Z" fill="url(#sk-wl-${id})"/><path d="M88,20 Q100,11 113,19" stroke="#fff" stroke-opacity=".3" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="118" cy="26" r="3.2" fill="currentColor"/>`
+    : `<path d="M81,34 C78,8 122,8 119,34 C117,25 111,20 104,19 C97,19 88,23 81,34 Z" fill="url(#sk-wl-${id})"/><path d="M89,19 Q101,11 113,17" stroke="#fff" stroke-opacity=".28" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  const gora = kob
+    ? `<path d="M70,82 Q100,99 130,82 L133,132 Q100,139 67,132 Z" fill="url(#sk-ub-${id})"/><path d="M70,82 Q100,99 130,82 M67,132 Q100,139 133,132" stroke="#fff" stroke-opacity=".5" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M82,98 Q100,108 118,98" stroke="#000" stroke-opacity=".16" stroke-width="1.4" fill="none"/><path d="M100,100 L100,132" stroke="#000" stroke-opacity=".1" stroke-width="1" fill="none"/>`
+    : `<path d="M52,80 Q100,98 148,80 L160,126 L143,131 L139,176 Q100,182 61,176 L57,131 L40,126 Z" fill="url(#sk-ub-${id})"/><path d="M52,80 Q100,98 148,80" stroke="#fff" stroke-opacity=".5" stroke-width="1.4" fill="none"/><path d="M40,126 L57,131 M160,126 L143,131" stroke="#fff" stroke-opacity=".4" stroke-width="1.2" fill="none"/><path d="M76,110 Q100,122 124,110 M70,146 Q100,156 130,146" stroke="#000" stroke-opacity=".12" stroke-width="1.4" fill="none"/>`;
+  const dol = kob
+    ? `<path d="M62,158 Q100,167 138,158 L147,338 L53,338 Z" fill="url(#sk-dol-${id})"/><path d="M62,158 Q100,167 138,158" stroke="currentColor" stroke-width="2.4" fill="none"/><path d="M68,166 L60,328 M132,166 L140,328" stroke="currentColor" stroke-opacity=".9" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M84,262 Q90,270 98,266 M116,262 Q110,270 102,266" stroke="#fff" stroke-opacity=".12" stroke-width="1.4" fill="none"/>`
+    : `<path d="M60,198 Q100,207 140,198 L148,270 L52,270 Z" fill="url(#sk-dol-${id})"/><path d="M60,198 Q100,207 140,198" stroke="currentColor" stroke-width="2.6" fill="none"/><path d="M64,208 L56,266 M136,208 L144,266" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M52,266 L96,266 M104,266 L148,266" stroke="#fff" stroke-opacity=".22" stroke-width="1.2" fill="none"/>`;
+  const buty = [0, 1].map(l => { const m = l ? (x => 200 - x) : (x => x); return `<g transform="${l ? 'translate(200,0) scale(-1,1)' : ''}"><path d="M103,350 L124,350 Q129,360 127,369 Q126,373 120,373 L103,373 Q100,361 103,350 Z" fill="#f4f6fa"/><path d="M101,370 L127,370 Q128,375 122,376 L103,376 Q99,375 101,370 Z" fill="#c9ced8"/><path d="M108,356 Q116,352 124,357" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M105,364 Q114,361 125,364" stroke="#000" stroke-opacity=".12" stroke-width="1" fill="none"/></g>`; }).join('');
+  const objetosc = `<g clip-path="url(#cl-${id})"><g filter="url(#sk-bl-${id})" fill="none" stroke="#2a0f08" stroke-opacity=".5" stroke-width="10">${cia}</g>
+    <rect x="30" y="0" width="140" height="380" fill="url(#sh-${id})"/>
+    <ellipse cx="${kob ? 91 : 85}" cy="${kob ? 108 : 104}" rx="${kob ? 15 : 19}" ry="11" fill="url(#sk-hl-${id})"/><ellipse cx="84" cy="252" rx="8" ry="26" fill="url(#sk-hl-${id})"/><ellipse cx="53" cy="140" rx="5" ry="26" fill="url(#sk-hl-${id})"/><ellipse cx="100" cy="58" rx="10" ry="4.5" fill="#3a1a10" fill-opacity=".28"/></g>`;
+  return `${defs}${wlosyTyl}<g fill="url(#sk-sk-${id})" stroke="#b47a60" stroke-opacity=".55" stroke-width="1" stroke-linejoin="round">${cia}<ellipse cx="83" cy="36" rx="2.4" ry="4"/><ellipse cx="117" cy="36" rx="2.4" ry="4"/></g>
+    <g clip-path="url(#cl-${id})">${dol}${gora}</g>${objetosc}${buty}<path d="M86,79 Q93,84 100,82 Q107,84 114,79" stroke="#8a5a45" stroke-opacity=".35" stroke-width="1.1" fill="none" stroke-linecap="round"/>${twarz}${wlosyPrzod}`;
 }
 function figuraCialo(p, anim) {
-  const cel = (profil[p] || {}).cel, H = 380, ser = Object.fromEntries(SITY.map(si => [si.k, seriaObw(p, si.k)]));
+  const id = p;
+  const cel = (profil[p] || {}).cel, W = 340, H = 380, DX = 70, geo = geometriaCiala(p), k = konturCiala(p), duch = duchCiala(p), kd = duch && duch.ruszyla ? konturCiala(p, duch.mn) : null;
+  const ser = Object.fromEntries(SITY.map(si => [si.k, seriaObw(p, si.k)]));
+  const pol = q => Math.round(Math.PI * Math.sqrt((q.rx * q.rx + q.ry * q.ry) / 2));
+  const pasy = SITY.map((si, i) => {
+    const q = geo[si.k], sel = cialoSito === si.k, ma = ser[si.k].length > 0, bx = DX + q.cx + (si.strona === 'l' ? -q.rx : q.rx), by = q.cy + (si.strona === 'l' ? q.rot : -q.rot) * 0.12, ax = si.strona === 'l' ? 96 : W - 96, cx = DX + q.cx;
+    const tyl = `M${(cx - q.rx).toFixed(1)},${q.cy} A${q.rx},${q.ry} 0 0 1 ${(cx + q.rx).toFixed(1)},${q.cy}`, przod = `M${(cx - q.rx).toFixed(1)},${q.cy} A${q.rx},${q.ry} 0 0 0 ${(cx + q.rx).toFixed(1)},${q.cy}`;
+    return `<g class="sito ${sel ? 'sel' : ''} ${ma ? 'ma' : ''}" style="--i:${i};--len:${pol(q)}">
+      <line class="lacz" x1="${ax}" y1="${si.ly}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>
+      <g transform="rotate(${q.rot} ${cx} ${q.cy})"><path class="pas-tyl" d="${tyl}"/><path class="pas-przod" d="${przod}"/></g>
+      <circle class="halo" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="7"/><circle class="kropka" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="3.4"/></g>`;
+  }).join('');
   const et = SITY.map(si => {
     const sr = ser[si.k], ost = sr[sr.length - 1], zm = sr.length > 1 ? ost[1] - sr[0][1] : null, ocena = zm == null ? '' : oceniObw(si.k, cel, zm);
     return `<button class="sito-et ${si.strona === 'l' ? 'lewo' : 'prawo'} ${cialoSito === si.k ? 'akt' : ''}" style="top:${(si.ly / H * 100).toFixed(2)}%;--i:${SITY.indexOf(si)}" data-sito="${si.k}" aria-label="${si.n}: ${ost ? kgTxt(ost[1]) + ' cm' : 'brak pomiaru'}"><small>${si.n}</small><b>${ost ? cm1(ost[1]) : '—'}<i>${ost ? ' cm' : ''}</i></b><span class="${ocena}">${zm == null ? (ost ? '' : 'dodaj') : zm === 0 ? '=' : (zm > 0 ? '▲ +' : '▼ ') + cm1(Math.abs(zm))}</span></button>`;
   }).join('');
-  setTimeout(() => cialoStart(p, anim), 0);
-  return `<div class="cialo-scena ${p} ${anim ? 'anim' : ''}"><canvas class="cialo-gl" aria-hidden="true"></canvas><canvas class="cialo-canvas" role="img" aria-label="Sylwetka 3D z pomiarami, przeciągnij, żeby obrócić"></canvas>${et}</div>`;
+  return `<div class="cialo-scena ${p} ${anim ? 'anim' : ''}">
+    <svg class="cialo-svg" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+      <defs>
+        <linearGradient id="cg-${p}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".38"/><stop offset=".55" stop-color="currentColor" stop-opacity=".2"/><stop offset="1" stop-color="currentColor" stop-opacity=".1"/></linearGradient>
+        <radialGradient id="cs-${p}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient>
+        <linearGradient id="sk-${p}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="currentColor" stop-opacity="0"/><stop offset=".5" stop-color="currentColor" stop-opacity=".9"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient>
+        <linearGradient id="sh-${p}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".34"/></linearGradient>
+        <clipPath id="cl-${p}" clipPathUnits="userSpaceOnUse"><path d="${k.reka}"/><path d="${k.rekaL}"/><path d="${k.tulow}"/><ellipse cx="100" cy="34" rx="17" ry="21"/></clipPath>
+      </defs>
+      <ellipse class="podloga" cx="${DX + 100}" cy="372" rx="62" ry="7" fill="url(#cs-${p})"/>
+      <g transform="translate(${DX},0)">${kd ? `<g class="duch"><path d="${kd.reka}"/><path d="${kd.rekaL}"/><path d="${kd.tulow}"/></g>` : ''}<g class="oddech"><g class="syl">
+        ${ubranie(p, k, id)}
+      </g></g></g>
+      ${pasy}
+      <rect class="skan" x="${DX + 20}" y="0" width="120" height="3" fill="url(#sk-${p})"/>
+    </svg>${et}</div>`;
 }
 function kartaTrendObw(p) {
   const si = SITY.find(q => q.k === cialoSito) || SITY[0], sr = seriaObw(p, si.k);
@@ -4499,7 +4430,7 @@ document.addEventListener('click', async e => {
   else if (t.dataset.wosoba) { wagaOsoba = t.dataset.wosoba; cialoNowy = true; rysuj(); }
   else if (t.dataset.importHist) importujHistorie(($('#imp-tekst') || {}).value || '');
   else if (t.dataset.wwidok) { wagaWidok = t.dataset.wwidok; cialoNowy = true; rysuj(); }
-  else if (t.dataset.sito) { cialoSito = t.dataset.sito; document.querySelectorAll('.sito-et').forEach(b => b.classList.toggle('akt', b.dataset.sito === cialoSito)); const tr = $('#cialo-trend'); if (tr) tr.outerHTML = kartaTrendObw(wagaOsoba); else rysuj(); }
+  else if (t.dataset.sito) { cialoSito = t.dataset.sito; rysuj(); }
   else if (t.dataset.zapiszObw) zapiszObw(t.dataset.zapiszObw);
   else if (t.dataset.usunObw) { const [pp, dd] = t.dataset.usunObw.split('|'); if (obw[pp]) { delete obw[pp][dd]; LS.set('obw', obw); Z([[['obw', pp, dd], undefined]]); rysuj(); } }
   else if (t.dataset.wzakres) { wagaZakres = +t.dataset.wzakres; rysuj(); }

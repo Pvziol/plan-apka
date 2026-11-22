@@ -1420,11 +1420,6 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 /* postać: kolory są w samym SVG; tu tylko poświata ducha */
 .cialo-svg .syl { stroke-opacity: 1; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .25)); }
 .cialo-svg .duch { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--kol, currentColor) 80%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--kol, currentColor) 55%, transparent)); }
-/* sylwetka 3D na płótnie */
-.cialo-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
-.cialo-canvas:active { cursor: grabbing; }
-.cialo-gl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.cialo-scena::after { content: ''; position: absolute; left: 24%; right: 24%; bottom: 2.5%; height: 4%; z-index: -1; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .4), transparent); }
 
 /* odznaka „najlepszy” w ciemnym motywie: ciemny tekst na jasnym pomarańczowym tle */
 @media (prefers-color-scheme: dark) { .prep-naj { color: #2a1a05; } }

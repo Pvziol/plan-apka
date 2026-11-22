@@ -1429,3 +1429,8 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 .okno-gora > .btn { flex: none; white-space: nowrap; }
 .okno-gora h2 { min-width: 0; overflow-wrap: anywhere; }
 .pk-tx .nazwa { min-height: 36px; padding: 6px 0; text-align: left; }
+/* gdy jest otwarte okno: strona pod spodem stoi (bez przewijania i bez animowanego tła), żeby nic nie ruszało się przez szybę */
+html.okno-otwarte, html.okno-otwarte body { overflow: hidden; }
+#modal { overscroll-behavior: contain; touch-action: none; }
+#modal-box { overscroll-behavior: contain; touch-action: pan-y; }
+html.okno-otwarte body::before, html.okno-otwarte body::after, html.okno-otwarte #view *, html.okno-otwarte #view *::before, html.okno-otwarte #view *::after, html.okno-otwarte #tabs *, html.okno-otwarte #tabs *::before { animation-play-state: paused !important; }

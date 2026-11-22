@@ -531,6 +531,20 @@
       rowne(zajeteSniadania(0, 'ob').size, 0, 'obiad bez wykluczeń');
     } finally { plan = sp; }
   });
+  await test('Wybór dania: właściwy tydzień', 'gdy tygodnie zamienią się miejscami w trakcie wyboru, zmiana trafia do oglądanego tygodnia; gdy tydzień zniknął, nic się nie zmienia', async () => {
+    const sp = plan, si = inny, sc = zmienCtx, lset = LS.set, ldel = LS.del, ry = rysuj, pt = pokazToast, m = document.getElementById('modal'), mh = m.hidden;
+    try {
+      LS.set = () => {}; LS.del = () => {}; rysuj = () => {}; pokazToast = () => {};
+      const A = JSON.parse(JSON.stringify(kandydat())).dni, B = JSON.parse(JSON.stringify(kandydat())).dni, nowe = DB.pula.sn.find(x => x.id !== A[2].sn && x.id !== B[2].sn).id;
+      plan = { start: '2026-11-16', dni: A }; inny = { start: '2026-11-23', dni: B, odhaczone: {}, zuzyte: {} };
+      zmienCtx = { d: 2, slot: 'sn', teraz: B[2].sn, pula: DB.pula.sn, start: '2026-11-23' };
+      wybierz(2, 'sn', nowe);
+      rowne([plan.start, plan.dni[2].sn === nowe, inny.dni[2].sn === nowe], ['2026-11-23', true, false], 'zmiana w tygodniu 23.11, a nie w 16.11');
+      const stary = plan.dni[2].sn; plan = { start: '2026-11-16', dni: JSON.parse(JSON.stringify(A)) }; inny = null;
+      zmienCtx = { d: 2, slot: 'sn', teraz: stary, pula: DB.pula.sn, start: '2026-11-23' }; const przed = plan.dni[2].sn;
+      wybierz(2, 'sn', nowe); rowne(plan.dni[2].sn, przed, 'tydzień zniknął: nic nie zmieniono w innym tygodniu');
+    } finally { plan = sp; inny = si; zmienCtx = sc; LS.set = lset; LS.del = ldel; rysuj = ry; pokazToast = pt; m.hidden = mh; }
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

@@ -78,7 +78,7 @@ let lodData = LS.get('lodData', {});                          // lodData[produkt
 let historia = LS.get('historia', []);                     // zapisane podsumowania minionych tygodni (patrz zbierzTydzien), wspólne
 let sesje = LS.get('sesje', []);                           // zapisane sesje meal prep: [{ id, od, h, komp: [{ prod, nazwa, u, suchy, ugot, uzycia: [{ iso, slot, id, dish, wk, d, suchy, ugot }] }], zrobione }]; wspólne
 let prepOd = null; const prepH = 5;   // okno planowania; każdy składnik i tak jest ucinany do swojego terminu przydatności
-let otwartyDzien = null, otwartyTyg = null;   // który dzień którego tygodnia jest rozwinięty
+let otwartyDzien = null, otwartyTyg = null, otwartyIso = null;   // który dzień którego tygodnia jest rozwinięty
 let odroczone = false, ekranStartowy = false, ekranCzekania = false, formStart = null;
 // wspólny plan: wysyła tylko zmienione pola, np. [[['dni', 3, 'sn'], 'id-dania']]; undefined = usuń pole
 const Z = zm => { if (window.Sync && window.Sync.kod) window.Sync.zapisz(zm); };
@@ -707,7 +707,7 @@ async function przywrocTydzien(start, i) {
   uporzadkujTygodnie();
   LS.set('plan', plan); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
   Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], odhaczone], [['zuzyte'], zuzyte], [['inny'], paczkaDoChmury(inny)]]);
-  otwartyDzien = null; try { zamknijOkno(); } catch (e) { /* nic */ }
+  otwartyDzien = null; otwartyIso = null; try { zamknijOkno(); } catch (e) { /* nic */ }
   rysuj(); pokazToast(`Przywrócono tydzień ${zakresTyg(start)}`);
 }
 function oknoHistoriaTygodni() {
@@ -1025,8 +1025,9 @@ function widokTydzien() {
   window._wBy = {};
   const wszystkie = tyg.flatMap(t => [0, 1, 2, 3, 4, 5, 6].map(d => ({ start: t.start, d, iso: dodajDni(t.start, d) })));
   let idx = wszystkie.findIndex(x => x.start === otwartyTyg && x.d === otwartyDzien);
+  if (idx < 0 && otwartyIso) idx = wszystkie.findIndex(x => x.iso === otwartyIso);   // widok „zgubił” dzień (np. tygodnie zamieniły się miejscami): zostaję na ostatnio oglądanej dacie
   if (idx < 0) { idx = wszystkie.findIndex(x => x.iso === dzisIso); if (idx < 0) idx = 0; }
-  const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d;
+  const wyb = wszystkie[idx]; otwartyTyg = wyb.start; otwartyDzien = wyb.d; otwartyIso = wyb.iso;
   let h = `<h1>Plan</h1>` + wskazowka('plan', 'Wybierz dzień z paska. Każdy posiłek ma przepis i przycisk „Zmień danie” (gramatury dopasują się do kalorii). Gdy kogoś nie ma, wybierz „Bez niego” albo „Bez niej”. Pod paskiem są dwa tygodnie.');
   h += paskAkcji(['opisz', 'swipe', 'prep', 'podsum', 'wykl', 'zakupy']);
   { const nar = naruszeniaDwochTygodni(); if (nar.length) h += `<div class="przyp"><b>${nar.length} ${mn(nar.length, 'posiłek zawiera', 'posiłki zawierają', 'posiłków zawiera')} składniki, których nie jecie.</b> <button class="btn maly" data-zamien-wykl>Zamień automatycznie</button> <button class="btn maly" data-tab="wykluczone">Lista</button></div>`; }
@@ -2990,7 +2991,7 @@ function oknoZmien(d, slot) {
   const pula = bazaSlotu(slot) === 'ob' ? (day.ob2 ? DB.pula.ob2 : DB.pula.ob1) : bazaSlotu(slot) === 'm13' ? (tryb === 'kokt' ? DB.pula.m13kokt : pulaSniadan()) : (bazaSlotu(slot) === 'sn' || slot === 'm13on') ? pulaSniadan() : DB.pula[bazaSlotu(slot)];
   const moznaDla = BAZY_OS.includes(bazaSlotu(slot)) && !(bazaSlotu(slot) === 'ob' && day.ob2) && !(bazaSlotu(slot) === 'm13' && !day.m13.wsp);
   const solo = BAZY_OS.includes(bazaSlotu(slot)) ? OS.filter(p => !dlaOsoby(day, p, bazaSlotu(slot))) : OS;
-  zmienCtx = { d, slot, teraz, pula, dla: osobaSlotu(slot) || (moznaDla && solo.length === 1 ? solo[0] : 'oboje') };
+  zmienCtx = { d, slot, teraz, pula, start: plan.start, dla: osobaSlotu(slot) || (moznaDla && solo.length === 1 ? solo[0] : 'oboje') };
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zmień: ${bazaSlotu(slot) === 'm13' ? 'drugie śniadanie' : esc(PORA[slot].split(' · ')[1])}${esc(etSlotu(slot))}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
     <p class="mute">${DNI[d]}. Kalorie zostają takie same, a gramatury nowego dania dobiorę tak, żeby białko też się zgadzało.${(bazaSlotu(slot) === 'sn' || slot === 'm13on' || (bazaSlotu(slot) === 'm13' && tryb === 'dania')) ? ' Śniadanie i drugie śniadanie wybierasz z tej samej listy; danie, które jest już w drugim z nich, nie pokazuje się tutaj.' : ''}</p>
     ${moznaDla ? `<div class="dla-kogo"><span class="mute">Dla kogo zmieniasz?</span><div class="seg" id="dla-seg" role="group" aria-label="Dla kogo">${[['oboje', 'Dla obojga'], ['ona', 'Tylko ONA'], ['on', 'Tylko ON']].map(([k, et]) => `<button data-dla="${k}" class="${zmienCtx.dla === k ? 'akt' : ''}">${et}</button>`).join('')}</div>${osobaSlotu(slot) ? `<button class="btn maly" data-dla-wspolne="${d}:${slot}">Wróć do wspólnego dania</button>` : ''}</div>` : ''}
@@ -3096,6 +3097,10 @@ function czyscDla(d, b, osoby) {
   if (zm.length) { LS.set('plan', plan); Z(zm); }
 }
 function wybierz(d, slot, id) {
+  if (zmienCtx && zmienCtx.start && plan.start !== zmienCtx.start) {   // w trakcie wyboru tygodnie zamieniły się miejscami (np. drugi telefon): zmieniam danie w tym tygodniu, który oglądasz
+    if (inny && inny.start === zmienCtx.start) przelaczTydzien();
+    else { zmienCtx = null; $('#modal').hidden = true; rysuj(); pokazToast('Ten tydzień zmienił się na drugim telefonie. Otwórz dzień jeszcze raz.'); return; }
+  }
   const day = plan.dni[d], b = bazaSlotu(slot), dla = zmienCtx && zmienCtx.dla;
   if (BAZY_OS.includes(b) && !(b === 'ob' && day.ob2) && !(b === 'm13' && !day.m13.wsp)) {
     const solo = OS.filter(pp => !dlaOsoby(day, pp, b)), tylkoTaOsoba = slot === b && solo.length === 1 && solo[0] === dla;      // wspólny slot je już tylko ta osoba: zwykła zmiana
@@ -4470,7 +4475,7 @@ document.addEventListener('click', async e => {
   else if (t.id === 'nowyNast' || t.id === 'nowyBiez') {
     const st = t.id === 'nowyNast' ? dodajDni(biezPon(), 7) : biezPon();
     if (plan.start !== st) { if (inny && inny.start === st) przelaczTydzien(); else ulozTydzien(st, true); }   // drugi tydzień zostaje zapisany
-    otwartyDzien = null; zakladka = 'tydzien'; rysuj(); window.scrollTo(0, 0);
+    otwartyDzien = null; otwartyIso = null; zakladka = 'tydzien'; rysuj(); window.scrollTo(0, 0);
   }
   else if (t.dataset.kto) {
     const [d, k] = t.dataset.kto.split(':'), day = plan.dni[+d];
@@ -4725,6 +4730,7 @@ window.addEventListener('popstate', () => {
   setTimeout(histZgodnosc, 40);                                  // warstwa mogła zostać (np. pytanie o działające timery): odtwarzam jej wpis
 });
 ['#modal', '#gotuj'].forEach(sel => { const el = $(sel); if (el) new MutationObserver(histZgodnosc).observe(el, { attributes: true, attributeFilter: ['hidden'] }); });
+{ const m = $('#modal'); if (m) { const f = () => document.documentElement.classList.toggle('okno-otwarte', !m.hidden); new MutationObserver(f).observe(m, { attributes: true, attributeFilter: ['hidden'] }); f(); } }   // otwarte okno: strona pod spodem nie przewija się i nie animuje
 // ---------- własne okna zamiast confirm() i alert() ----------
 function oknoDialogu(html, ok) {
   const pop = document.activeElement; let el = $('#pytanie'); if (el) el.remove();

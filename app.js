@@ -667,6 +667,56 @@ function paczkaZChmury(c) {
   if (!dni.every(Boolean)) return null;
   return { start: c.start, dni: dni.map(d => Object.assign({ ratio: {}, tr: { ona: false, on: false } }, d)), odhaczone: c.odhaczone || {}, zuzyte: c.zuzyte || {} };
 }
+// ---------- archiwum tygodni (tylko na tym telefonie, nie jest wysyłane do chmury) ----------
+// Każdy ułożony tydzień zapisuje się sam w pamięci tego telefonu: do 4 wersji każdego z 10 ostatnich tygodni. Nowa wersja powstaje przy dużej zmianie
+// (inne dania w 4 i więcej miejscach: ułożenie od nowa albo nadpisanie z drugiego telefonu), drobne zmiany aktualizują ostatnią wersję.
+// Gdy tydzień zniknie, da się go przywrócić stąd (Dziś, Plan albo Więcej → Zapisane tygodnie).
+let archiwum = LS.get('archiwumTyg', {});
+const kopiaJ = x => JSON.parse(JSON.stringify(x == null ? {} : x));
+const idyTyg = dni => dni.flatMap(dd => [dd.sn, dd.m13 && (dd.m13.wsp || dd.m13.ona), dd.m13 && dd.m13.on, dd.ob, dd.k18]);
+const roznicaTyg = (a, b) => { const x = idyTyg(a), y = idyTyg(b); return x.reduce((n, v, i) => n + (v !== y[i] ? 1 : 0), 0); };
+const tydzienPoprawny = dni => Array.isArray(dni) && dni.length === 7 && dni.every(dd => dd && [dd.sn, dd.k18, dd.ob, dd.m13 && dd.m13.wsp, dd.m13 && dd.m13.ona, dd.m13 && dd.m13.on].every(id => !id || DB.dania.has(id)));
+const zakresTyg = st => `${krotkaData(st)}–${krotkaData(dodajDni(st, 6))}`;
+function archiwizuj(wymus) {
+  try {
+    if (!DB.dania || !DB.dania.size) return;
+    let zm = false;
+    for (const w of [plan && plan.dni ? { start: plan.start, dni: plan.dni, odhaczone, zuzyte } : null, inny && inny.dni ? { start: inny.start, dni: inny.dni, odhaczone: inny.odhaczone, zuzyte: inny.zuzyte } : null]) {
+      if (!w || !tydzienPoprawny(w.dni) || dodajDni(w.start, 6) < dodajDni(isoDzis(), -21)) continue;
+      const lista = archiwum[w.start] = archiwum[w.start] || [], ost = lista[0], e = stabilny([w.odhaczone || {}, w.zuzyte || {}]), h = stabilny(w.dni);
+      if (ost && ost.h === h) { if (ost.e !== e) { ost.odhaczone = kopiaJ(w.odhaczone); ost.zuzyte = kopiaJ(w.zuzyte); ost.e = e; zm = true; } continue; }
+      if (ost && !wymus && roznicaTyg(ost.dni, w.dni) < 4) { Object.assign(ost, { h, e, dni: kopiaJ(w.dni), odhaczone: kopiaJ(w.odhaczone), zuzyte: kopiaJ(w.zuzyte) }); zm = true; continue; }
+      lista.unshift({ t: Date.now(), h, e, dni: kopiaJ(w.dni), odhaczone: kopiaJ(w.odhaczone), zuzyte: kopiaJ(w.zuzyte) }); lista.length = Math.min(lista.length, 4); zm = true;
+    }
+    const kl = Object.keys(archiwum).sort(); while (kl.length > 10) { delete archiwum[kl.shift()]; zm = true; }
+    if (zm) LS.set('archiwumTyg', archiwum);
+  } catch (e) { /* archiwum nie może blokować aplikacji */ }
+}
+const czasArch = t => new Date(t).toLocaleString('pl-PL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+const ofertaArchiwum = start => { const l = archiwum[start]; if (!l || !l.length || !tydzienPoprawny(l[0].dni)) return ''; return `<p class="mute" style="margin:8px 0">Ten tydzień masz zapisany na tym telefonie (${czasArch(l[0].t)}).</p><button class="btn szeroki" data-przywroc="${start}:0">Przywróć zapisany tydzień</button> `; };
+async function przywrocTydzien(start, i) {
+  const w = (archiwum[start] || [])[i];
+  if (!w || !tydzienPoprawny(w.dni)) { pokazToast('Tej wersji nie da się przywrócić.'); return; }
+  if (tygodnieZapisane().some(t => t.start === start) && !(await pytaj(`Zastąpić tydzień ${zakresTyg(start)}?`, 'Obecna wersja tego tygodnia zostanie podmieniona. Zostaje też w zapisanych tygodniach, więc da się do niej wrócić.', 'Przywróć', false))) return;
+  archiwizuj(true);
+  const n = { start, dni: kopiaJ(w.dni), odhaczone: kopiaJ(w.odhaczone), zuzyte: kopiaJ(w.zuzyte) };
+  if (plan && plan.start === start) { plan = { start, dni: n.dni }; odhaczone = n.odhaczone; zuzyte = n.zuzyte; }
+  else if (inny && inny.start === start) inny = n;
+  else if (!plan || !tydzienZywy(plan.start)) { plan = { start, dni: n.dni }; odhaczone = n.odhaczone; zuzyte = n.zuzyte; }
+  else inny = n;
+  uporzadkujTygodnie();
+  LS.set('plan', plan); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte); LS.set('inny', inny);
+  Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], odhaczone], [['zuzyte'], zuzyte], [['inny'], paczkaDoChmury(inny)]]);
+  otwartyDzien = null; try { zamknijOkno(); } catch (e) { /* nic */ }
+  rysuj(); pokazToast(`Przywrócono tydzień ${zakresTyg(start)}`);
+}
+function oknoHistoriaTygodni() {
+  const kl = Object.keys(archiwum).filter(x => archiwum[x].length).sort().reverse();
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Zapisane tygodnie</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+    <p class="mute">Tygodnie zapisują się same na tym telefonie (nie w chmurze). Jeśli któryś zniknie, przywrócisz go stąd.</p>
+    ${kl.length ? kl.map(st => `<div class="karta"><b>${zakresTyg(st)}</b>${archiwum[st].map((w, i) => `<div class="wpis"><span>${i === 0 ? 'Najnowsza wersja' : 'Starsza wersja'} · ${czasArch(w.t)}<br><span class="mute">zjedzone posiłki: ${Object.keys(w.zuzyte || {}).length}</span></span><button class="btn maly" data-przywroc="${st}:${i}">Przywróć</button></div>`).join('')}</div>`).join('') : '<div class="pusty"><b>Brak zapisanych tygodni</b><span>Pojawią się po ułożeniu pierwszego tygodnia.</span></div>'}`;
+  $('#modal').hidden = false;
+}
 // Zamienia oglądany tydzień z drugim zapisanym (żaden się nie kasuje).
 function przelaczTydzien() {
   if (!inny) return false;
@@ -711,6 +761,7 @@ function poprawUklad(k, c, blok, limitMs) {
   return najO;
 }
 function ulozTydzien(start, zachowaj) {
+  archiwizuj(true);   // stary układ zostaje w archiwum, zanim go zastąpię nowym
   const c = cele();
   let naj = null, najK = Infinity;
   { const st0 = start || (plan && plan.start && plan.start >= poniedzialek() ? plan.start : poniedzialek()), inneT = tygodnieZapisane().filter(t => t.start !== st0), T = Math.max(dzienIdx(dodajDni(st0, 7)), ...inneT.map(t => dzienIdx(dodajDni(t.start, 7))));
@@ -983,8 +1034,8 @@ function widokTydzien() {
   const t = tyg.find(q => q.start === wyb.start);
   h += zTygodniem(t, () => kartaDnia(t, c, dzisIso, { prev: idx > 0 ? `${wszystkie[idx - 1].start}:${wszystkie[idx - 1].d}` : '', next: idx < wszystkie.length - 1 ? `${wszystkie[idx + 1].start}:${wszystkie[idx + 1].d}` : '' }));
   const biez = biezPon(), nast = dodajDni(biez, 7), ma = s => tyg.some(q => q.start === s);   // prawdziwy bieżący tydzień (w niedzielę nadal ten, który się kończy)
-  if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>Bieżący tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
-  if (!ma(nast)) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p><button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
+  if (!ma(biez)) h += `<div class="karta dodaj-tyg"><b>Bieżący tydzień ${krotkaData(biez)}–${krotkaData(dodajDni(biez, 6))}</b><p class="mute">Nie jest jeszcze ułożony.</p>${ofertaArchiwum(biez)}<button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
+  if (!ma(nast)) h += `<div class="karta dodaj-tyg"><b>Następny tydzień ${krotkaData(nast)}–${krotkaData(dodajDni(nast, 6))}</b><p class="mute">Nie jest jeszcze ułożony. Ułóż go tutaj — pojawi się na pasku dni za bieżącym, bez przełączania się między tygodniami.</p>${ofertaArchiwum(nast)}<button class="btn glowny szeroki" id="nowyNast">Ułóż następny tydzień</button></div>`;
   h += `<button class="btn glowny szeroki" id="doZakupow" style="margin-top:12px">Lista zakupów</button>`;
   $('#view').innerHTML = h;
   window._w = window._wBy[plan.start];
@@ -2456,7 +2507,7 @@ function oknoDopasuj(akcje) {
 function zastosujDopasowanie() {
   const prop = window._dop || []; if (!prop.length) return;
   const sn = snapStanu();
-  const orig = plan.start, wg = {}; let n = 0;
+  const orig = plan.start, wg = {}, wT = otwartyTyg, wD = otwartyDzien; let n = 0;
   prop.forEach(a => { (wg[a.start] = wg[a.start] || []).push(a); });
   for (const [start, lista] of Object.entries(wg)) {
     if (plan.start !== start) { if (inny && inny.start === start) przelaczTydzien(); else continue; }
@@ -2469,7 +2520,9 @@ function zastosujDopasowanie() {
     LS.set('plan', plan);
   }
   if (plan.start !== orig && inny && inny.start === orig) przelaczTydzien();
-  window._dop = null; zamknijOkno(); otwartyDzien = null; rysuj();
+  window._dop = null; zamknijOkno();
+  if (zakladka === 'tydzien') { otwartyTyg = wT; otwartyDzien = wD; } else otwartyDzien = null;   // w Planie zostaję na oglądanym dniu
+  rysuj();
   toastCofnij(n ? `Zmieniono ${n} ${mn(n, 'posiłek', 'posiłki', 'posiłków')}` : 'Zapisano ustawienia dnia', sn);
 }
 function oknoOpisz() {
@@ -3364,7 +3417,7 @@ function widokUstawienia(pierwszy) {
     $('#wyczysc').onclick = async () => {
       if (!(await pytaj('Usunąć dane z tego telefonu?', 'Zniknie zapisany plan, odhaczone zakupy i lodówka.' + (window.Sync && window.Sync.kod ? ' Telefon zostanie odłączony od wspólnego planu, u drugiej osoby plan zostaje.' : ''), 'Usuń dane'))) return;
       if (window.Sync && window.Sync.kod) window.Sync.odlacz();
-      ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'obw', 'lodowka', 'zuzyte', 'inny', 'tury', 'zakWlasne', 'zakDni'].forEach(LS.del); profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; obw = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
+      ['profil', 'plan', 'odhaczone', 'oceny', 'waga', 'obw', 'lodowka', 'zuzyte', 'inny', 'tury', 'zakWlasne', 'zakDni', 'archiwumTyg'].forEach(LS.del); archiwum = {}; profil = plan = inny = null; odhaczone = {}; oceny = {}; waga = { ona: {}, on: {} }; obw = { ona: {}, on: {} }; lodowka = {}; zuzyte = {}; rysuj();
     };
   }
 }
@@ -3460,7 +3513,8 @@ function widokDzis() {
   window._wBy = {};
   let h = `<div class="hero-gora"><small>${esc(dataTxt)}</small><h1>${pow}!</h1></div>` + wskazowka('dzis', 'Tu jest Twój dzień: co jeść teraz i co przygotować. Zaznacz „zjedzone” przy posiłku, a apka sama odejmie składniki z lodówki. Cały plan jest w zakładce „Plan”.');
   if (!t) {
-    h += `<div class="karta pusta-karta"><b>Na dziś nie ma jeszcze planu</b><p class="mute">Ułóż tydzień, a pokażę tu, co jeść i kiedy.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
+    const sArch = Object.keys(archiwum).find(x => dzis >= x && dzis <= dodajDni(x, 6) && archiwum[x].length);
+    h += sArch ? `<div class="karta pusta-karta"><b>Brakuje planu na dziś (tydzień ${zakresTyg(sArch)})</b>${ofertaArchiwum(sArch)}<p class="mute" style="margin-top:12px">Albo ułóż go od nowa:</p><button class="btn szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>` : `<div class="karta pusta-karta"><b>Na dziś nie ma jeszcze planu</b><p class="mute">Ułóż tydzień, a pokażę tu, co jeść i kiedy.</p><button class="btn glowny szeroki" id="nowyBiez">Ułóż bieżący tydzień</button></div>`;
     $('#view').innerHTML = h; return;
   }
   h += zTygodniem(t, () => {
@@ -3529,7 +3583,7 @@ function puleDlaSlotu(day, slot) { slot = bazaSlotu(slot); return slot === 'ob' 
 // Zamienia w obecnym i następnym tygodniu (od dziś, bez zjedzonych) dania z wykluczonymi składnikami na podobne: ten sam rodzaj, najbliższe białko na kcal.
 function zamienNiepasujace() {
   const sn = snapStanu();
-  const orig = plan.start, dzis = isoDzis(); let zmieniono = 0, brak = 0;
+  const orig = plan.start, dzis = isoDzis(), wT = otwartyTyg, wD = otwartyDzien; let zmieniono = 0, brak = 0;
   for (const t of tygodnieZapisane()) {
     if (t.start !== plan.start) { if (inny && inny.start === t.start) przelaczTydzien(); else continue; }
     for (const n of naruszeniaPlanu(plan, dzis)) {
@@ -3545,7 +3599,8 @@ function zamienNiepasujace() {
     }
   }
   if (plan.start !== orig && inny && inny.start === orig) przelaczTydzien();
-  otwartyDzien = null; rysuj();
+  if (zakladka === 'tydzien') { otwartyTyg = wT; otwartyDzien = wD; } else otwartyDzien = null;   // w Planie zostaję na oglądanym dniu
+  rysuj();
   if (zmieniono) toastCofnij(`Zamieniono ${zmieniono} ${zmieniono === 1 ? 'danie' : zmieniono < 5 ? 'dania' : 'dań'}${brak ? `, ${brak} bez zamiennika` : ''}`, sn); else pokazToast( (brak ? `Brak zamienników dla ${brak} posiłków — poluzuj wykluczenia` : 'Plan jest zgodny z listą'));
 }
 function widokWykluczone() {
@@ -3578,6 +3633,7 @@ function widokWiecej() {
     <h3>Ty i plan</h3>
     ${kafel('podsum', 'Podsumowanie tygodnia', 'Jak Wam poszło: posiłki, kalorie, białko, waga, wydatki', 'M5 20V10M12 20V4M19 20v-7')}
     ${kafel('waga', 'Waga i pomiary ciała', 'Waga, obwody i trend dla obojga', 'M3 6h18v12H3zM8.5 11a4 4 0 0 1 7 0M12 14l2-2.5')}
+    <button class="kafel" data-hist-tyg="1"><span class="kafel-ik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5l3 2M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></span><span class="kafel-tx"><b>Zapisane tygodnie</b><small>${Object.keys(archiwum).filter(x => archiwum[x].length).length ? 'Kopie tygodni na tym telefonie: przywrócisz zniknięty tydzień' : 'Tygodnie zapisują się tu same'}</small></span><span class="kafel-str">›</span></button>
     ${kafel('swipe', 'Co lubicie?', Object.keys(smaki).length ? 'Ocenionych dań: ' + Object.keys(smaki).length + '. Przesuwaj kolejne' : 'Przesuwaj dania i ucz plan Waszego smaku', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z')}
     ${kafel('wlasne', 'Własne dania', wlasneDania.length ? wlasneDania.length + ' ' + mn(wlasneDania.length, 'danie', 'dania', 'dań') + ' dodanych przez Was' : 'Dodaj własny przepis', 'M12 5v14M5 12h14')}
     ${kafel('wykluczone', 'Czego nie jecie', (wyklucz.ona.length + wyklucz.on.length) ? `ONA: ${wyklucz.ona.length} · ON: ${wyklucz.on.length} wykluczeń` : 'Wyklucz składniki z planu', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12')}
@@ -3626,6 +3682,7 @@ function rysuj() {
   if (!window._migrPusz) { window._migrPusz = true; zastosujWlasne(); zastosujPakiety(); migrujPuszki(); migrujScalenia(); migrujLyzkiStanow(); migrujOwoceMroz(); }
   if (inny && !tydzienZywy(inny.start)) { inny = null; LS.del('inny'); Z([[['inny'], undefined]]); }
   uporzadkujTygodnie();
+  archiwizuj();
   if (!planAktualny()) {
     if (S && S.kod && plan) {   // wspólny plan z daniem, którego ten telefon nie zna — nie układam nowego, żeby nie nadpisać planu drugiej osoby
       $('#tabs').hidden = false;
@@ -4082,7 +4139,8 @@ function przywrocSnap(sn) {
   const o = JSON.parse(sn); plan = o.plan; inny = o.inny; odhaczone = o.odhaczone || {}; zuzyte = o.zuzyte || {}; lodowka = o.lodowka || {}; zamiennik = o.zamiennik || {}; LS.set('zamiennik', zamiennik);
   LS.set('plan', plan); LS.set('inny', inny); LS.set('odhaczone', odhaczone); LS.set('zuzyte', zuzyte); LS.set('lodowka', lodowka);
   Z([[['start'], plan.start], [['dni'], dniMapa()], [['odhaczone'], odhaczone], [['zuzyte'], zuzyte], [['lodowka'], lodowka], [['inny'], paczkaDoChmury(inny)], [['zamiennik'], zamiennik]]);
-  otwartyDzien = null; zamknijOkno(); rysuj(); pokazToast('Cofnięto');
+  if (zakladka !== 'tydzien') otwartyDzien = null;   // w Planie zostaję na oglądanym dniu
+  zamknijOkno(); rysuj(); pokazToast('Cofnięto');
 }
 const toastCofnij = (tekst, sn) => pokazToast(tekst, 'Cofnij', () => przywrocSnap(sn), 9000);
 function filtrujLodowke() {
@@ -4352,6 +4410,8 @@ document.addEventListener('click', async e => {
   if (t.dataset.prepUsun) { sesje = sesje.filter(x => x.id !== t.dataset.prepUsun); LS.set('sesje', sesje); Z([[['sesje'], sesje]]); rysuj(); pokazToast('Sesja usunięta'); return; }
   if ('gotPrepOk' in t.dataset) { if (got && got.sesja) { got.sesja.zrobione = true; LS.set('sesje', sesje); Z([[['sesje'], sesje]]); } zamknijGotowanie(true); rysuj(); pokazToast('Sesja zapisana jako zrobiona'); return; }
   if (t.dataset.gotuj) { otworzGotowanie(window._przepisG, !!spontG); return; }
+  if (t.dataset.przywroc) { const [st, i] = t.dataset.przywroc.split(':'); przywrocTydzien(st, +i); return; }
+  if ('histTyg' in t.dataset) { oknoHistoriaTygodni(); return; }
   if ('gotZamknij' in t.dataset) { zamknijGotowanie(); return; }
   if (t.dataset.gotIdz !== undefined) { gotIdz(+t.dataset.gotIdz); return; }
   if ('gotSkl' in t.dataset) { if (!got) return; got.skl = !got.skl; rysujGot(); return; }
@@ -4583,6 +4643,7 @@ document.addEventListener('change', e => {
 window.App = {
   stanDoChmury: () => ({ profil, start: plan.start, dni: dniMapa(), odhaczone, oceny, waga, obw, lodowka, zuzyte, inny: paczkaDoChmury(inny), wyklucz, smaki, korekta, paragony, ceny, mapaPar, pakiety, sesje, wlasneProd, kody, historia, trasa, wlasneDania, lodData, zamiennik }),
   zdalny(data) {
+    archiwizuj(true);   // zanim dane z chmury nadpiszą ten telefon, zapisuję jego tygodnie
     const nowyProfil = data.profil && data.profil.ona && data.profil.on ? data.profil : profil;
     let nowyPlan = plan;
     if (data.start && data.dni) {

@@ -486,6 +486,36 @@
       inny = { start: '2026-11-23', dni: [] }; prawda(!uporzadkujTygodnie() && inny && inny.start === '2026-11-23', 'różne tygodnie zostają');
     } finally { plan = p0; inny = i0; LS.del = del; }
   });
+  await test('Archiwum tygodni', 'tydzień zapisuje się sam, duża zmiana to nowa wersja, drobna aktualizuje ostatnią, przywracanie do wolnego slotu i podmiana', async () => {
+    const sp = plan, si = inny, so = odhaczone, sz = zuzyte, sa = archiwum, lset = LS.set, ldel = LS.del, pt = pytaj, ry = rysuj, zo = zamknijOkno;
+    try {
+      LS.set = () => {}; LS.del = () => {}; pytaj = async () => true; rysuj = () => {}; zamknijOkno = () => {}; archiwum = {};
+      const st = biezPon(), nast = dodajDni(st, 7), A = JSON.parse(JSON.stringify(kandydat())).dni, B = JSON.parse(JSON.stringify(kandydat())).dni;
+      plan = { start: st, dni: JSON.parse(JSON.stringify(A)) }; inny = null; odhaczone = {}; zuzyte = {};
+      archiwizuj(); rowne((archiwum[st] || []).length, 1, 'pierwszy zapis tygodnia');
+      plan.dni[0].tr = { ona: true, on: false }; archiwizuj(); rowne(archiwum[st].length, 1, 'drobna zmiana nie tworzy nowej wersji');
+      plan = { start: st, dni: JSON.parse(JSON.stringify(B)) }; archiwizuj(true);
+      prawda(roznicaTyg(A, B) >= 4 ? archiwum[st].length === 2 : archiwum[st].length === 1, 'inny układ to nowa wersja');
+      // tydzień zniknął: w planie został tylko następny
+      plan = { start: nast, dni: JSON.parse(JSON.stringify(A)) }; inny = null;
+      await przywrocTydzien(st, 0); rowne(inny && inny.start, st, 'przywrócony do drugiego slotu'); rowne(tygodnieZapisane().map(q => q.start), [st, nast], 'oba tygodnie są');
+      // podmiana istniejącego tygodnia
+      const dl = archiwum[st].length; await przywrocTydzien(st, archiwum[st].length - 1); rowne(inny.start, st, 'podmiana tego samego tygodnia'); prawda(archiwum[st].length >= dl, 'poprzednia wersja nie ginie');
+    } finally { plan = sp; inny = si; odhaczone = so; zuzyte = sz; archiwum = sa; LS.set = lset; LS.del = ldel; pytaj = pt; rysuj = ry; zamknijOkno = zo; }
+  });
+  await test('Plan: widok po zmianie dań', 'po „Dopasuj dzień” i „Zamień automatycznie” Plan zostaje na oglądanym dniu, a nie skacze na dziś', async () => {
+    const sp = plan, si = inny, sk = zakladka, sT = otwartyTyg, sD = otwartyDzien, lset = LS.set, ldel = LS.del, ry = rysuj, zo = zamknijOkno, pt = pokazToast, sd = window._dop;
+    try {
+      LS.set = () => {}; LS.del = () => {}; rysuj = () => {}; zamknijOkno = () => {}; pokazToast = () => {};
+      plan = { start: biezPon(), dni: JSON.parse(JSON.stringify(kandydat())).dni }; inny = null; zakladka = 'tydzien';
+      const inne = [...DB.dania.values()].find(x => x.id !== plan.dni[2].sn && DB.pula.sn.includes(x));
+      otwartyTyg = plan.start; otwartyDzien = 5; window._dop = [{ start: plan.start, d: 2, zm: [{ slot: 'sn', nowy: inne, ratio: null }] }];
+      zastosujDopasowanie();
+      rowne([otwartyTyg, otwartyDzien], [plan.start, 5], 'po dopasowaniu dnia widok zostaje na tym samym dniu');
+      otwartyTyg = plan.start; otwartyDzien = 3; zamienNiepasujace();
+      rowne([otwartyTyg, otwartyDzien], [plan.start, 3], 'po zamianie niepasujących widok zostaje na tym samym dniu');
+    } finally { plan = sp; inny = si; zakladka = sk; otwartyTyg = sT; otwartyDzien = sD; LS.set = lset; LS.del = ldel; rysuj = ry; zamknijOkno = zo; pokazToast = pt; window._dop = sd; }
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

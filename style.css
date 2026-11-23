@@ -1441,3 +1441,4 @@ html.okno-otwarte body::before, html.okno-otwarte body::after, html.okno-otwarte
 .cialo-svg .cn-poswiata { animation: cnPoswiata 5.5s ease-in-out infinite; }
 @keyframes cnPoswiata { 0%, 100% { opacity: .42; } 50% { opacity: .62; } }
 @media (prefers-reduced-motion: reduce) { .cialo-svg .cn-poswiata { animation: none; } }
+.wiecz-w.zrobione .wiecz-tx > b { text-decoration: line-through; opacity: .7; }

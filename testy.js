@@ -545,15 +545,24 @@
       wybierz(2, 'sn', nowe); rowne(plan.dni[2].sn, przed, 'tydzień zniknął: nic nie zmieniono w innym tygodniu');
     } finally { plan = sp; inny = si; zmienCtx = sc; LS.set = lset; LS.del = ldel; rysuj = ry; pokazToast = pt; m.hidden = mh; }
   });
-  await test('Wieczorem: mięso do dań robionych dzień wcześniej', 'sałatka z kurczakiem robiona wieczorem: mięso wyjmujesz dwa dni przed jedzeniem; zwykłe dania nadal dzień przed', async () => {
-    const sp = plan, sal = [...DB.dania.values()].find(x => x.nazwa === 'Sałatka z kurczakiem, kaszą i kukurydzą');
+  await test('Wieczorem na jutro: śniadania i obiady', 'jutrzejsze śniadania w całości (bez weekendu i dań „na świeżo”), mięso z zamrażarki tylko przy obiadach', async () => {
+    const sp = plan;
     try {
-      plan = JSON.parse(JSON.stringify(plan)); plan.dni[3].m13.on = sal.id; delete plan.dni[3].ratio;
-      const w = oblicz(plan, cele()), p1 = wieczorem(w, 1), p2 = wieczorem(w, 2);
-      prawda(p1.some(x => x.t === 'mroz' && x.g.dish.id === sal.id && /danie na czwartek robisz wieczorem dzień wcześniej/.test(x.tekst)), 'dwa dni przed: przypomnienie o wyjęciu kurczaka');
-      prawda(p2.some(x => x.t === 'kroki' && x.g.dish.id === sal.id), 'dzień przed: kroki wieczorne zostają');
-      prawda(!p2.some(x => x.t === 'mroz' && x.g.dish.id === sal.id && !/TERAZ/.test(x.tekst)), 'dzień przed: kurczaka nie wyjmuje się już „na jutro”');
-      let zwykle = 0; for (let d = 0; d < 6; d++) for (const { g, odgrzewane } of w.dni[d + 1].sloty) if (!odgrzewane && !(g.dish.wieczorem || []).length && mrozDoWyjecia(g).length) { zwykle++; prawda(wieczorem(w, d).some(x => x.t === 'mroz' && x.g === g), 'zwykłe danie: mięso dzień przed (' + g.dish.nazwa + ')'); }
+      plan = JSON.parse(JSON.stringify(plan)); plan.start = dodajDni(biezPon(), 0);
+      const w = oblicz(plan, cele()); let sn = 0, ob = 0;
+      for (let d = 0; d < 6; d++) {
+        const dow = new Date(dodajDni(plan.start, d + 1) + 'T12:00:00').getDay(), weekend = dow === 0 || dow === 6, lista = wieczorem(w, d);
+        for (const { g, odgrzewane } of w.dni[d + 1].sloty) {
+          if (odgrzewane) continue;
+          if (sniadaniowy(g)) {
+            const it = lista.find(x => x.t === 'kroki' && x.g === g);
+            if (weekend || g.dish.tylko_wybor) prawda(!it, 'weekend / danie „na świeżo”: bez przygotowania wieczorem (' + g.dish.nazwa + ')');
+            else { sn++; prawda(it && it.kroki.length === g.dish.kroki.length, 'całe przygotowanie śniadania: ' + g.dish.nazwa); prawda(!/^(WIECZOREM|RANO):/i.test(it.kroki[0]), 'bez etykiety WIECZOREM/RANO'); }
+            prawda(!lista.some(x => x.t === 'mroz' && x.g === g), 'śniadanie bez przypomnienia o zamrażarce: ' + g.dish.nazwa);
+          } else if (bazaSlotu(g.slot) === 'ob' && mrozDoWyjecia(g).length) { ob++; prawda(lista.some(x => x.t === 'mroz' && x.g === g), 'obiad: mięso z zamrażarki (' + g.dish.nazwa + ')'); }
+        }
+      }
+      prawda(sn > 0 && ob > 0, 'za mało przypadków w planie testowym: śniadań ' + sn + ', obiadów z mrożonką ' + ob);
     } finally { plan = sp; }
   });
   await test('Lista zakupów: „Mam to w domu”', 'przycisk dopisuje brakującą ilość do lodówki, pozycja przechodzi do „Masz już”, cofnięcie ją przywraca; lodówka w innej jednostce jest wyjaśniona', async () => {
@@ -606,6 +615,34 @@
       prawda(/W lodówce masz\s*123 g/.test(box.textContent) && /potrzeba razem/.test(box.textContent) && /Zapisz ilość/.test(box.textContent), 'z produktem w lodówce: pokazuje, ile masz i ile potrzeba');
       document.getElementById('mam-q').value = '400'; zapiszMam(); rowne(lodowka[p.produkt].g, 400, 'zapis ustawia ilość w lodówce');
     } finally { lodowka = sl; LS.set = lset; rysuj = ry; pokazToast = pt; window._z = sz; box.innerHTML = sv; m.hidden = mh; }
+  });
+  await test('Odporność na uszkodzone dane', 'dane zapisane w złym typie albo bez kluczy ona/on nie wywracają aplikacji, poprawne dane zostają bez zmian', async () => {
+    const k = '__test_ls', ust = v => localStorage.setItem(k, v);
+    try {
+      ust('null'); rowne(LS.get(k, { a: 1 }), { a: 1 }, 'null → domyślne');
+      ust('"x"'); rowne(LS.get(k, {}), {}, 'tekst zamiast obiektu → domyślne');
+      ust('[1,2]'); rowne(LS.get(k, {}), {}, 'tablica zamiast obiektu → domyślne');
+      ust('{}'); rowne(LS.get(k, []), [], 'obiekt zamiast tablicy → domyślne');
+      ust('oops{'); rowne(LS.get(k, { a: 2 }), { a: 2 }, 'zepsuty JSON → domyślne');
+      ust('{}'); rowne(LS.get(k, { ona: {}, on: {} }), { ona: {}, on: {} }, 'brak ona/on uzupełniony');
+      ust('{"ona":null,"on":{"2026-01-01":80}}'); rowne(LS.get(k, { ona: {}, on: {} }), { ona: {}, on: { '2026-01-01': 80 } }, 'uszkodzone ona zastąpione, poprawne on zostaje');
+      ust('{"a":5}'); rowne(LS.get(k, { a: 1 }), { a: 5 }, 'poprawne dane bez zmian');
+      ust('{"id":"x"}'); rowne(LS.get(k, null), { id: 'x' }, 'domyślne null: zwraca zapisane');
+      localStorage.removeItem(k); rowne(LS.get(k, 7), 7, 'brak klucza → domyślne');
+    } finally { localStorage.removeItem(k); }
+  });
+  await test('Zakupy: kolejna wyprawa', 'znaczniki „kupione” należą do jednej wyprawy: zmiana dni zamyka starą (lodówka zostaje), te same dni ją zachowują, stare znaczniki bez sygnatury też się zamykają', async () => {
+    const so = odhaczone, si = inny, sl = lodowka, lset = LS.set;
+    try {
+      LS.set = () => {}; lodowka = { chleb: { 'krom.': 20 } };
+      const A = new Set(['2026-11-23', '2026-11-24']), B = new Set(['2026-11-25']);
+      odhaczone = { 'zak|chleb': { 'krom.': 16 }, 'zak|banan': { 'szt.': 3 }, zakTrip: zakSig(A), inne: true }; inny = { start: '2026-11-30', dni: [], odhaczone: { 'zak|jajka': { 'szt.': 10 }, zakTrip: zakSig(A) } };
+      zakNowaWyprawa(A); prawda(odhaczone['zak|chleb'] && odhaczone['zak|banan'] && inny.odhaczone['zak|jajka'], 'te same dni: znaczniki zostają');
+      zakNowaWyprawa(B); rowne(Object.keys(odhaczone).filter(k => k.startsWith('zak|')).length + Object.keys(inny.odhaczone).filter(k => k.startsWith('zak|')).length, 0, 'inne dni: stara wyprawa zamknięta w obu tygodniach');
+      prawda(odhaczone.inne === true && odhaczone.zakTrip === undefined, 'inne wpisy zostają, sygnatura usunięta');
+      rowne(lodowka.chleb['krom.'], 20, 'lodówka bez zmian');
+      odhaczone = { 'zak|chleb': { 'krom.': 16 } }; inny = null; zakNowaWyprawa(B); rowne(Object.keys(odhaczone).length, 0, 'stare znaczniki bez sygnatury zamykają się');
+    } finally { odhaczone = so; inny = si; lodowka = sl; LS.set = lset; }
   });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');

@@ -694,17 +694,127 @@
   });
   await test('Śniadania na jutro', 'oba jutrzejsze śniadania (pierwsze i drugie) w karcie na Dziś z „Gotuj teraz”, okno ze śniadaniami', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
-    const oczekiwane = j.w.dni[j.d].sloty.filter(({ g, odgrzewane }) => sniadaniowy(g) && !odgrzewane).map(x => x.g.dish.nazwa);
+    const oczekiwane = j.w.dni[j.d].sloty.filter(({ g, odgrzewane }) => sniadanieJutro(g) && !odgrzewane).map(x => x.g.dish.nazwa);
     rowne(j.sl.map(g => g.dish.nazwa), oczekiwane, 'śniadania na jutro zgadzają się z planem');
-    prawda(j.sl.length >= 1 && j.sl.every(g => sniadaniowy(g)), 'tylko śniadania (pierwsze i drugie)');
-    const kod = await tekst('app.js'); prawda(/Przygotuj śniadania na jutro/.test(kod) && /data-jutro-otworz/.test(kod), 'brak przycisku w kodzie');
+    prawda(j.sl.length >= 1 && j.sl.every(g => sniadanieJutro(g)), 'tylko śniadania (pierwsze i drugie, także koktajl na 13:00)');
+    const kod = await tekst('app.js'); prawda(!/Przygotuj śniadania na jutro/.test(kod) && /data-jutro-otworz/.test(kod), 'bez przycisku w niebieskim bloku, nagłówek karty otwiera szczegóły');
     const m = document.getElementById('modal'), box = document.getElementById('modal-box'), sv = box.innerHTML, svH = m.hidden;
     try { oknoJutro(); prawda(!m.hidden, 'okno się nie otworzyło'); prawda(box.textContent.includes('Śniadania na jutro') && j.sl.every(g => box.textContent.includes(g.dish.nazwa)), 'okno bez nazw śniadań'); prawda(box.querySelectorAll('[data-jutro-przepis]').length === j.sl.length, 'przycisk przepisu przy każdym śniadaniu'); }
     finally { box.innerHTML = sv; m.hidden = svH; }
-    const karta = kartaJutroLink(), cookable = j.sl.filter(g => !j.weekend && !g.dish.tylko_wybor).length;
+    const karta = kartaJutroLink(), cookable = j.sl.filter(g => !j.weekend && !g.dish.tylko_wybor && sniadaniowy(g)).length;
     prawda(j.sl.every(g => karta.includes(esc(g.dish.nazwa))), 'karta na Dziś pokazuje wszystkie śniadania');
     rowne((karta.match(/data-jutro-gotuj=/g) || []).length, cookable, '„Gotuj teraz” przy każdym śniadaniu do zrobienia wieczorem');
+    rowne((karta.match(/data-jutro-ok=/g) || []).length, cookable, 'ptaszek przy każdym śniadaniu do zrobienia wieczorem');
+    const koktajl = j.w.dni[j.d].sloty.find(s => s.g.slot === 'm13ona' && !s.odgrzewane);
+    if (koktajl) { prawda(j.sl.includes(koktajl.g) && karta.includes(esc(koktajl.g.dish.nazwa)), 'koktajl dla niej na 13:00 jest wśród śniadań na jutro'); prawda(!new RegExp('data-jutro-gotuj="' + j.sl.indexOf(koktajl.g) + '"').test(karta), 'koktajl bez „Gotuj teraz” (robi się na świeżo)'); }
     prawda(!/Zobacz<\/button>/.test(karta), 'bez starego przycisku „Zobacz”');
+  });
+  await test('Meal prep: notatka w przepisie', 'jedna linia na posiłek (nie na wszystkie wystąpienia dania w tygodniu), nieaktualna zapisana sesja nie każe pomijać gotowania, wykonana sesja tak', async () => {
+    const sp = plan, ss = sesje, lset = LS.set, ry = rysuj;
+    try {
+      LS.set = () => {}; rysuj = () => {}; plan = JSON.parse(JSON.stringify(plan)); sesje = [];
+      const sid = [...DB.dania.values()].find(x => x.nazwa.startsWith('Sałatka ryżowa z kurczakiem')).id, a = Math.min(dzisIdx(), 5), dni = [a, a + 1, a + 2].filter(d => d <= 6);
+      dni.forEach(d => { plan.dni[d].m13.on = sid; plan.dni[d].ratio = {}; });
+      const od = isoDzis(), pl = planPrepu(od, prepH), rz = pl.komp.find(c => c.prod === 'ryż');
+      if (!rz || rz.uzycia.length < 2) return;   // za mało wystąpień w oknie planu testowego
+      zapiszSesje(pl);
+      const gar = () => oblicz(plan, cele()).garnki.filter(g => g.dish.id === sid && dni.includes(g.d)), linie = g => (notaPrepu(g).match(/<div>/g) || []).length;
+      for (const g of gar()) rowne(linie(g), rz.uzycia.filter(u => u.iso === dodajDni(plan.start, g.d)).length, 'jedna linia na posiłek, dzień ' + g.d);
+      // po zmianie planu ryż jest tylko w jednym posiłku: zapisana, niewykonana sesja jest nieaktualna
+      const pierwszy = dni.find(d => rz.uzycia.some(u => u.iso === dodajDni(plan.start, d))), inne = DB.pula.m13on.find(x => x.id !== sid).id;
+      dni.filter(d => d !== pierwszy).forEach(d => { plan.dni[d].m13.on = inne; plan.dni[d].ratio = {}; });
+      const g1 = oblicz(plan, cele()).garnki.find(g => g.dish.id === sid && g.d === pierwszy);
+      rowne(notaPrepu(g1), '', 'nieaktualna sesja: bez komunikatu');
+      sesje[0].zrobione = true; prawda(notaPrepu(g1).includes('Ryż'), 'wykonana sesja: komunikat jest');
+      sesje[0].zrobione = false; sesje[0].od = dodajDni(isoDzis(), -1); rowne(notaPrepu(g1), '', 'niewykonana sesja z przeszłości: bez komunikatu');
+    } finally { plan = sp; sesje = ss; LS.set = lset; rysuj = ry; }
+  });
+  await test('Meal prep: podpowiedź tylko w najlepszym dniu', 'karta „Dziś dobry dzień na meal prep” pokazuje się tylko, gdy dziś jest najlepszy dzień okna', async () => {
+    const ok0 = okazjePrepu, ss = sesje;
+    try {
+      sesje = []; const dzis = isoDzis(), jutro = dodajDni(dzis, 1);
+      okazjePrepu = () => [{ od: dzis, min: 25, n: 1 }, { od: jutro, min: 40, n: 2 }];
+      prawda(!kartaPrepDzis(dzis).includes('Dziś dobry dzień na meal prep'), 'jutro jest lepiej: dziś bez podpowiedzi');
+      okazjePrepu = () => [{ od: dzis, min: 40, n: 2 }, { od: jutro, min: 25, n: 1 }];
+      prawda(kartaPrepDzis(dzis).includes('Dziś dobry dzień na meal prep'), 'dziś najlepiej: jest podpowiedź');
+      okazjePrepu = () => [{ od: dzis, min: 30, n: 1 }, { od: jutro, min: 30, n: 1 }];
+      prawda(kartaPrepDzis(dzis).includes('Dziś dobry dzień na meal prep'), 'remis: dziś też się opłaca');
+      okazjePrepu = () => [{ od: dzis, min: 10, n: 1 }, { od: jutro, min: 8, n: 1 }];
+      prawda(!kartaPrepDzis(dzis).includes('Dziś dobry dzień na meal prep'), 'oszczędność poniżej 20 min: bez podpowiedzi');
+    } finally { okazjePrepu = ok0; sesje = ss; }
+  });
+  await test('Meal prep: danie na dwa dni', 'składnik gotowany osobno w daniu na dwa dni to jedno użycie na całą ilość w dniu gotowania, nie podział na dwa dni jedzenia', async () => {
+    const sp = plan;
+    try {
+      plan = JSON.parse(JSON.stringify(plan));
+      const a = Math.min(dzisIdx(), 4);
+      const dish = DB.pula.ob2.find(x => x.typ === 'obiad_2dni' && x.skladniki.some(i => PREP[i.produkt] && i.ilosc && gotowaneOsobno(x, i.produkt)));
+      if (!dish) return;
+      plan.dni[a].ob = dish.id; plan.dni[a].ob2 = true; plan.dni[a].ratio = {}; plan.dni[a + 1].ob = null; plan.dni[a + 1].ob2 = false;   // dzień po daniu na dwa dni ma puste pole obiadu (danie przechodzi z poprzedniego dnia)
+      const g = oblicz(plan, cele()).garnki.find(x => x.dish.id === dish.id && x.d === a);
+      if (!g || dniGarnka(g).length < 2) return;
+      const i = g.dish.skladniki.find(q => PREP[q.produkt] && q.ilosc && gotowaneOsobno(g.dish, q.produkt)), c = PREP[i.produkt], calosc = i.ilosc * skala(g, i);
+      const pl = planPrepu(isoDzis(), 6), uz = [...pl.komp.filter(k => k.prod === i.produkt).flatMap(k => k.uzycia.concat(k.poza)), ...pl.pojedyncze.filter(k => k.prod === i.produkt).flatMap(k => k.uzycia)].filter(x => x.id === dish.id && x.wk === plan.start);
+      rowne(uz.length, 1, 'jedno użycie na cały garnek, a nie jedno na każdy dzień jedzenia');
+      rowne(uz[0].d, Math.min(...dniGarnka(g)), 'w pierwszym dniu (gotowania)');
+      rowne(uz[0].suchy, c.u === 'szt.' ? Math.max(1, Math.round(calosc)) : Math.round(calosc / 5) * 5 || 5, 'cała ilość składnika');
+    } finally { plan = sp; }
+  });
+  await test('Garnki na dwa dni: odznaczanie', 'odznaczenie dnia gotowania przy zaznaczonym drugim dniu nie zwraca składników do lodówki; zwrot dopiero po odznaczeniu ostatniego dnia', async () => {
+    const sl = lodowka, sz = zuzyte, lset = LS.set;
+    try {
+      LS.set = () => {}; zuzyte = {};
+      const g = oblicz(plan, cele()).garnki.find(x => dniGarnka(x).length === 2 && skladGarnka(x).some(s => s[3] === 'g'));
+      if (!g) return;
+      const [d1, d2] = dniGarnka(g).sort((a, b) => a - b); lodowka = {}; skladGarnka(g).forEach(([p, , , u]) => { lodowka[p] = lodowka[p] || {}; lodowka[p][u] = 100000; });
+      const zuz = () => Math.round(Object.values(lodowka).reduce((a, us) => a + Object.values(us).reduce((b, q) => b + (100000 - q), 0), 0));
+      zjedz(g, d1, true); const po1 = zuz(); prawda(po1 > 0, 'pierwszy dzień zdejmuje składniki');
+      zjedz(g, d2, true); rowne(zuz(), po1, 'drugi dzień nic nie zdejmuje');
+      zjedz(g, d1, false); rowne(zuz(), po1, 'odznaczenie dnia gotowania przy zjedzonym drugim: składniki zostają zdjęte');
+      prawda(!prognoza(oblicz(plan, cele())).some(x => x.dish === g.dish.nazwa), 'garnek nadal ugotowany: prognoza go nie liczy');
+      zjedz(g, d2, false); rowne(zuz(), 0, 'po odznaczeniu ostatniego dnia składniki wracają');
+    } finally { lodowka = sl; zuzyte = sz; LS.set = lset; }
+  });
+  await test('Garnki na dwa dni: spójność w całej aplikacji', 'na losowych planach każdy garnek na dwa dni jest liczony raz i w dniu gotowania: zakupy, zero waste, woreczki mięsa, prep, „Wieczorem na jutro”', async () => {
+    const sp = plan, si = inny, so = odhaczone, sz = zuzyte, sl = lodowka, ry = rysuj, lset = LS.set, ldel = LS.del;
+    try {
+      rysuj = () => {}; LS.set = () => {}; LS.del = () => {}; let dwu = 0;
+      const oczekiwane = w => { const m = {}, dod = (p, u, q) => { m[p + '|' + u] = (m[p + '|' + u] || 0) + q; }; for (const g of w.garnki) { for (const i of g.dish.skladniki) if (i.ilosc && i.produkt) dod(i.produkt, i.jednostka, ileZuzyto(i.ilosc * skala(g, i), i.jednostka, 1)); } return m; };
+      for (let it = 0; it < 6; it++) {
+        ulozTydzien(biezPon(), false); inny = null; zuzyte = {}; odhaczone = {}; lodowka = {};
+        const t = tygodnieZapisane()[0], w = oblicz(plan, cele()), garnki2 = w.garnki.filter(g => dniGarnka(g).length > 1); dwu += garnki2.length;
+        const z = zakupyDni(new Set(dniDostepne().map(x => x.iso))), lista = {};
+        for (const k of ['świeże', 'zamrażarka', 'zapas']) for (const p of z.wynik[k]) for (const [u, q] of Object.entries(p.brakuje)) lista[p.produkt + '|' + u] = q;
+        const pom = new Set(['odżywka białkowa|g', 'mleko 2%|ml', 'skyr naturalny|g']);
+        for (const [k, q] of Object.entries(oczekiwane(w))) if (!pom.has(k) && Math.abs((lista[k] || 0) - q) > 0.6 && Math.abs((lista[k] || 0) - q) / Math.max(q, 1) > 0.02) prawda(false, `zakupy: ${k} lista ${lista[k] || 0} vs ${q} (każdy garnek raz)`);
+        const zd = [], lic = {}; zdarzeniaTygodnia({ start: t.start, dni: t.dni, zuz: {} }, w, zd);
+        for (const e of zd) if (e.ref) { const k = e.ref.d + '|' + e.ref.slot + '|' + e.prod + '|' + e.u; lic[k] = (lic[k] || 0) + 1; }
+        prawda(Object.values(lic).every(n => n === 1), 'zero waste: jedno zdarzenie na składnik garnka');
+        for (const g of garnki2) {
+          const dzien0 = Math.min(...dniGarnka(g)), ev = zd.filter(e => e.ref && e.ref.d === g.d && e.ref.slot === g.slot);
+          prawda(ev.every(e => e.t === dzienIdx(dodajDni(t.start, dzien0))), 'zero waste: zdarzenia w dniu gotowania');
+          const mp = miesoPodzial(isoDzis(), 14); if (dodajDni(t.start, dzien0) >= isoDzis()) for (const i of g.dish.skladniki) if (i.ilosc && i.produkt && stala(i)) rowne((mp[i.produkt] || []).filter(x => x.dish === g.dish.nazwa && x.slot === g.slot).length, Math.ceil(g.nF || 1), 'woreczki mięsa: jeden zestaw na garnek');
+        }
+        const pl = planPrepu(isoDzis(), 6), uz = [...pl.komp.flatMap(k => k.uzycia.concat(k.poza)), ...pl.pojedyncze.flatMap(k => k.uzycia)];
+        for (const g of garnki2) prawda(!uz.some(u => u.id === g.dish.id && u.slot === g.slot && dniGarnka(g).includes(u.d) && u.d !== Math.min(...dniGarnka(g))), 'prep: użycie tylko w dniu gotowania');
+        for (let d = 0; d < 6; d++) for (const x of wieczorem(w, d)) { const s = x.g && w.dni[d + 1].sloty.find(q => q.g === x.g); prawda(!(s && s.odgrzewane), 'wieczorem: bez zadań dla odgrzewanego posiłku'); }
+      }
+      prawda(dwu > 0, 'brak garnków na dwa dni w losowych planach');
+    } finally { plan = sp; inny = si; odhaczone = so; zuzyte = sz; lodowka = sl; rysuj = ry; LS.set = lset; LS.del = ldel; }
+  });
+  await test('Dziś wieczorem: postęp i odhaczanie', 'komunikat „Wszystko na dziś zrobione” dopiero po przygotowaniu jutrzejszych śniadań i zadań z listy wieczornej', async () => {
+    const raw = localStorage.getItem('wieczOk'), j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
+    try {
+      const dzis = isoDzis(), doZ = jutroDoZrobienia(j), wi = [{ klucz: 'z:a' }, { klucz: 'z:b' }], zapisz = a => localStorage.setItem('wieczOk', JSON.stringify({ [dzis]: a }));
+      zapisz([]); let pw = postepWieczoru(dzis, j, wi);
+      prawda(!pw.gotowe && /Zostało jeszcze/.test(pw.zostalo) && /2 rzeczy/.test(pw.zostalo), 'nic nie zrobione: zostały rzeczy z listy');
+      prawda(doZ.length === 0 || /na jutro/.test(pw.zostalo), 'jeśli są śniadania do przygotowania, komunikat o nich');
+      zapisz(['z:a', 'z:b']); pw = postepWieczoru(dzis, j, wi);
+      prawda(doZ.length === 0 ? pw.gotowe : (!pw.gotowe && /śniadani/.test(pw.zostalo)), 'zadania zrobione, śniadania (jeśli są) jeszcze nie');
+      zapisz(['z:a', 'z:b', ...doZ.map(jutroKlucz)]); pw = postepWieczoru(dzis, j, wi);
+      prawda(pw.gotowe && pw.zostalo === '', 'wszystko odhaczone: gotowe');
+      rowne(postepWieczoru(dzis, null, []).gotowe, true, 'brak jutra i zadań: gotowe');
+    } finally { if (raw === null) localStorage.removeItem('wieczOk'); else localStorage.setItem('wieczOk', raw); }
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

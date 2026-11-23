@@ -1104,8 +1104,10 @@ function zjedz(g, d, on) {
     zuzyte[k] = odj;
   } else {
     if (!zuzyte[k]) return;
-    for (const [pp, us] of Object.entries(zuzyte[k])) for (const [uu, q] of Object.entries(us)) zmienLodowke(pp, uu, q);
-    delete zuzyte[k];
+    // Garnek na 2 dni jest ugotowany, dopóki zjedzony jest którykolwiek jego dzień: gdy odznaczasz dzień ze zdjętymi składnikami, a drugi dzień nadal jest zaznaczony, zdjęte składniki zostają zdjęte (przechodzą na ten dzień), zamiast wracać do lodówki.
+    const nastepny = Object.keys(zuzyte[k]).length ? dniGarnka(g).find(dd => dd !== d && zuzyte[kluczZ(dd, g.slot)] && !Object.keys(zuzyte[kluczZ(dd, g.slot)]).length) : undefined;
+    if (nastepny !== undefined) { const kk = kluczZ(nastepny, g.slot); zuzyte[kk] = zuzyte[k]; Z([[['zuzyte', kk], zuzyte[kk]]]); delete zuzyte[k]; }
+    else { for (const [pp, us] of Object.entries(zuzyte[k])) for (const [uu, q] of Object.entries(us)) zmienLodowke(pp, uu, q); delete zuzyte[k]; }
   }
   LS.set('zuzyte', zuzyte); Z([[['zuzyte', k], on ? zuzyte[k] : undefined]]);
 }
@@ -1125,7 +1127,8 @@ function dzienPo(w, d, n) {
 // „Wieczorem na jutro”: tylko czynności do zrobienia dziś wieczorem: wyjąć z zamrażarki owoce do jutrzejszych śniadań i mięso do jutrzejszych obiadów (oraz do śniadań na pojutrze,
 // bo te robicie jutro wieczorem), plus kroki wieczorne dań innych niż śniadania. Same śniadania (robione wieczorem dzień wcześniej, oprócz weekendu i dań „na świeżo”)
 // są w karcie „Jutro · śniadania” na Dziś, z przyciskiem „Gotuj teraz”.
-const sniadaniowy = g => /^(sn|m13)/.test(g.slot) && !/^koktajl/.test(g.dish.typ || '');
+const sniadaniowy = g => /^(sn|m13)/.test(g.slot) && !/^koktajl/.test(g.dish.typ || '');   // śniadanie do zrobienia wieczorem (bez koktajli: te robi się na świeżo)
+const sniadanieJutro = g => /^(sn|m13)/.test(g.slot);   // wszystko, co jest rano/w południe (z koktajlem na 13:00)
 const mrozOwoceDoWyjecia = g => g.dish.skladniki.filter(i => i.kategoria === 'zamrażarka' && i.ilosc && /mrożon/.test(i.produkt) && !/paluszki|bułka/.test(i.produkt)).map(i => `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
 function wieczorem(w, d) {
   const jutro = dzienPo(w, d, 1); if (!jutro) return [];
@@ -2169,12 +2172,12 @@ function planPrepu(od, h) {
     const wk = oblicz({ start: t.start, dni: t.dni }, cele());
     for (const g of wk.garnki) for (const i of g.dish.skladniki) {
       if (!PREP[i.produkt] || !i.ilosc || !gotowaneOsobno(g.dish, i.produkt)) continue;
-      for (const x of dniGarnka(g)) {
-        const iso = dodajDni(t.start, x);
-        if (iso < od || iso > doo || iso < dzis || t.zuz[kluczZ(x, g.slot, t.start)]) continue;
-        const c = PREP[i.produkt], ilosc = i.ilosc * skala(g, i) * udzialDnia(g, x);
-        (wg[i.produkt] = wg[i.produkt] || []).push({ iso, slot: g.slot, id: g.dish.id, dish: g.dish.nazwa, wk: t.start, d: x, suchy: c.u === 'szt.' ? Math.max(1, Math.round(ilosc)) : Math.round(ilosc / 5) * 5 || 5, kto: [...new Set(g.porcje.filter(q => q.d === x).map(q => q.p))] });
-      }
+      // Danie na dwa dni gotuje się raz, w pierwszym dniu: składnik jest potrzebny jednym użyciem (cała ilość) w dniu gotowania, a nie osobno na każdy dzień jedzenia.
+      const dniG = dniGarnka(g); if (dniG.some(xx => t.zuz[kluczZ(xx, g.slot, t.start)])) continue;   // już ugotowane
+      const x = Math.min(...dniG), iso = dodajDni(t.start, x);
+      if (iso < od || iso > doo || iso < dzis) continue;
+      const c = PREP[i.produkt], ilosc = i.ilosc * skala(g, i);
+      (wg[i.produkt] = wg[i.produkt] || []).push({ iso, slot: g.slot, id: g.dish.id, dish: g.dish.nazwa, wk: t.start, d: x, suchy: c.u === 'szt.' ? Math.max(1, Math.round(ilosc)) : Math.round(ilosc / 5) * 5 || 5, kto: [...new Set(g.porcje.map(q => q.p))] });
     }
   }
   const komp = [], pojedyncze = []; let min = 0, gar = 0;
@@ -2209,7 +2212,10 @@ function krokiSesji(komp) {
   }
   return { kroki, czas: Math.round(t) };
 }
-const sesjaDla = (g) => sesje.flatMap(se => se.komp.flatMap(k => k.uzycia.filter(u => u.wk === plan.start && u.id === g.dish.id && u.slot === g.slot).map(u => ({ se, k, u }))));
+// Sesje meal prep dotyczące tego posiłku. Tylko jego dzień (garnek na 2 dni: oba dni), a niewykonana sesja liczy się wtedy, gdy jest jeszcze aktualna: nie z przeszłości
+// i nadal zawiera ten składnik w tym posiłku wg obecnego planu (po zmianie dań stara zapisana sesja nie może kazać pomijać gotowania).
+const sesjaAktualna = (se, k, u) => se.zrobione || (se.od >= isoDzis() && (() => { try { return planPrepu(se.od, se.h).komp.some(c => c.prod === k.prod && c.uzycia.some(x => x.iso === u.iso && x.slot === u.slot && x.id === u.id)); } catch (e) { return false; } })());
+const sesjaDla = (g) => { const dni = dniGarnka(g).map(dd => dodajDni(plan.start, dd)); return sesje.flatMap(se => se.komp.flatMap(k => k.uzycia.filter(u => u.wk === plan.start && u.id === g.dish.id && u.slot === g.slot && dni.includes(u.iso) && sesjaAktualna(se, k, u)).map(u => ({ se, k, u })))); };
 // Który krok przepisu został zrobiony w sesji meal prep (ten składnik ugotowany wcześniej)?
 function krokZSesji(g, tekst) {
   for (const { k } of sesjaDla(g)) { const c = PREP[k.prod]; if (c && /(ugotuj|gotuj|zagotuj|wsyp|zalej|przepłucz)/i.test(tekst) && (c.twarde ? /na twardo/i.test(tekst) : c.wzor.test(tekst))) return `${c.nazwa} z sesji ${dzienKrotki(sesje.find(x => x.komp.includes(k)).od)}`; }
@@ -2750,7 +2756,7 @@ function jutroDane() {
   const jutro = dodajDni(isoDzis(), 1), t = tygodnieZapisane().find(x => jutro >= x.start && jutro <= dodajDni(x.start, 6));
   if (!t) return null;
   const d = Math.round((new Date(jutro + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5);
-  const w = oblicz({ start: t.start, dni: t.dni }, cele()), sl = w.dni[d].sloty.filter(({ g, odgrzewane }) => sniadaniowy(g) && !odgrzewane).map(x => x.g), dow = new Date(jutro + 'T12:00:00').getDay();
+  const w = oblicz({ start: t.start, dni: t.dni }, cele()), sl = w.dni[d].sloty.filter(({ g, odgrzewane }) => sniadanieJutro(g) && !odgrzewane).map(x => x.g), dow = new Date(jutro + 'T12:00:00').getDay();
   return sl.length ? { jutro, t, d, w, sl, biezacy: t.start === plan.start, weekend: dow === 0 || dow === 6 } : null;
 }
 function oknoJutro() {
@@ -2759,8 +2765,8 @@ function oknoJutro() {
   const dt = new Date(j.jutro + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
   const karta = (g, i) => {
     const moje = g.porcje.filter(q => q.d === j.d), kto = etSlotu(g.slot) ? etSlotu(g.slot).slice(3) : moje.map(q => ETY[q.p]).join(' + ');
-    const wi = (g.dish.tylko_wybor ? [] : (g.dish.kroki || [])).map(k => krokPrzeliczony(g, k).replace(/^(WIECZOREM|RANO):\s*/i, ''));
-    return `<div class="hero jutro-sn"><span class="hero-et">${bazaSlotu(g.slot) === 'm13' ? 'Drugie śniadanie' : 'Śniadanie'} · ${esc(kto)}</span>
+    const wi = (g.dish.tylko_wybor || sniadaniowy(g) === false ? [] : (g.dish.kroki || [])).map(k => krokPrzeliczony(g, k).replace(/^(WIECZOREM|RANO):\s*/i, ''));
+    return `<div class="hero jutro-sn"><span class="hero-et">${/^m13/.test(g.slot) ? 'Drugie śniadanie' : 'Śniadanie'} · ${esc(kto)}</span>
       <div class="hero-dan">${Obr.html(g.dish, 'duzy')}<div><b>${nazwaDania(g.dish)}</b></div></div>
       <div class="hero-liczby">${moje.map(q => `<span>${moje.length > 1 ? ETY[q.p] + ' ' : ''}${r0(q.kcal)} kcal · ${r0(q.b)} g białka</span>`).join('')}</div>
       ${wi.length ? `<div class="jutro-wiecz"><b>Przygotuj dziś wieczorem</b><ol>${wi.map(k => `<li>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</li>`).join('')}</ol></div>` : '<p class="jutro-nic">Nic nie trzeba przygotowywać wcześniej.</p>'}
@@ -2769,11 +2775,26 @@ function oknoJutro() {
   $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Śniadania na jutro</h2><button class="btn maly" data-zamknij>Zamknij</button></div><p class="mute">${esc(dt.charAt(0).toUpperCase() + dt.slice(1))}</p>${j.sl.map(karta).join('')}`;
   $('#modal').hidden = false;
 }
+// Odhaczanie wieczornych rzeczy (wspólne dla karty „Jutro · śniadania” i listy „Wieczorem na jutro”): klucze w LS 'wieczOk', osobno dla każdej daty (tylko ten telefon).
+const jutroKlucz = g => 'jb:' + g.dish.id + '|' + g.slot;
+const jutroDoZrobienia = j => (j ? j.sl.filter(g => !j.weekend && !g.dish.tylko_wybor && sniadaniowy(g)) : []);
+function postepWieczoru(dzis, j, wi) {   // ile zostało do zrobienia dziś wieczorem: jutrzejsze śniadania do przygotowania + zadania z „Wieczorem na jutro”
+  const ok = (LS.get('wieczOk', {}) || {})[dzis] || [], sn = jutroDoZrobienia(j).filter(g => !ok.includes(jutroKlucz(g))).length, zad = (wi || []).filter(x => !ok.includes(x.klucz)).length, cz = [];
+  if (sn) cz.push(`przygotować ${sn} ${mn(sn, 'śniadanie', 'śniadania', 'śniadań')} na jutro`);
+  if (zad) cz.push(`zrobić ${zad} ${mn(zad, 'rzecz', 'rzeczy', 'rzeczy')} z listy „Wieczorem na jutro”`);
+  return { gotowe: !sn && !zad, zostalo: cz.length ? 'Zostało jeszcze: ' + cz.join(' i ') + '.' : '' };
+}
 const kartaJutroLink = () => {
   const j = jutroDane(); if (!j) return '';
   window._jutro = j;
+  const ok = (LS.get('wieczOk', {}) || {})[isoDzis()] || [], doZrobienia = jutroDoZrobienia(j);
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
-  return `<div class="karta jutro-link"><small class="mute">Jutro · ${j.sl.length > 1 ? 'śniadania' : 'śniadanie'}</small>${j.sl.map((g, i) => `<div class="jutro-wiersz"><button class="jutro-nazwa" data-jutro-przepis="${i}">${esc(g.dish.nazwa)}</button>${!j.weekend && !g.dish.tylko_wybor ? `<button class="btn maly jutro-got" data-jutro-gotuj="${i}" aria-label="Gotuj teraz: ${esc(g.dish.nazwa)}">${ik}<span>Gotuj teraz</span></button>` : ''}</div>`).join('')}</div>`;
+  return `<div class="karta jutro-link"><button class="jutro-gora" data-jutro-otworz="1"><small class="mute">Jutro · ${j.sl.length > 1 ? 'śniadania' : 'śniadanie'}</small><span class="mute" aria-hidden="true">›</span></button>${j.sl.map((g, i) => {
+    const kto = etG(g) ? ` <small class="mute">${esc(etG(g).replace(' · ', ''))}</small>` : '', nazwa = `<button class="jutro-nazwa" data-jutro-przepis="${i}">${esc(g.dish.nazwa)}${kto}</button>`;
+    if (!doZrobienia.includes(g)) return `<div class="jutro-wiersz">${nazwa}</div>`;
+    const z = ok.includes(jutroKlucz(g));
+    return `<div class="wiecz-w ${z ? 'zrobione' : ''}"><button class="wiecz-chk" data-jutro-ok="${i}" role="checkbox" aria-checked="${z}" aria-label="Zrobione: ${esc(g.dish.nazwa)}"><span class="wiecz-ptak"></span></button><div class="wiecz-tx">${nazwa}<div class="wiecz-ak"><button class="btn maly jutro-got" data-jutro-gotuj="${i}" aria-label="Gotuj teraz: ${esc(g.dish.nazwa)}">${ik}<span>Gotuj teraz</span></button></div></div></div>`;
+  }).join('')}</div>`;
 };
 function kartaPrepDzis(dzis) {
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
@@ -2781,7 +2802,8 @@ function kartaPrepDzis(dzis) {
   const zaplan = sesje.find(x => x.od === dzis && !x.zrobione);
   const { zapas, html: zapasHtml } = zapasPrepu(dzis);
   if (zaplan) return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś meal prep</b><small>zaplanowana sesja · ${zaplan.komp.map(k => esc(k.nazwa.toLowerCase())).join(', ')}</small></div></div><div class="rzad"><button class="btn glowny" data-prep-dzis="${esc(zaplan.id)}">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Szczegóły</button></div>${zapasHtml}</div>`;
-  if (dz.min >= 20) { const pl = planPrepu(dzis, prepH); return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś dobry dzień na meal prep</b><small>oszczędzisz ok. ${dz.min} min przy kuchni w następnych dniach</small></div></div><p class="mute" style="margin:8px 0 10px">Ugotuj raz: ${esc(pl.komp.map(c => c.nazwa.toLowerCase()).join(', '))}.</p><div class="rzad"><button class="btn glowny" data-prep-dzis="">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Zobacz plan</button></div>${zapasHtml}</div>`; }
+  // podpowiedź tylko, gdy DZIŚ jest najlepszym dniem na meal prep (nie gdy jutro opłaca się bardziej)
+  if (dz.min >= 20 && dz.min >= naj.min) { const pl = planPrepu(dzis, prepH); return `<div class="karta prep-radar tak"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Dziś dobry dzień na meal prep</b><small>oszczędzisz ok. ${dz.min} min przy kuchni w następnych dniach</small></div></div><p class="mute" style="margin:8px 0 10px">Ugotuj raz: ${esc(pl.komp.map(c => c.nazwa.toLowerCase()).join(', '))}.</p><div class="rzad"><button class="btn glowny" data-prep-dzis="">Zacznij sesję</button><button class="btn" data-prep-otworz="${dzis}">Zobacz plan</button></div>${zapasHtml}</div>`; }
   if (zapas.length) return `<div class="karta prep-radar"><div class="prep-r-gora"><span class="prep-r-ik">${ik}</span><div><b>Masz jedzenie na zapas</b><small>dziś nie trzeba gotować tych składników</small></div></div>${zapasHtml}</div>`;
   return '';   // meal prep dziś niedostępny: karta się chowa (kafel „Meal prep” jest w Więcej)
 }
@@ -3662,7 +3684,7 @@ function widokDzis() {
     const d = Math.round((new Date(dzis + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5), x = w.dni[d], day = plan.dni[d];
     const zjedz_ = g => !!zuzyte[kluczZ(d, g.slot)];
     const sloty = x.sloty;
-    const nast = sloty.find(({ g }) => !zjedz_(g) && (GODZ[g.slot] || 12) >= godz - 1.5) || sloty.find(({ g }) => !zjedz_(g));
+    const nast = sloty.find(({ g }) => !zjedz_(g) && (GODZ[g.slot] || 12) >= godz - 1.5) || sloty.find(({ g }) => !zjedz_(g)), wiecz = wieczorem(w, d);
     let o = `<section data-wk="${t.start}"><div data-d="${d}">`;
     if (nast) {
       const gh = n => (GODZ[n.g.slot] || 12), grupa = sloty.filter(n => !zjedz_(n.g) && gh(n) === gh(nast)), godzTxt = bazaSlotu(nast.g.slot) === 'm13' && nast.g.dish.typ !== 'koktajl' ? '13:00' : PORA[nast.g.slot].split(' · ')[0];
@@ -3674,7 +3696,10 @@ function widokDzis() {
       };
       const podw = grupa.length > 1;
       o += `<div class="hero ${podw ? 'podwojny' : ''}"><span class="hero-et">${gh(nast) >= godz - 1.5 ? 'Następny posiłek' : 'Jeszcze niezjedzone'} · ${godzTxt}</span>${(podw ? grupa : [nast]).map(n => wiersz(n, podw)).join('')}</div>`;
-    } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div>${jutroDane() ? '<div class="rzad"><button class="btn hero-btn" data-jutro-otworz="1">Przygotuj śniadania na jutro</button></div>' : ''}</div>`;
+    } else {
+      const pw = postepWieczoru(dzis, jutroDane(), wiecz);
+      o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>${pw.gotowe ? 'Wszystko na dziś zrobione!' : 'Wszystko zjedzone. Dobra robota!'}</b><small>${pw.gotowe ? 'Do zobaczenia jutro.' : esc(pw.zostalo)}</small></div></div></div>`;
+    }
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
@@ -3687,10 +3712,10 @@ function widokDzis() {
       return `<div class="pos-wiersz ${ez ? 'zjedzone' : ''} ${nast && nast.g === g ? 'nast' : ''}"><label class="pos-ptak"><input type="checkbox" data-zuz="${d}:${g.slot}" ${ez ? 'checked' : ''} aria-label="zjedzone"><span></span></label>
         <button class="pos-tx" data-przepis="${w.garnki.indexOf(g)}:${d}"><small>${gl}${etG(g)}${odgrzewane ? ' · odgrzewasz' : ''}</small><b>${esc(g.dish.nazwa)}</b><span class="mute">${moje.map(q => `${ETY[q.p]} ${r0(q.kcal + (g.dosypka && q.p === 'on' ? g.dosypka.kcal : 0))} kcal`).join(' · ')}</span></button>${ez ? '' : `<button class="pos-pomin" data-pomin="${d}:${g.slot}">Pomiń</button>`}</div>`;
     }).join('') + `</div>`;
-    if (nast) o += kartaJutroLink();
+    o += kartaJutroLink();
     o += pozaLista(day, d);
     o += pominLista(day, d);
-    o += kartaWieczor(wieczorem(w, d), dzis);
+    o += kartaWieczor(wiecz, dzis);
     const sh = OS.filter(p => shakeAkt(day, p));
     if (sh.length) o += `<div class="karta"><b>Po treningu · shake</b><p class="mute">${sh.map(p => `${ETY[p]}: odżywka ${DB.shake[p].odzywka_g} g + mleko ${DB.shake[p].mleko_ml} ml`).join(' · ')}</p></div>`;
     // co dalej
@@ -4517,6 +4542,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.prepDzien) { prepOd = t.dataset.prepDzien; rysuj(); return; }
   if (t.dataset.dop) { const [dd, k] = t.dataset.dop.split(':'); oknoDopasuj([{ start: plan.start, d: +dd, iso: dodajDni(plan.start, +dd), tryby: { [k]: true } }]); return; }
   if (t.dataset.gosc) { const [dd, dl] = t.dataset.gosc.split(':'), day = plan.dni[+dd]; day.gosc = Math.max(0, Math.min(12, (day.gosc || 0) + +dl)); LS.set('plan', plan); Z([[['dni', +dd, 'gosc'], day.gosc]]); otwartyDzien = +dd; rysuj(); return; }
+  if (t.dataset.jutroOk !== undefined) { const g = ((window._jutro || {}).sl || [])[+t.dataset.jutroOk]; if (g) { const dz = isoDzis(), kl = jutroKlucz(g), all = LS.get('wieczOk', {}) || {}, a = all[dz] || []; all[dz] = a.includes(kl) ? a.filter(x => x !== kl) : a.concat(kl); Object.keys(all).forEach(k => { if (k < dodajDni(dz, -3)) delete all[k]; }); LS.set('wieczOk', all); rysuj(); } return; }
   if (t.dataset.wiecz !== undefined) { const dz = isoDzis(), it = (window._wiecz || [])[+t.dataset.wiecz]; if (it) { const all = LS.get('wieczOk', {}) || {}, a = all[dz] || []; all[dz] = a.includes(it.klucz) ? a.filter(x => x !== it.klucz) : a.concat(it.klucz); Object.keys(all).forEach(k => { if (k < dodajDni(dz, -3)) delete all[k]; }); LS.set('wieczOk', all); rysuj(); } return; }
   if (t.dataset.wieczPrzepis !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczPrzepis]; if (it && it.g) pokazPrzepis(it.g, false); return; }
   if (t.dataset.wieczGot !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczGot]; if (it && it.g) { otworzGotowanie(it.g, false); const k = got ? got.kroki.findIndex(x => /^WIECZOREM/i.test(x)) : -1; if (k >= 0) gotIdz(k + 1); } return; }

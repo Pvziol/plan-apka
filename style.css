@@ -1446,3 +1446,9 @@ html.okno-otwarte body::before, html.okno-otwarte body::after, html.okno-otwarte
 /* przycisk-link (np. „Pokaż standardową kolejność”, „Wyczyść własny cel”): zwykły podkreślony tekst, bez domyślnej ramki i bez ujemnych marginesów, które nakładały go na sąsiedni tekst */
 button.link { background: none; border: 0; box-shadow: none; color: var(--zielony); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; margin: 0; padding: 4px 0; min-height: 0; display: inline; text-align: left; }
 .trasa-wiersz .trasa-tryb { align-self: flex-start; display: inline-flex; align-items: center; min-height: 40px; padding: 0 2px; font-size: 14px; }
+/* karta „Jutro · śniadania”: nagłówek jako przycisk, wiersze z ptaszkiem jak w „Wieczorem na jutro” */
+.jutro-gora { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.jutro-link .wiecz-w { margin-top: 0; }
+.jutro-link .wiecz-tx .jutro-nazwa { display: block; padding: 0; }
+.wiecz-w.zrobione .jutro-nazwa { text-decoration: line-through; opacity: .7; }
+

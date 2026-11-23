@@ -644,6 +644,16 @@
       odhaczone = { 'zak|chleb': { 'krom.': 16 } }; inny = null; zakNowaWyprawa(B); rowne(Object.keys(odhaczone).length, 0, 'stare znaczniki bez sygnatury zamykają się');
     } finally { odhaczone = so; inny = si; lodowka = sl; LS.set = lset; }
   });
+  await test('Zapisy do chmury: paczki', 'zapisy z jednej akcji łączą się w paczki: różne pola razem, przyrosty tego samego pola sumują się, kolidujące ścieżki idą osobno w tej samej kolejności', async () => {
+    const inc = n => ({ __inc: n });
+    let pa = zPaczki([[['lodowka', 'a', 'g'], inc(5)], [['lodowka', 'b', 'szt.'], inc(2)], [['odhaczone', 'zak|a'], { g: 5 }], [['lodowka', 'a', 'g'], inc(7)]]);
+    rowne(pa.length, 1, 'jedna paczka'); rowne(pa[0].length, 3, 'przyrosty tego samego pola scalone'); rowne(pa[0][0][1], inc(12), 'suma przyrostów');
+    pa = zPaczki([[['lodowka', 'x'], { g: 1 }], [['lodowka', 'x', 'g'], 9]]); rowne(pa.length, 2, 'pole i jego część osobno'); rowne([pa[0][0][0].length, pa[1][0][0].length], [2, 3], 'kolejność zachowana');
+    pa = zPaczki([[['lodowka', 'y'], 1], [['lodowka', 'y'], 2]]); rowne(pa.length, 2, 'to samo pole ustawione dwa razy: osobne paczki'); rowne([pa[0][0][1], pa[1][0][1]], [1, 2], 'ostatnia wartość wygrywa');
+    pa = zPaczki([[['lodowka', 'z'], inc(1)], [['lodowka', 'z'], 5]]); rowne(pa.length, 2, 'przyrost potem ustawienie: osobno (kolejność ma znaczenie)');
+    pa = zPaczki(Array.from({ length: 450 }, (_, i) => [['lodowka', 'p' + i, 'g'], inc(1)])); rowne(pa.map(x => x.length), [200, 200, 50], 'limit 200 pól w paczce');
+    rowne(zPaczki([]).length, 0, 'pusty zapis');
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

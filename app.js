@@ -91,7 +91,36 @@ let prepOd = null; const prepH = 5;   // okno planowania; każdy składnik i tak
 let otwartyDzien = null, otwartyTyg = null, otwartyIso = null;   // który dzień którego tygodnia jest rozwinięty
 let odroczone = false, ekranStartowy = false, ekranCzekania = false, formStart = null;
 // wspólny plan: wysyła tylko zmienione pola, np. [[['dni', 3, 'sn'], 'id-dania']]; undefined = usuń pole
-const Z = zm => { if (window.Sync && window.Sync.kod) window.Sync.zapisz(zm); };
+// Zapisy do wspólnego planu z jednej akcji (np. „Kupione wszystko”: dziesiątki pól) łączę w jedną paczkę zamiast setek osobnych zapisów: szybciej, oszczędniej (limity bazy)
+// i atomowo. Przyrosty tego samego pola sumuję, a zapisy kolidujących ścieżek (to samo pole albo pole i jego część) idą w kolejnych paczkach, w tej samej kolejności.
+let _zBuf = [], _zPlan = false;
+const Z = zm => {
+  if (!(window.Sync && window.Sync.kod) || !zm || !zm.length) return;
+  _zBuf.push(...zm);
+  if (!_zPlan) { _zPlan = true; Promise.resolve().then(zWyslij); }
+};
+function zPaczki(buf) {
+  const paczki = [], SEP = '\u0001'; let pa = null, idx = null;
+  const nowa = () => { pa = []; idx = new Map(); paczki.push(pa); };
+  for (const [sc, v] of buf) {
+    if (!pa || pa.length >= 200) nowa();
+    const pk = sc.map(String).join(SEP);
+    let kol = null; for (const k of idx.keys()) if (k === pk || k.startsWith(pk + SEP) || pk.startsWith(k + SEP)) { kol = k; break; }
+    if (kol === pk && v && v.__inc !== undefined) { const stary = pa[idx.get(pk)]; if (stary[1] && stary[1].__inc !== undefined) { stary[1] = { __inc: stary[1].__inc + v.__inc }; continue; } }
+    if (kol !== null) nowa();
+    idx.set(pk, pa.length); pa.push([sc, v]);
+  }
+  return paczki;
+}
+function zWyslij() {
+  _zPlan = false; const buf = _zBuf; _zBuf = [];
+  if (!(window.Sync && window.Sync.kod) || !buf.length) return;
+  zPaczki(buf).forEach(pa => {
+    if (!pa.length) return;
+    try { window.Sync.zapisz(pa); }
+    catch (e) { pa.forEach(x => { try { window.Sync.zapisz([x]); } catch (e2) { /* jedno złe pole nie blokuje reszty */ } }); }   // paczka się nie zbudowała: wysyłam pola pojedynczo
+  });
+}
 const dniMapa = () => Object.fromEntries(plan.dni.map((d, i) => [String(i), d]));
 const stabilny = o => JSON.stringify(o, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(x => [x, v[x]])) : v);
 
@@ -3392,7 +3421,8 @@ function widokZakupy() {
   const wDzial = {}; wszystkie.forEach(p => { (wDzial[dzialSklepu(p)] = wDzial[dzialSklepu(p)] || []).push(p); });
   const sk = sklepAktywny(), uk = trasaUklad(wDzial, sk), maTrase = !!(trasa[sk] && Object.keys(trasa[sk]).length >= 8);
   if (razemPoz) h += `<div class="trasa-wiersz"><span class="mute">Idę do:</span><div class="chips">${sklepyDoWyboru().map(x => `<button class="chip ${x === sk ? 'akt' : ''}" data-sklepzak="${esc(x)}">${esc(x)}</button>`).join('')}</div>
-    <small class="mute">${maTrase ? `Lista ułożona wg Waszej trasy w sklepie. <button class="link" data-trasa-tryb="${trasaTryb === 'moja' ? 'std' : 'moja'}">${trasaTryb === 'moja' ? 'Pokaż standardową kolejność' : 'Użyj mojej trasy'}</button>` : 'Odhaczajcie po kolei, a zapamiętam trasę w sklepie.'}</small></div>`;
+    <small class="mute">${maTrase ? (trasaTryb === 'moja' ? 'Lista ułożona wg Waszej trasy w sklepie.' : 'Lista w standardowej kolejności działów.') : 'Odhaczajcie po kolei, a zapamiętam trasę w sklepie.'}</small>
+    ${maTrase ? `<button class="link trasa-tryb" data-trasa-tryb="${trasaTryb === 'moja' ? 'std' : 'moja'}">${trasaTryb === 'moja' ? 'Pokaż standardową kolejność' : 'Użyj mojej trasy'}</button>` : ''}</div>`;
   const dzialyKol = uk ? uk.dzialy.map(k => DZIALY.find(d => d[0] === k)) : DZIALY;
   for (const [kod, nazwa, ikona] of dzialyKol) {
     const l = wDzial[kod]; if (!l || !l.length) continue;

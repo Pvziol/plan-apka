@@ -1442,3 +1442,6 @@ html.okno-otwarte body::before, html.okno-otwarte body::after, html.okno-otwarte
 @keyframes cnPoswiata { 0%, 100% { opacity: .42; } 50% { opacity: .62; } }
 @media (prefers-reduced-motion: reduce) { .cialo-svg .cn-poswiata { animation: none; } }
 .wiecz-w.zrobione .wiecz-tx > b { text-decoration: line-through; opacity: .7; }
+/* przycisk-link (np. „Pokaż standardową kolejność”, „Wyczyść własny cel”): zwykły podkreślony tekst, bez domyślnej ramki i bez ujemnych marginesów, które nakładały go na sąsiedni tekst */
+button.link { background: none; border: 0; box-shadow: none; color: var(--zielony); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; margin: 0; padding: 4px 0; min-height: 0; display: inline; text-align: left; }
+.trasa-wiersz .trasa-tryb { align-self: flex-start; display: inline-flex; align-items: center; min-height: 40px; padding: 0 2px; font-size: 14px; }

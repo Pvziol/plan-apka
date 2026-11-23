@@ -28,6 +28,8 @@ function opisBledu(e) {
   const c = (e && e.code) || '';
   if (c.includes('permission-denied')) return 'Brak dostępu — sprawdź reguły bazy w Firebase.';
   if (c.includes('unavailable') || c.includes('network')) return 'Brak połączenia z siecią.';
+  if (c.includes('resource-exhausted')) return 'Wyczerpany dzienny limit bazy (odnowi się jutro).';
+  if (c.includes('invalid-argument')) return 'Baza odrzuciła zapis (niepoprawne dane).';
   return 'Błąd synchronizacji' + (c ? ' (' + c + ')' : '') + '.';
 }
 

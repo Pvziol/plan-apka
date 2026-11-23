@@ -1344,10 +1344,11 @@ details.wyb-grp .wiersz { padding: 0 8px; }
 .jutro-nic { margin: 0 0 14px; font-size: 14px; opacity: .92; }
 .jutro-sn .rzad { display: flex; flex-wrap: wrap; gap: 8px; }
 .jutro-sn .rzad .btn { flex: 1 1 140px; }
-.jutro-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
-.jutro-link > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.jutro-link b { font-size: 15px; overflow-wrap: anywhere; }
-.jutro-link .btn { flex: none; }
+.jutro-link { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.jutro-wiersz { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.jutro-nazwa { min-width: 0; flex: 1; background: none; border: 0; padding: 4px 0; margin: 0; text-align: left; font: inherit; font-size: 15px; font-weight: 750; color: inherit; overflow-wrap: anywhere; }
+.jutro-got { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; font-size: 13px; }
+.jutro-got svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---------- pomiary ciała: sylwetka z opaskami ---------- */
 .waga-seg { margin: 4px 0 10px; }

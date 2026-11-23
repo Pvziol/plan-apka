@@ -954,7 +954,7 @@ function zakupyDni(wyb) {
       for (const i of g.dish.skladniki) {
         if (i.ilosc && i.produkt) {
           if (i.zam && i.zam.auto) (autoUw[i.produkt] = autoUw[i.produkt] || new Set()).add(`zamiast ${i.zam.z} w daniu ${g.dish.nazwa} (${i.zam.auto})`);
-          dodaj(i.produkt, i.kategoria, i.ilosc * skala(g, i) * f, i.jednostka);
+          dodaj(i.produkt, i.kategoria, ileZuzyto(i.ilosc * skala(g, i), i.jednostka, f), i.jednostka);   // tak samo jak przy „zjedzone” i w prognozie: sztuki, kromki i puszki w całości (połówka w dół, min. 1), inaczej lista kupowałaby mniej, niż schodzi z lodówki
           if (stala(i) && f > 0.999) { const nb = g.nF || 1; for (let n = 0; n < Math.ceil(nb); n++) (worki[i.produkt] = worki[i.produkt] || []).push({ g: Math.round(i.ilosc * Math.min(1, nb - n)), dt, dish: g.dish.nazwa, slot: g.slot }); }
         } else inne.add(i.nazwa + ' — ' + g.dish.nazwa);
       }
@@ -1122,21 +1122,30 @@ function dzienPo(w, d, n) {
   const ns = dodajDni(plan.start, 7), t2 = tygodnieZapisane().find(q => q.start === ns); if (!t2) return null;
   return oblicz({ start: t2.start, dni: t2.dni }, cele()).dni[i - 7] || null;
 }
-// „Wieczorem na jutro”: całe przygotowanie jutrzejszych śniadań (pierwszego i drugiego; robicie je wieczorem dzień wcześniej, oprócz weekendu i dań „na świeżo”)
-// oraz kroki wieczorne innych dań. „Wyjmij z zamrażarki” dotyczy tylko jutrzejszych obiadów.
+// „Wieczorem na jutro”: tylko czynności do zrobienia dziś wieczorem: wyjąć z zamrażarki owoce do jutrzejszych śniadań i mięso do jutrzejszych obiadów (oraz do śniadań na pojutrze,
+// bo te robicie jutro wieczorem), plus kroki wieczorne dań innych niż śniadania. Same śniadania (robione wieczorem dzień wcześniej, oprócz weekendu i dań „na świeżo”)
+// są w karcie „Jutro · śniadania” na Dziś, z przyciskiem „Gotuj teraz”.
 const sniadaniowy = g => /^(sn|m13)/.test(g.slot) && !/^koktajl/.test(g.dish.typ || '');
+const mrozOwoceDoWyjecia = g => g.dish.skladniki.filter(i => i.kategoria === 'zamrażarka' && i.ilosc && /mrożon/.test(i.produkt) && !/paluszki|bułka/.test(i.produkt)).map(i => `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
 function wieczorem(w, d) {
   const jutro = dzienPo(w, d, 1); if (!jutro) return [];
-  const out = [], dow = new Date(dodajDni(plan.start, d + 1) + 'T12:00:00').getDay(), weekend = dow === 0 || dow === 6;
-  const kroki = (g, lista) => lista.map(k => krokPrzeliczony(g, k).replace(/^(WIECZOREM|RANO):\s*/i, ''));
+  const out = [], dowDnia = n => new Date(dodajDni(plan.start, d + n) + 'T12:00:00').getDay(), weekendDnia = n => dowDnia(n) === 0 || dowDnia(n) === 6;
   for (const { g, odgrzewane } of jutro.sloty) {
     if (odgrzewane) continue;
     if (sniadaniowy(g)) {
-      if (!weekend && !g.dish.tylko_wybor && g.dish.kroki && g.dish.kroki.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: kroki(g, g.dish.kroki) });
+      if (!weekendDnia(1) && !g.dish.tylko_wybor) for (const tx of mrozOwoceDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g });
       continue;
     }
-    if (g.dish.wieczorem && g.dish.wieczorem.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: kroki(g, g.dish.wieczorem) });
+    if (g.dish.wieczorem && g.dish.wieczorem.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: g.dish.wieczorem.map(k => krokPrzeliczony(g, k).replace(/^(WIECZOREM|RANO):\s*/i, '')) });
     if (bazaSlotu(g.slot) === 'ob') for (const tx of mrozDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g });
+  }
+  const po = dzienPo(w, d, 2);
+  if (po && !weekendDnia(2)) {
+    const nazwaDnia = DNI_NA[(dowDnia(2) + 6) % 7];
+    for (const { g, odgrzewane } of po.sloty) {
+      if (odgrzewane || !sniadaniowy(g) || g.dish.tylko_wybor) continue;
+      for (const tx of mrozDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: `${tx} — śniadanie na ${nazwaDnia}, które robisz jutro wieczorem`, g });
+    }
   }
   return out;
 }
@@ -2741,26 +2750,31 @@ function jutroDane() {
   const jutro = dodajDni(isoDzis(), 1), t = tygodnieZapisane().find(x => jutro >= x.start && jutro <= dodajDni(x.start, 6));
   if (!t) return null;
   const d = Math.round((new Date(jutro + 'T12:00:00') - new Date(t.start + 'T12:00:00')) / 864e5);
-  const w = oblicz({ start: t.start, dni: t.dni }, cele()), sl = w.dni[d].sloty.filter(({ g, odgrzewane }) => bazaSlotu(g.slot) === 'sn' && !odgrzewane).map(x => x.g);
-  return sl.length ? { jutro, t, d, w, sl, biezacy: t.start === plan.start } : null;
+  const w = oblicz({ start: t.start, dni: t.dni }, cele()), sl = w.dni[d].sloty.filter(({ g, odgrzewane }) => sniadaniowy(g) && !odgrzewane).map(x => x.g), dow = new Date(jutro + 'T12:00:00').getDay();
+  return sl.length ? { jutro, t, d, w, sl, biezacy: t.start === plan.start, weekend: dow === 0 || dow === 6 } : null;
 }
 function oknoJutro() {
-  const j = jutroDane(); if (!j) { pokazToast('Na jutro nie ma jeszcze zaplanowanego śniadania.'); return; }
+  const j = jutroDane(); if (!j) { pokazToast('Na jutro nie ma jeszcze zaplanowanych śniadań.'); return; }
   window._jutro = j;
   const dt = new Date(j.jutro + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
   const karta = (g, i) => {
     const moje = g.porcje.filter(q => q.d === j.d), kto = etSlotu(g.slot) ? etSlotu(g.slot).slice(3) : moje.map(q => ETY[q.p]).join(' + ');
     const wi = (g.dish.tylko_wybor ? [] : (g.dish.kroki || [])).map(k => krokPrzeliczony(g, k).replace(/^(WIECZOREM|RANO):\s*/i, ''));
-    return `<div class="hero jutro-sn"><span class="hero-et">Śniadanie · ${esc(kto)}</span>
+    return `<div class="hero jutro-sn"><span class="hero-et">${bazaSlotu(g.slot) === 'm13' ? 'Drugie śniadanie' : 'Śniadanie'} · ${esc(kto)}</span>
       <div class="hero-dan">${Obr.html(g.dish, 'duzy')}<div><b>${nazwaDania(g.dish)}</b></div></div>
       <div class="hero-liczby">${moje.map(q => `<span>${moje.length > 1 ? ETY[q.p] + ' ' : ''}${r0(q.kcal)} kcal · ${r0(q.b)} g białka</span>`).join('')}</div>
       ${wi.length ? `<div class="jutro-wiecz"><b>Przygotuj dziś wieczorem</b><ol>${wi.map(k => `<li>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</li>`).join('')}</ol></div>` : '<p class="jutro-nic">Nic nie trzeba przygotowywać wcześniej.</p>'}
-      <div class="rzad"><button class="btn hero-btn" data-jutro-przepis="${i}">Zobacz przepis</button>${(g.dish.wieczorem || []).length ? `<button class="btn hero-btn" data-jutro-got="${i}">Gotuj krok po kroku</button>` : ''}${j.biezacy ? `<button class="btn hero-btn jasny" data-jutro-zmien="${i}">Zmień danie</button>` : ''}</div></div>`;
+      <div class="rzad"><button class="btn hero-btn" data-jutro-przepis="${i}">Zobacz przepis</button>${wi.length ? `<button class="btn hero-btn" data-jutro-gotuj="${i}">Gotuj teraz</button>` : ''}${j.biezacy ? `<button class="btn hero-btn jasny" data-jutro-zmien="${i}">Zmień danie</button>` : ''}</div></div>`;
   };
-  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Śniadanie na jutro</h2><button class="btn maly" data-zamknij>Zamknij</button></div><p class="mute">${esc(dt.charAt(0).toUpperCase() + dt.slice(1))}</p>${j.sl.map(karta).join('')}`;
+  $('#modal-box').innerHTML = `<div class="okno-gora"><h2>Śniadania na jutro</h2><button class="btn maly" data-zamknij>Zamknij</button></div><p class="mute">${esc(dt.charAt(0).toUpperCase() + dt.slice(1))}</p>${j.sl.map(karta).join('')}`;
   $('#modal').hidden = false;
 }
-const kartaJutroLink = () => { const j = jutroDane(); return j ? `<div class="karta jutro-link"><div><small class="mute">Jutro · śniadanie</small><b>${j.sl.map(g => esc(g.dish.nazwa)).join(' · ')}</b></div><button class="btn maly" data-jutro-otworz="1">Zobacz</button></div>` : ''; };
+const kartaJutroLink = () => {
+  const j = jutroDane(); if (!j) return '';
+  window._jutro = j;
+  const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
+  return `<div class="karta jutro-link"><small class="mute">Jutro · ${j.sl.length > 1 ? 'śniadania' : 'śniadanie'}</small>${j.sl.map((g, i) => `<div class="jutro-wiersz"><button class="jutro-nazwa" data-jutro-przepis="${i}">${esc(g.dish.nazwa)}</button>${!j.weekend && !g.dish.tylko_wybor ? `<button class="btn maly jutro-got" data-jutro-gotuj="${i}" aria-label="Gotuj teraz: ${esc(g.dish.nazwa)}">${ik}<span>Gotuj teraz</span></button>` : ''}</div>`).join('')}</div>`;
+};
 function kartaPrepDzis(dzis) {
   const ik = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM4 8h16M9 5h6"/></svg>';
   const ok = okazjePrepu(), dz = ok[0], naj = ok.reduce((a, b) => b.min > a.min ? b : a, ok[0]);
@@ -3573,7 +3587,7 @@ function pasekSync() {
   }
   if (!tx) { if (el) el.remove(); document.body.classList.remove('ma-sync-pasek'); return; }
   if (!el) { el = document.createElement('div'); el.id = 'sync-pasek'; el.className = 'sync-pasek'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
-  el.innerHTML = `<span>${esc(tx)}</span>${ponow ? '<button class="btn maly" id="sync-ponow">Ponów</button>' : ''}`;
+  el.innerHTML = `<span>${esc(tx)}${S && S.stan === 'blad' && S.blad ? `<br><small>${esc(S.blad)}</small>` : ''}</span>${ponow ? '<button class="btn maly" id="sync-ponow">Ponów</button>' : ''}`;
   el.title = S && S.blad ? S.blad : '';
   document.body.classList.add('ma-sync-pasek');
   document.body.style.setProperty('--sync-h', el.offsetHeight + 'px');
@@ -3660,7 +3674,7 @@ function widokDzis() {
       };
       const podw = grupa.length > 1;
       o += `<div class="hero ${podw ? 'podwojny' : ''}"><span class="hero-et">${gh(nast) >= godz - 1.5 ? 'Następny posiłek' : 'Jeszcze niezjedzone'} · ${godzTxt}</span>${(podw ? grupa : [nast]).map(n => wiersz(n, podw)).join('')}</div>`;
-    } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div>${jutroDane() ? '<div class="rzad"><button class="btn hero-btn" data-jutro-otworz="1">Przygotuj śniadanie na jutro</button></div>' : ''}</div>`;
+    } else o += `<div class="hero ok"><span class="hero-et">Dziś</span><div class="hero-dan"><div><b>Wszystko zjedzone. Dobra robota!</b><small>Jutro zajrzyj tu po kolejny dzień.</small></div></div>${jutroDane() ? '<div class="rzad"><button class="btn hero-btn" data-jutro-otworz="1">Przygotuj śniadania na jutro</button></div>' : ''}</div>`;
     // postęp dnia
     const zjed = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.kcal + (g.dosypka && p === 'on' ? g.dosypka.kcal : 0)));
     const zjedB = p => sum(sloty.filter(({ g }) => zjedz_(g)), ({ g }) => sum(g.porcje.filter(q => q.d === d && q.p === p), q => q.b + (g.dosypka && p === 'on' ? g.dosypka.b : 0)));
@@ -4207,17 +4221,25 @@ function skladGarnka(g) {
   return out;
 }
 // Prognoza: odejmuję od stanu lodówki kolejne niezjedzone posiłki tygodnia i szukam, gdzie czegoś zabraknie.
+// Do kiedy lodówka ma wystarczyć: do dnia następnych zakupów (wtedy braki uzupełnicie), a nie do końca tygodnia. Jeśli ostatnia wyprawa objęła dni do X (znaczniki „kupione”), to do X;
+// inaczej wg rytmu: zakupy w poniedziałek (na wt–pt) i w piątek (na sob–pon), czyli do najbliższego poniedziałku albo piątku.
+function horyzontBrakow() {
+  const dzis = isoDzis(), idx = (new Date(dzis + 'T12:00:00').getDay() + 6) % 7;
+  const sig = (odhaczone && odhaczone.zakTrip) || (inny && inny.odhaczone && inny.odhaczone.zakTrip);
+  if (sig) { const ost = String(sig).split(',').sort().pop(); if (ost && ost >= dzis) return ost; }
+  return dodajDni(dzis, idx === 0 ? 0 : idx <= 4 ? 4 - idx : 7 - idx);
+}
 function prognoza(w) {
   const t = new Date(); t.setHours(12, 0, 0, 0);
   const od = Math.round((t - dataDnia(0)) / 864e5);
   if (od > 6) return [];
   const stan = {}, pierwszy = {}, kolej = ['sn', 'snona', 'snon', 'm13', 'm13ona', 'm13on', 'm13xona', 'm13xon', 'ob', 'obona', 'obon', 'k18', 'k18ona', 'k18on'];
   for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) stan[p + '|' + u] = Math.max(0, q);
-  const od0 = Math.max(od, 0);
+  const od0 = Math.max(od, 0), horyzont = horyzontBrakow();
   const wiersze = [];
   for (const g of w.garnki) {
     const dniG = dniGarnka(g); if (dniG.some(dd => zuzyte[kluczZ(dd, g.slot)])) continue;   // garnek już ugotowany: składniki zeszły z lodówki, drugi dzień to odgrzewanie
-    const przyszle = dniG.filter(dd => dd >= od0); if (przyszle.length) wiersze.push([g, przyszle[0], sum(przyszle, dd => udzialDnia(g, dd))]);
+    const przyszle = dniG.filter(dd => dd >= od0 && dodajDni(plan.start, dd) <= horyzont); if (przyszle.length) wiersze.push([g, przyszle[0], sum(przyszle, dd => udzialDnia(g, dd))]);
   }
   wiersze.sort((a, b) => a[1] - b[1] || kolej.indexOf(a[0].slot) - kolej.indexOf(b[0].slot));
   for (const [g, dd, f] of wiersze) {
@@ -4500,6 +4522,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.wieczGot !== undefined) { const it = (window._wiecz || [])[+t.dataset.wieczGot]; if (it && it.g) { otworzGotowanie(it.g, false); const k = got ? got.kroki.findIndex(x => /^WIECZOREM/i.test(x)) : -1; if (k >= 0) gotIdz(k + 1); } return; }
   if ('jutroOtworz' in t.dataset) { oknoJutro(); return; }
   if (t.dataset.jutroPrzepis !== undefined) { const g = ((window._jutro || {}).sl || [])[+t.dataset.jutroPrzepis]; if (g) pokazPrzepis(g, false); return; }
+  if (t.dataset.jutroGotuj !== undefined) { const g = ((window._jutro || {}).sl || [])[+t.dataset.jutroGotuj]; if (g) otworzGotowanie(g, false); return; }
   if (t.dataset.jutroGot !== undefined) { const g = ((window._jutro || {}).sl || [])[+t.dataset.jutroGot]; if (g) { otworzGotowanie(g, false); const k = got ? got.kroki.findIndex(x => /^WIECZOREM/i.test(x)) : -1; if (k >= 0) gotIdz(k + 1); } return; }
   if (t.dataset.jutroZmien !== undefined) { const j = window._jutro, g = j && j.sl[+t.dataset.jutroZmien]; if (g && j.biezacy) oknoZmien(j.d, g.slot); return; }
   if (t.dataset.dalejWiecej !== undefined) { dalejWiecej = t.dataset.dalejWiecej === '1'; rysuj(); return; }

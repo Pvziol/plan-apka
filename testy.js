@@ -545,24 +545,28 @@
       wybierz(2, 'sn', nowe); rowne(plan.dni[2].sn, przed, 'tydzień zniknął: nic nie zmieniono w innym tygodniu');
     } finally { plan = sp; inny = si; zmienCtx = sc; LS.set = lset; LS.del = ldel; rysuj = ry; pokazToast = pt; m.hidden = mh; }
   });
-  await test('Wieczorem na jutro: śniadania i obiady', 'jutrzejsze śniadania w całości (bez weekendu i dań „na świeżo”), mięso z zamrażarki tylko przy obiadach', async () => {
+  await test('Wieczorem na jutro: tylko czynności', 'bez samych śniadań; owoce do jutrzejszych śniadań i mięso do obiadów (oraz do śniadań na pojutrze) do wyjęcia z zamrażarki, nic w weekend', async () => {
     const sp = plan;
     try {
-      plan = JSON.parse(JSON.stringify(plan)); plan.start = dodajDni(biezPon(), 0);
-      const w = oblicz(plan, cele()); let sn = 0, ob = 0;
+      plan = JSON.parse(JSON.stringify(plan)); plan.start = biezPon();
+      const w = oblicz(plan, cele()); let owoce = 0, ob = 0, poj = 0;
       for (let d = 0; d < 6; d++) {
-        const dow = new Date(dodajDni(plan.start, d + 1) + 'T12:00:00').getDay(), weekend = dow === 0 || dow === 6, lista = wieczorem(w, d);
+        const dow = n => new Date(dodajDni(plan.start, d + n) + 'T12:00:00').getDay(), weekend = n => dow(n) === 0 || dow(n) === 6, lista = wieczorem(w, d);
+        prawda(!lista.some(x => x.t === 'kroki' && sniadaniowy(x.g)), 'śniadania nie są w „Wieczorem na jutro” (są w karcie na Dziś)');
         for (const { g, odgrzewane } of w.dni[d + 1].sloty) {
           if (odgrzewane) continue;
           if (sniadaniowy(g)) {
-            const it = lista.find(x => x.t === 'kroki' && x.g === g);
-            if (weekend || g.dish.tylko_wybor) prawda(!it, 'weekend / danie „na świeżo”: bez przygotowania wieczorem (' + g.dish.nazwa + ')');
-            else { sn++; prawda(it && it.kroki.length === g.dish.kroki.length, 'całe przygotowanie śniadania: ' + g.dish.nazwa); prawda(!/^(WIECZOREM|RANO):/i.test(it.kroki[0]), 'bez etykiety WIECZOREM/RANO'); }
-            prawda(!lista.some(x => x.t === 'mroz' && x.g === g), 'śniadanie bez przypomnienia o zamrażarce: ' + g.dish.nazwa);
+            const it = lista.filter(x => x.t === 'mroz' && x.g === g && /mrożon/.test(x.tekst));
+            if (weekend(1) || g.dish.tylko_wybor) rowne(it.length, 0, 'weekend / „na świeżo”: bez wyjmowania owoców (' + g.dish.nazwa + ')');
+            else if (mrozOwoceDoWyjecia(g).length) { owoce++; rowne(it.length, mrozOwoceDoWyjecia(g).length, 'owoce do wyjęcia dla śniadania ' + g.dish.nazwa); }
           } else if (bazaSlotu(g.slot) === 'ob' && mrozDoWyjecia(g).length) { ob++; prawda(lista.some(x => x.t === 'mroz' && x.g === g), 'obiad: mięso z zamrażarki (' + g.dish.nazwa + ')'); }
         }
+        if (d + 2 <= 6) for (const { g, odgrzewane } of w.dni[d + 2].sloty) if (!odgrzewane && sniadaniowy(g) && !g.dish.tylko_wybor && mrozDoWyjecia(g).length) {
+          const ma = lista.some(x => x.t === 'mroz' && x.g === g && /śniadanie na/.test(x.tekst));
+          if (weekend(2)) prawda(!ma, 'śniadanie w weekend: bez przypomnienia'); else { poj++; prawda(ma, 'mięso do śniadania na pojutrze (' + g.dish.nazwa + ')'); }
+        }
       }
-      prawda(sn > 0 && ob > 0, 'za mało przypadków w planie testowym: śniadań ' + sn + ', obiadów z mrożonką ' + ob);
+      prawda(ob > 0, 'brak obiadów z mrożonką w planie testowym');
     } finally { plan = sp; }
   });
   await test('Lista zakupów: „Mam to w domu”', 'przycisk dopisuje brakującą ilość do lodówki, pozycja przechodzi do „Masz już”, cofnięcie ją przywraca; lodówka w innej jednostce jest wyjaśniona', async () => {
@@ -654,17 +658,53 @@
     pa = zPaczki(Array.from({ length: 450 }, (_, i) => [['lodowka', 'p' + i, 'g'], inc(1)])); rowne(pa.map(x => x.length), [200, 200, 50], 'limit 200 pól w paczce');
     rowne(zPaczki([]).length, 0, 'pusty zapis');
   });
-  await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
+  await test('Zakupy a lodówka: spójność', 'po kupieniu wszystkiego z listy prognoza nie zgłasza braków, a zjadanie tygodnia nie schodzi poniżej zera', async () => {
+    const sl = lodowka, sz = zuzyte, lset = LS.set, ry = rysuj;
+    try {
+      LS.set = () => {}; rysuj = () => {}; lodowka = {}; zuzyte = {};
+      const dzis = isoDzis(), dni = dniDostepne().map(x => x.iso);
+      if (!dni.some(i => i >= dzis)) return;   // plan testowy jest już w przeszłości: nie ma czego sprawdzać
+      const z = zakupyDni(new Set(dni.filter(i => i >= dzis)));
+      for (const k of ['świeże', 'zamrażarka', 'zapas']) for (const p of z.wynik[k]) for (const [u, q] of Object.entries(p.kupno)) { lodowka[p.produkt] = lodowka[p.produkt] || {}; lodowka[p.produkt][u] = (lodowka[p.produkt][u] || 0) + q; }
+      const braki = prognoza(oblicz(plan, cele())).map(x => `${x.produkt} ${Math.round(x.brakuje * 10) / 10} ${x.u}`);
+      rowne(braki, [], 'po kupieniu całej listy nic nie powinno brakować');
+      const ujemne = [];
+      for (let d = 0; d < 7; d++) { const w = oblicz(plan, cele()); for (const g of w.garnki) for (const dd of dniGarnka(g)) if (dd === d) zjedz(g, d, true); for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) if (q < -0.01) ujemne.push(p + ' ' + q + ' ' + u); }
+      rowne([...new Set(ujemne)], [], 'zjadanie tygodnia nie może schodzić poniżej zera');
+    } finally { lodowka = sl; zuzyte = sz; LS.set = lset; rysuj = ry; }
+  });
+  await test('Prognoza braków: do następnych zakupów', 'braki liczone tylko do dnia następnych zakupów (znacznik ostatniej wyprawy albo rytm pon/pt), nie do końca tygodnia', async () => {
+    const so = odhaczone, si = inny, sl = lodowka;
+    try {
+      const dzis = isoDzis(), idx = (new Date(dzis + 'T12:00:00').getDay() + 6) % 7;
+      odhaczone = { zakTrip: [dodajDni(dzis, 1), dodajDni(dzis, 3)].join(',') }; inny = null;
+      rowne(horyzontBrakow(), dodajDni(dzis, 3), 'ostatnia wyprawa objęła dni do dzisiaj+3');
+      odhaczone = { zakTrip: dodajDni(dzis, -2) }; const rytm = horyzontBrakow();
+      rowne(rytm, dodajDni(dzis, idx === 0 ? 0 : idx <= 4 ? 4 - idx : 7 - idx), 'bez wyprawy sięgającej przyszłości: rytm (najbliższy poniedziałek lub piątek)');
+      prawda(new Date(rytm + 'T12:00:00').getDay() === 1 || new Date(rytm + 'T12:00:00').getDay() === 5, 'horyzont wypada w poniedziałek albo piątek');
+      // wiele produktów z odrobiną w lodówce: braki pojawią się w różnych dniach
+      lodowka = {}; for (const [p, k] of DB.produkty) lodowka[p] = { [k.u]: 1 };
+      const w = oblicz(plan, cele()), dniPlanu = d => dodajDni(plan.start, d);
+      odhaczone = { zakTrip: dodajDni(dzis, 6) }; inny = null; const pelne = prognoza(w);
+      odhaczone = { zakTrip: dodajDni(dzis, 1) }; const kroto = prognoza(w);
+      prawda(pelne.length > 0, 'przy dalekim horyzoncie są braki');
+      prawda(kroto.every(x => dniPlanu(x.d) <= dodajDni(dzis, 1)), 'przy krótkim horyzoncie braków po tym dniu nie ma');
+      prawda(kroto.length <= pelne.length && (!pelne.some(x => dniPlanu(x.d) > dodajDni(dzis, 1)) || kroto.length < pelne.length), 'krótszy horyzont daje mniej braków');
+    } finally { odhaczone = so; inny = si; lodowka = sl; }
+  });
+  await test('Śniadania na jutro', 'oba jutrzejsze śniadania (pierwsze i drugie) w karcie na Dziś z „Gotuj teraz”, okno ze śniadaniami', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
-    const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;
-    const planowane = [day.sn].concat(OS.map(p => day.dla && day.dla[p] && day.dla[p].sn)).filter(Boolean).map(id);
-    prawda(j.sl.length >= 1 && j.sl.every(g => planowane.includes(g.dish.nazwa)), 'śniadania na jutro: ' + j.sl.map(g => g.dish.nazwa) + ' vs plan ' + planowane);
-    prawda(j.sl.every(g => bazaSlotu(g.slot) === 'sn'), 'tylko śniadania');
-    const kod = await tekst('app.js'); prawda(/Przygotuj śniadanie na jutro/.test(kod) && /data-jutro-otworz/.test(kod), 'brak przycisku w kodzie');
+    const oczekiwane = j.w.dni[j.d].sloty.filter(({ g, odgrzewane }) => sniadaniowy(g) && !odgrzewane).map(x => x.g.dish.nazwa);
+    rowne(j.sl.map(g => g.dish.nazwa), oczekiwane, 'śniadania na jutro zgadzają się z planem');
+    prawda(j.sl.length >= 1 && j.sl.every(g => sniadaniowy(g)), 'tylko śniadania (pierwsze i drugie)');
+    const kod = await tekst('app.js'); prawda(/Przygotuj śniadania na jutro/.test(kod) && /data-jutro-otworz/.test(kod), 'brak przycisku w kodzie');
     const m = document.getElementById('modal'), box = document.getElementById('modal-box'), sv = box.innerHTML, svH = m.hidden;
-    try { oknoJutro(); prawda(!m.hidden, 'okno się nie otworzyło'); prawda(box.textContent.includes('Śniadanie na jutro') && j.sl.every(g => box.textContent.includes(g.dish.nazwa)), 'okno bez nazw śniadań'); prawda(box.querySelectorAll('[data-jutro-przepis]').length === j.sl.length, 'przycisk przepisu przy każdym śniadaniu'); }
+    try { oknoJutro(); prawda(!m.hidden, 'okno się nie otworzyło'); prawda(box.textContent.includes('Śniadania na jutro') && j.sl.every(g => box.textContent.includes(g.dish.nazwa)), 'okno bez nazw śniadań'); prawda(box.querySelectorAll('[data-jutro-przepis]').length === j.sl.length, 'przycisk przepisu przy każdym śniadaniu'); }
     finally { box.innerHTML = sv; m.hidden = svH; }
-    prawda(kartaJutroLink().includes('data-jutro-otworz') && kartaJutroLink().includes(esc(j.sl[0].dish.nazwa)), 'odnośnik na Dziś');
+    const karta = kartaJutroLink(), cookable = j.sl.filter(g => !j.weekend && !g.dish.tylko_wybor).length;
+    prawda(j.sl.every(g => karta.includes(esc(g.dish.nazwa))), 'karta na Dziś pokazuje wszystkie śniadania');
+    rowne((karta.match(/data-jutro-gotuj=/g) || []).length, cookable, '„Gotuj teraz” przy każdym śniadaniu do zrobienia wieczorem');
+    prawda(!/Zobacz<\/button>/.test(karta), 'bez starego przycisku „Zobacz”');
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

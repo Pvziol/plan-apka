@@ -1434,3 +1434,5 @@ html.okno-otwarte, html.okno-otwarte body { overflow: hidden; }
 #modal { overscroll-behavior: contain; touch-action: none; }
 #modal-box { overscroll-behavior: contain; touch-action: pan-y; }
 html.okno-otwarte body::before, html.okno-otwarte body::after, html.okno-otwarte #view *, html.okno-otwarte #view *::before, html.okno-otwarte #view *::after, html.okno-otwarte #tabs *, html.okno-otwarte #tabs *::before { animation-play-state: paused !important; }
+/* „Mam to w domu” na liście zakupów: cichy przycisk, żeby nie zagłuszał listy */
+.zk-poz .mam-btn { background: transparent !important; color: var(--mute) !important; border: 1px solid var(--line); min-height: 32px; padding: 0 12px; font-size: 12.5px; font-weight: 650; margin-top: 8px; }

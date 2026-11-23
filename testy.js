@@ -536,14 +536,58 @@
     try {
       LS.set = () => {}; LS.del = () => {}; rysuj = () => {}; pokazToast = () => {};
       const A = JSON.parse(JSON.stringify(kandydat())).dni, B = JSON.parse(JSON.stringify(kandydat())).dni, nowe = DB.pula.sn.find(x => x.id !== A[2].sn && x.id !== B[2].sn).id;
-      plan = { start: '2026-11-16', dni: A }; inny = { start: '2026-11-23', dni: B, odhaczone: {}, zuzyte: {} };
-      zmienCtx = { d: 2, slot: 'sn', teraz: B[2].sn, pula: DB.pula.sn, start: '2026-11-23' };
+      const T0 = biezPon(), T1 = dodajDni(T0, 7); plan = { start: T0, dni: A }; inny = { start: T1, dni: B, odhaczone: {}, zuzyte: {} };
+      zmienCtx = { d: 2, slot: 'sn', teraz: B[2].sn, pula: DB.pula.sn, start: T1 };
       wybierz(2, 'sn', nowe);
-      rowne([plan.start, plan.dni[2].sn === nowe, inny.dni[2].sn === nowe], ['2026-11-23', true, false], 'zmiana w tygodniu 23.11, a nie w 16.11');
-      const stary = plan.dni[2].sn; plan = { start: '2026-11-16', dni: JSON.parse(JSON.stringify(A)) }; inny = null;
-      zmienCtx = { d: 2, slot: 'sn', teraz: stary, pula: DB.pula.sn, start: '2026-11-23' }; const przed = plan.dni[2].sn;
+      rowne([plan.start, plan.dni[2].sn === nowe, inny.dni[2].sn === nowe], [T1, true, false], 'zmiana w oglądanym tygodniu, a nie w bieżącym');
+      const stary = plan.dni[2].sn; plan = { start: T0, dni: JSON.parse(JSON.stringify(A)) }; inny = null;
+      zmienCtx = { d: 2, slot: 'sn', teraz: stary, pula: DB.pula.sn, start: T1 }; const przed = plan.dni[2].sn;
       wybierz(2, 'sn', nowe); rowne(plan.dni[2].sn, przed, 'tydzień zniknął: nic nie zmieniono w innym tygodniu');
     } finally { plan = sp; inny = si; zmienCtx = sc; LS.set = lset; LS.del = ldel; rysuj = ry; pokazToast = pt; m.hidden = mh; }
+  });
+  await test('Wieczorem: mięso do dań robionych dzień wcześniej', 'sałatka z kurczakiem robiona wieczorem: mięso wyjmujesz dwa dni przed jedzeniem; zwykłe dania nadal dzień przed', async () => {
+    const sp = plan, sal = [...DB.dania.values()].find(x => x.nazwa === 'Sałatka z kurczakiem, kaszą i kukurydzą');
+    try {
+      plan = JSON.parse(JSON.stringify(plan)); plan.dni[3].m13.on = sal.id; delete plan.dni[3].ratio;
+      const w = oblicz(plan, cele()), p1 = wieczorem(w, 1), p2 = wieczorem(w, 2);
+      prawda(p1.some(x => x.t === 'mroz' && x.g.dish.id === sal.id && /danie na czwartek robisz wieczorem dzień wcześniej/.test(x.tekst)), 'dwa dni przed: przypomnienie o wyjęciu kurczaka');
+      prawda(p2.some(x => x.t === 'kroki' && x.g.dish.id === sal.id), 'dzień przed: kroki wieczorne zostają');
+      prawda(!p2.some(x => x.t === 'mroz' && x.g.dish.id === sal.id && !/TERAZ/.test(x.tekst)), 'dzień przed: kurczaka nie wyjmuje się już „na jutro”');
+      let zwykle = 0; for (let d = 0; d < 6; d++) for (const { g, odgrzewane } of w.dni[d + 1].sloty) if (!odgrzewane && !(g.dish.wieczorem || []).length && mrozDoWyjecia(g).length) { zwykle++; prawda(wieczorem(w, d).some(x => x.t === 'mroz' && x.g === g), 'zwykłe danie: mięso dzień przed (' + g.dish.nazwa + ')'); }
+    } finally { plan = sp; }
+  });
+  await test('Lista zakupów: „Mam to w domu”', 'przycisk dopisuje brakującą ilość do lodówki, pozycja przechodzi do „Masz już”, cofnięcie ją przywraca; lodówka w innej jednostce jest wyjaśniona', async () => {
+    const sl = lodowka, lset = LS.set, ry = rysuj, pt = pokazToast, sz = window._z;
+    try {
+      LS.set = () => {}; rysuj = () => {}; pokazToast = (t, et, fn) => { window.__cofnij = fn; };
+      lodowka = {}; const wyb = wybraneDni(); let z = zakupyDni(wyb); window._z = z;
+      const lista = () => ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]), p = lista().find(x => Object.keys(x.brakuje).length === 1 && DB.produkty.get(x.produkt) && !/mięs|kurczak/.test(x.produkt));
+      prawda(p, 'brak pozycji do sprawdzenia');
+      mamWDomu(p.produkt); z = zakupyDni(wyb); window._z = z;
+      prawda(!lista().some(x => x.produkt === p.produkt) && z.wynik.masz.some(x => x.produkt === p.produkt), 'po „Mam to” pozycji nie ma na liście do kupienia, jest w „Masz już”');
+      window.__cofnij(); z = zakupyDni(wyb); window._z = z;
+      prawda(lista().some(x => x.produkt === p.produkt), 'po cofnięciu pozycja wraca na listę');
+      const [u0] = Object.keys(p.brakuje), inna = u0 === 'g' ? 'szt.' : 'g'; lodowka = { [p.produkt]: { [inna]: 777 } }; z = zakupyDni(wyb);
+      const q = lista().find(x => x.produkt === p.produkt); prawda(q && /777/.test(q.stanInna), 'lodówka w innej jednostce: pozycja zostaje na liście z wyjaśnieniem');
+    } finally { lodowka = sl; LS.set = lset; rysuj = ry; pokazToast = pt; window._z = sz; delete window.__cofnij; }
+  });
+  await test('Garnek na dwa dni', 'pierwsze „zjedzone” zdejmuje składniki całego garnka, drugi dzień nic nie dolicza, ani prognoza, ani lista zakupów nie liczą go ponownie', async () => {
+    const sl = lodowka, sz = zuzyte, lset = LS.set, ldel = LS.del;
+    try {
+      LS.set = () => {}; LS.del = () => {}; zuzyte = {};
+      const w = oblicz(plan, cele()), g = w.garnki.find(x => dniGarnka(x).length === 2 && skladGarnka(x).some(s => s[3] === 'g'));
+      prawda(g, 'brak garnka na dwa dni w planie testowym');
+      const [d1, d2] = dniGarnka(g).sort((a, b) => a - b), skl = skladGarnka(g);
+      lodowka = {}; skl.forEach(([p, , , u]) => { lodowka[p] = lodowka[p] || {}; lodowka[p][u] = 100000; });
+      const stan = () => JSON.stringify(lodowka);
+      zjedz(g, d1, true);
+      const po1 = skl.every(([p, , q, u]) => { const razem = skl.filter(s => s[0] === p && s[3] === u).reduce((a, s) => a + ileZuzyto(s[2], u, 1), 0); return Math.abs(100000 - lodowka[p][u] - razem) < 0.6; });
+      prawda(po1, 'po pierwszym dniu z lodówki zeszły składniki całego garnka');
+      const po1s = stan(); zjedz(g, d2, true); rowne(stan(), po1s, 'drugi dzień (odgrzewanie) nie zdejmuje nic więcej');
+      rowne(pozostalo(g), 0, 'garnek ugotowany: nic więcej do kupienia ani liczenia');
+      prawda(!prognoza(w).some(x => x.dish === g.dish.nazwa), 'prognoza nie liczy już ugotowanego garnka');
+      zjedz(g, d2, false); zjedz(g, d1, false); rowne(stan(), JSON.stringify(Object.fromEntries(Object.entries(lodowka).map(([p, us]) => [p, Object.fromEntries(Object.entries(us).map(([u]) => [u, 100000]))]))), 'cofnięcie oddaje składniki');
+    } finally { lodowka = sl; zuzyte = sz; LS.set = lset; LS.del = ldel; }
   });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');

@@ -938,6 +938,7 @@ function zakupyDni(wyb) {
     }
     if (!potrzeba.length) continue;
     const stanTxt = Object.entries(masz).filter(([, q]) => q > 0.5).map(([u, q]) => fmtStan(q, u)).join(' + ');
+    const stanInna = Object.entries(stl).filter(([u, q]) => !(u in a.il) && q > 0.5).map(([u, q]) => fmtStan(q, u)).join(' + ');   // jest w lodówce, ale w innej jednostce niż w przepisach: nie da się odliczyć
     if (!Object.keys(il).length) { wynik.masz.push({ produkt: prod, ile: potrzeba.map(([u, q]) => fmtStan(q, u)).join(' + '), stan: stanTxt }); continue; }
     const czesci = Object.entries(il).map(([u, q]) => {
       if (u === 'g' || u === 'ml') return Math.ceil(q / 10) * 10 + ' ' + u;
@@ -954,7 +955,7 @@ function zakupyDni(wyb) {
     const kupno = {};
     for (const [u, q] of Object.entries(il)) kupno[u] = kupnoIlosc(prod, u, q);
     const strata = stratyDla(prod, wyb), pomysly = strata ? { strata } : null;      // ostrzeżenie tylko, gdy symulacja zużycia pokazuje realną stratę
-    (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, worki: worki[prod] || null, reszta, pomysly, uwagaAuto: autoUw[prod] ? [...autoUw[prod]].slice(0, 2).join('; ') : '' });
+    (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, stanInna, brakuje: il, worki: worki[prod] || null, reszta, pomysly, uwagaAuto: autoUw[prod] ? [...autoUw[prod]].slice(0, 2).join('; ') : '' });
   }
   Object.values(wynik).flat().filter(x => x.pomysly).sort((x, y) => y.pomysly.strata.kosztPaczek - x.pomysly.strata.kosztPaczek).slice(6).forEach(x => { x.pomysly = null; });      // ostrzeżenia tylko przy 6 największych stratach
   Object.values(wynik).forEach(arr => arr.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
@@ -1048,15 +1049,16 @@ const udzialDnia = (g, d) => sum(g.porcje.filter(q => q.d === d), q => q.kcal) /
 // ile składnika schodzi z lodówki: sztuki, kromki i puszki tylko w całości (jak w przepisie: połówka w dół, minimum 1)
 const ileZuzyto = (q, u, f = 1) => { const x = q * f; return (u === 'szt.' || u === 'krom.' || u === 'pusz.') ? Math.max(1, Math.ceil(x - 0.5 - 1e-9)) : Math.round(x * 100) / 100; };
 const dniGarnka = g => [...new Set(g.porcje.map(q => q.d))];
-const pozostalo = (g, start = plan.start, zuz = zuzyte) => sum(dniGarnka(g).filter(d => !zuz[kluczZ(d, g.slot, start)]), d => udzialDnia(g, d));
+// Garnek (np. zupa na 2 dni) gotuje się raz: pierwsze „zjedzone” zdejmuje z lodówki składniki całego garnka, a drugi dzień to tylko odgrzewanie. Dlatego gdy zjedzono już choć jeden dzień, nic więcej nie zostaje do kupienia.
+const pozostalo = (g, start = plan.start, zuz = zuzyte) => dniGarnka(g).some(d => zuz[kluczZ(d, g.slot, start)]) ? 0 : sum(dniGarnka(g), d => udzialDnia(g, d));
 // zaznacza / cofa „zjedzone” dla posiłku (garnek g, dzień d) i odpowiednio zdejmuje / zwraca składniki w lodówce
 function zjedz(g, d, on) {
   const k = kluczZ(d, g.slot);
   if (on) {
     if (zuzyte[k]) return;
     { const zmA = []; for (const i of g.dish.skladniki) if (i.zam && i.zam.auto && plan.dni[g.d]) { const dz = plan.dni[g.d]; dz.zam = dz.zam || {}; dz.zam[g.slot] = dz.zam[g.slot] || {}; if (dz.zam[g.slot][i.zam.z] === undefined) { dz.zam[g.slot][i.zam.z] = i.produkt; zmA.push([['dni', g.d, 'zam', g.slot, i.zam.z], i.produkt]); } } if (zmA.length) { LS.set('plan', plan); Z(zmA); } }
-    const f = udzialDnia(g, d), odj = {};
-    for (const [pp, , q, uu] of skladGarnka(g)) if (lodowka[pp] && lodowka[pp][uu] != null) {
+    const juz = dniGarnka(g).some(dd => dd !== d && zuzyte[kluczZ(dd, g.slot)]), f = juz ? 0 : sum(dniGarnka(g), dd => udzialDnia(g, dd)), odj = {};   // cały garnek za pierwszym razem; odgrzewany drugi dzień nic już nie zdejmuje
+    if (f > 0) for (const [pp, , q, uu] of skladGarnka(g)) if (lodowka[pp] && lodowka[pp][uu] != null) {
       const x = ileZuzyto(q, uu, f);
       zmienLodowke(pp, uu, -x); (odj[pp] = odj[pp] || {})[uu] = Math.round(((odj[pp][uu] || 0) + x) * 100) / 100;
     }
@@ -1075,15 +1077,33 @@ function przypomnieniaDzis(w) {
   return poz.length ? `<div class="przyp">${poz.map(x => `<div>${x}</div>`).join('')}</div>` : '';
 }
 const mrozDoWyjecia = g => g.dish.skladniki.filter(i => i.kategoria === 'zamrażarka' && i.ilosc && !/mrożon|paluszki|bułka/.test(i.produkt)).map(i => `Wyjmij z zamrażarki do lodówki: ${i.produkt} ${fqS(i, i.ilosc * skala(g, i))} (${g.dish.nazwa})`);
+// Dzień o n dni po dniu d (przez granicę tygodnia: z następnego zapisanego tygodnia).
+function dzienPo(w, d, n) {
+  const i = d + n; if (i <= 6) return w.dni[i];
+  const ns = dodajDni(plan.start, 7), t2 = tygodnieZapisane().find(q => q.start === ns); if (!t2) return null;
+  return oblicz({ start: t2.start, dni: t2.dni }, cele()).dni[i - 7] || null;
+}
+// „Wieczorem na jutro”: kroki dań robionych wieczór wcześniej i mięso do wyjęcia z zamrażarki. Dania, które robisz wieczorem dzień wcześniej (sałatki, bowle),
+// potrzebują mięsa rozmrożonego już tego wieczoru, więc mięso wyjmujesz z zamrażarki dwa dni przed jedzeniem (przypomnienie pojawia się dzień wcześniej niż przy zwykłych daniach).
 function wieczorem(w, d) {
-  // w niedzielę „jutro” to poniedziałek następnego tygodnia (jeśli jest ułożony)
-  let jutro = d < 6 ? w.dni[d + 1] : null;
-  if (!jutro) { const ns = dodajDni(plan.start, 7), t2 = tygodnieZapisane().find(q => q.start === ns); if (!t2) return []; jutro = oblicz({ start: t2.start, dni: t2.dni }, cele()).dni[0]; }
-  const out = [];
+  const jutro = dzienPo(w, d, 1); if (!jutro) return [];
+  const out = [], dzien = dodajDni(plan.start, d), dzisiaj = dzien === isoDzis(), wczoraj = ((LS.get('wieczOk', {}) || {})[dodajDni(dzien, -1)]) || [];
+  const wiecz = g => !!(g.dish.wieczorem && g.dish.wieczorem.length);
   for (const { g, odgrzewane } of jutro.sloty) {
     if (odgrzewane) continue;
-    if (g.dish.wieczorem && g.dish.wieczorem.length) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: g.dish.wieczorem.map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')) });
-    for (const tx of mrozDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g });
+    if (wiecz(g)) out.push({ t: 'kroki', klucz: 'w:' + g.dish.id, dish: g.dish.nazwa, g, kroki: g.dish.wieczorem.map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')) });
+    for (const tx of mrozDoWyjecia(g)) {
+      if (!wiecz(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx, g });
+      else if (dzisiaj && !wczoraj.includes('z:' + tx)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: tx.replace('Wyjmij z zamrażarki do lodówki:', 'Wyjmij z zamrażarki do lodówki TERAZ (miało być wczoraj, a jutro wieczorem robisz to danie):'), g });   // spóźnione przypomnienie, dopóki wczorajsze nie zostało odhaczone
+    }
+  }
+  const po = dzienPo(w, d, 2);
+  if (po) {
+    const nazwaDnia = DNI_NA[(new Date(dodajDni(plan.start, d + 2) + 'T12:00:00').getDay() + 6) % 7];
+    for (const { g, odgrzewane } of po.sloty) {
+      if (odgrzewane || !wiecz(g)) continue;
+      for (const tx of mrozDoWyjecia(g)) out.push({ t: 'mroz', klucz: 'z:' + tx, tekst: `${tx} — danie na ${nazwaDnia} robisz wieczorem dzień wcześniej, więc mięso musi się rozmrozić do jutra`, g });
+    }
   }
   return out;
 }
@@ -2697,7 +2717,7 @@ function oknoJutro() {
   const dt = new Date(j.jutro + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
   const karta = (g, i) => {
     const moje = g.porcje.filter(q => q.d === j.d), kto = etSlotu(g.slot) ? etSlotu(g.slot).slice(3) : moje.map(q => ETY[q.p]).join(' + ');
-    const wi = (g.dish.wieczorem || []).map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')).concat(mrozDoWyjecia(g));
+    const wi = (g.dish.wieczorem || []).map(k => krokPrzeliczony(g, k).replace(/^WIECZOREM:\s*/i, '')).concat(mrozDoWyjecia(g).map(t => (g.dish.wieczorem || []).length ? t.replace('Wyjmij z zamrażarki do lodówki:', 'Powinno być już rozmrożone w lodówce (wyjmuje się dwa dni przed jedzeniem):') : t));
     return `<div class="hero jutro-sn"><span class="hero-et">Śniadanie · ${esc(kto)}</span>
       <div class="hero-dan">${Obr.html(g.dish, 'duzy')}<div><b>${nazwaDania(g.dish)}</b></div></div>
       <div class="hero-liczby">${moje.map(q => `<span>${moje.length > 1 ? ETY[q.p] + ' ' : ''}${r0(q.kcal)} kcal · ${r0(q.b)} g białka</span>`).join('')}</div>
@@ -3272,7 +3292,7 @@ function kartaMiesa() {
     return `<div class="miesc-prod"><div class="miesc-prod-gora"><b>${esc(pr)}</b><span class="mute">plan na ${MIESO_DNI} dni: ${esc(gTxt(bags.reduce((a, x) => a + x.g, 0)))}</span></div>
       <div class="lod-rzad miesc-wpis"><input id="mieso-in-${i}" type="text" inputmode="decimal" autocomplete="off" placeholder="Ile kupiliście? np. 2,5 kg" value="${k ? esc(gTxt(k.g)) : ''}" aria-label="Ile ${esc(pr)} kupiliście"><button class="btn glowny maly" data-mieso-podziel="${i}">${k ? 'Przelicz' : 'Podziel'}</button></div>${wynik}</div>`;
   }).join('');
-  return h + `<details class="miesc-tipy"><summary>Jak pakować i rozmrażać</summary><ul class="mute"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem na jutro”). Rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></details></section>`;
+  return h + `<details class="miesc-tipy"><summary>Jak pakować i rozmrażać</summary><ul class="mute"><li>Woreczki strunowe, mięso rozpłaszczone na płasko; ważysz na wadze kuchennej.</li><li>Rozmrażanie w lodówce wieczorem dzień wcześniej (apka przypomni w „Wieczorem na jutro”). Przy daniach robionych wieczorem dzień wcześniej (np. sałatki z kurczakiem) mięso wyjmujesz dwa dni przed jedzeniem. Rozmrożonego surowego mięsa nie mrozisz ponownie.</li><li>Mięso i ryby zjadaj w ciągu ok. 3 miesięcy.</li></ul></details></section>`;
 }
 let zakOtw = false;
 // „sob 21.11 – pon 23.11” zamiast listy dat (zakresy ciągłe, reszta po przecinku)
@@ -3300,6 +3320,15 @@ function dzialSklepu(p) {
   if (/^(ser|serek)\b|skyr|jogurt|twarog|smietana|maslo|mleko|jaja|jajka|parmezan|feta|mozzarella|kefir|margaryn|odzywka bialkowa/.test(n)) return /odzywka/.test(n) ? 'spizarnia' : 'nabial';
   if (/cebul|marchew|papryk|ogorek|pomidor|^por\b|awokado|banan|jablk|cukini|salat|brokul|kalafior|seler|pietruszk|dyni|rzodkiewk|szpinak|pieczark|bataty|ziemniak|czosnek|cytryn|limonk|szczypior|natka|koperek|rukola|kapust|burak|szczaw|truskawk|maliny|jagod|mango|gruszk|pomarancz|kukurydza/.test(n)) return 'warzywa';
   return p.kat === 'świeże' ? 'warzywa' : 'spizarnia';
+}
+// „Mam to w domu”: dopisuję do lodówki tyle, ile brakuje do potrzeb z listy; pozycja przechodzi do „Masz już w lodówce”, a „Cofnij” zdejmuje dopisaną ilość.
+function mamWDomu(prod) {
+  const z = window._z, p = z && ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]).find(x => x.produkt === prod);
+  if (!p || !p.brakuje) return;
+  const dod = Object.entries(p.brakuje).map(([u, q]) => [u, Math.round(q * 100) / 100]).filter(([, q]) => q > 0);
+  dod.forEach(([u, q]) => zmienLodowke(prod, u, q));
+  rysuj();
+  pokazToast(`Masz ${prod}: dopisano do lodówki ${dod.map(([u, q]) => fmtStan(q, u)).join(' + ')}`, 'Cofnij', () => { dod.forEach(([u, q]) => zmienLodowke(prod, u, -q)); rysuj(); }, 7000);
 }
 function widokZakupy() {
   const dost = dniDostepne(), wyb = wybraneDni(), z = zakupyDni(wyb), dzis = isoDzis();
@@ -3337,9 +3366,9 @@ function widokZakupy() {
       + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || (uk ? (uk.tr[a.produkt] != null ? uk.tr[a.produkt] : uk.sr[kod]) - (uk.tr[b.produkt] != null ? uk.tr[b.produkt] : uk.sr[kod]) : 0) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
         const k = klucz(p.produkt), on = !!odhK(k);
         const ci = cmp.info[p.produkt], cenyTxt = ci && Object.keys(ci.c).length > 1 ? Object.entries(ceny[p.produkt] || {}).filter(([sk]) => ci.c[sk] != null).sort((a, b) => cenaX(a[1]) - cenaX(b[1])).map(([sk, v]) => `${sk} ${zl(cenaX(v))}/${jednCeny(v.u)}`).join(' · ') : '';
-        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', cenyTxt ? `taniej: ${cenyTxt}` : '', p.uwagaAuto].filter(Boolean).join(' · ');
-        const zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zostanie ok. ${esc(fmtStan(Math.round(p.pomysly.strata.q * 10) / 10, p.pomysly.strata.u))} i się zepsuje. Jak to zużyć? ›</button>` : '';
-        return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}${SEZON[p.produkt] && SEZON[p.produkt].includes(miesiac()) ? ' <i class="sezon-lisc" title="w sezonie" aria-label="w sezonie">sezon</i>' : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
+        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', p.stanInna ? `w lodówce masz ${p.stanInna}, ale w innej jednostce niż w przepisach, więc tego nie odliczam` : '', cenyTxt ? `taniej: ${cenyTxt}` : '', p.uwagaAuto].filter(Boolean).join(' · ');
+        const mam = `<button class="zuzyj-btn mam-btn" data-mam="${esc(p.produkt)}">Mam to w domu</button>`, zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zostanie ok. ${esc(fmtStan(Math.round(p.pomysly.strata.q * 10) / 10, p.pomysly.strata.u))} i się zepsuje. Jak to zużyć? ›</button>` : '';
+        return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}${SEZON[p.produkt] && SEZON[p.produkt].includes(miesiac()) ? ' <i class="sezon-lisc" title="w sezonie" aria-label="w sezonie">sezon</i>' : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}${mam}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
       }).join('') + `</div></section>`;
   }
   const zwin = (tyt, n, tresc, kl = '') => `<details class="karta zk-zwin ${kl}"><summary>${tyt} <span class="licznik">${n}</span></summary>${tresc}</details>`;
@@ -4110,10 +4139,12 @@ function prognoza(w) {
   for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) stan[p + '|' + u] = Math.max(0, q);
   const od0 = Math.max(od, 0);
   const wiersze = [];
-  for (const g of w.garnki) for (const dd of dniGarnka(g)) if (dd >= od0 && !zuzyte[kluczZ(dd, g.slot)]) wiersze.push([g, dd]);
+  for (const g of w.garnki) {
+    const dniG = dniGarnka(g); if (dniG.some(dd => zuzyte[kluczZ(dd, g.slot)])) continue;   // garnek już ugotowany: składniki zeszły z lodówki, drugi dzień to odgrzewanie
+    const przyszle = dniG.filter(dd => dd >= od0); if (przyszle.length) wiersze.push([g, przyszle[0], sum(przyszle, dd => udzialDnia(g, dd))]);
+  }
   wiersze.sort((a, b) => a[1] - b[1] || kolej.indexOf(a[0].slot) - kolej.indexOf(b[0].slot));
-  for (const [g, dd] of wiersze) {
-    const f = udzialDnia(g, dd);
+  for (const [g, dd, f] of wiersze) {
     for (const [p, , q, u] of skladGarnka(g)) {
       const k = p + '|' + u;
       if (!(k in stan)) continue;                        // śledzę tylko to, co jest w lodówce
@@ -4446,6 +4477,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.pominShake) { const [d, pp] = t.dataset.pominShake.split(':'); zapiszPom(+d, pp, 'shake', true); otwartyDzien = +d; rysuj(); pokazToast(infoPrzeniesienia(+d, [pp]), 'Cofnij', () => { zapiszPom(+d, pp, 'shake', false); rysuj(); }); return; }
   if (t.dataset.przywroc) { const [d, pp, sl] = t.dataset.przywroc.split(':'); zapiszPom(+d, pp, sl, false); otwartyDzien = +d; rysuj(); pokazToast('Przywrócono posiłek'); return; }
   if (t.dataset.zuzyj) { e.preventDefault(); oknoZuzyj(t.dataset.zuzyj); return; }
+  if (t.dataset.mam) { e.preventDefault(); mamWDomu(t.dataset.mam); return; }
   if (t.dataset.zuzWstaw) { const [st, d, sl, ...id] = t.dataset.zuzWstaw.split('|'); if (st !== plan.start && inny && inny.start === st) przelaczTydzien(); wybierz(+d, sl, id.join('|')); return; }
   if (t.dataset.wsk) { wskazowki[t.dataset.wsk] = 1; LS.set('wskazowki', wskazowki); rysuj(); return; }
   if (t.dataset.intro !== undefined) { pokazIntro(+t.dataset.intro); return; }

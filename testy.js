@@ -589,6 +589,24 @@
       zjedz(g, d2, false); zjedz(g, d1, false); rowne(stan(), JSON.stringify(Object.fromEntries(Object.entries(lodowka).map(([p, us]) => [p, Object.fromEntries(Object.entries(us).map(([u]) => [u, 100000]))]))), 'cofnięcie oddaje składniki');
     } finally { lodowka = sl; zuzyte = sz; LS.set = lset; LS.del = ldel; }
   });
+  await test('Lista zakupów: okno „Mam to w domu”', 'bez produktu w lodówce pyta, ile dodać; z produktem pokazuje, ile masz i ile potrzeba, a zapis ustawia ilość', async () => {
+    const sl = lodowka, lset = LS.set, ry = rysuj, pt = pokazToast, sz = window._z, m = document.getElementById('modal'), mh = m.hidden, box = document.getElementById('modal-box'), sv = box.innerHTML;
+    try {
+      LS.set = () => {}; rysuj = () => {}; pokazToast = () => {}; lodowka = {};
+      const wyb = wybraneDni(), lista = z => ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]);
+      let z = zakupyDni(wyb); window._z = z;
+      const p = lista(z).find(x => Object.keys(x.brakuje).length === 1 && Object.keys(x.brakuje)[0] === 'g' && Object.values(x.brakuje)[0] > 300);
+      prawda(p, 'brak pozycji w gramach do sprawdzenia');
+      oknoMamWDomu(p.produkt);
+      prawda(/Tego nie ma w lodówce/.test(box.textContent) && document.getElementById('mam-q') && /Dodaj do lodówki/.test(box.textContent), 'brak w lodówce: pytanie, ile dodać');
+      document.getElementById('mam-q').value = '123'; zapiszMam(); rowne(lodowka[p.produkt].g, 123, 'zapis dodaje wpisaną ilość');
+      z = zakupyDni(wyb); window._z = z; const q = lista(z).find(x => x.produkt === p.produkt);
+      prawda(q && /masz w lodówce 123 g, a potrzeba razem/.test(`masz w lodówce ${q.stan}, a potrzeba razem ${q.potrzebaTxt}`) && q.potrzebaTxt, 'pozycja zna, ile masz i ile potrzeba razem');
+      oknoMamWDomu(p.produkt);
+      prawda(/W lodówce masz\s*123 g/.test(box.textContent) && /potrzeba razem/.test(box.textContent) && /Zapisz ilość/.test(box.textContent), 'z produktem w lodówce: pokazuje, ile masz i ile potrzeba');
+      document.getElementById('mam-q').value = '400'; zapiszMam(); rowne(lodowka[p.produkt].g, 400, 'zapis ustawia ilość w lodówce');
+    } finally { lodowka = sl; LS.set = lset; rysuj = ry; pokazToast = pt; window._z = sz; box.innerHTML = sv; m.hidden = mh; }
+  });
   await test('Śniadanie na jutro', 'dane na jutro zgadzają się z planem, przycisk po zjedzeniu dnia i odnośnik na Dziś, okno ze śniadaniem', async () => {
     const j = jutroDane(); prawda(j, 'brak planu na jutro w danych testowych');
     const day = j.t.dni[j.d], id = x => x ? DB.dania.get(x).nazwa : null;

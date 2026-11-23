@@ -955,7 +955,7 @@ function zakupyDni(wyb) {
     const kupno = {};
     for (const [u, q] of Object.entries(il)) kupno[u] = kupnoIlosc(prod, u, q);
     const strata = stratyDla(prod, wyb), pomysly = strata ? { strata } : null;      // ostrzeżenie tylko, gdy symulacja zużycia pokazuje realną stratę
-    (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, stanInna, brakuje: il, worki: worki[prod] || null, reszta, pomysly, uwagaAuto: autoUw[prod] ? [...autoUw[prod]].slice(0, 2).join('; ') : '' });
+    (wynik[a.kat] || wynik.zapas).push({ produkt: prod, ile: czesci.join(' + '), dop, kupno, stan: stanTxt, stanInna, brakuje: il, ma: masz, potrzebaTxt: potrzeba.map(([u, q]) => fmtStan(q, u)).join(' + '), worki: worki[prod] || null, reszta, pomysly, uwagaAuto: autoUw[prod] ? [...autoUw[prod]].slice(0, 2).join('; ') : '' });
   }
   Object.values(wynik).flat().filter(x => x.pomysly).sort((x, y) => y.pomysly.strata.kosztPaczek - x.pomysly.strata.kosztPaczek).slice(6).forEach(x => { x.pomysly = null; });      // ostrzeżenia tylko przy 6 największych stratach
   Object.values(wynik).forEach(arr => arr.sort((x, y) => x.produkt.localeCompare(y.produkt, 'pl')));
@@ -3330,6 +3330,35 @@ function mamWDomu(prod) {
   rysuj();
   pokazToast(`Masz ${prod}: dopisano do lodówki ${dod.map(([u, q]) => fmtStan(q, u)).join(' + ')}`, 'Cofnij', () => { dod.forEach(([u, q]) => zmienLodowke(prod, u, -q)); rysuj(); }, 7000);
 }
+// „Mam to w domu”: pokazuje, ile tego jest w lodówce i ile potrzeba. Gdy produktu nie ma w lodówce, pyta, ile dodać.
+function oknoMamWDomu(prod) {
+  const z = window._z, p = z && ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]).find(x => x.produkt === prod);
+  if (!p || !p.brakuje) return;
+  const u = Object.keys(p.brakuje)[0], ma = (p.ma && p.ma[u]) || 0, brak = p.brakuje[u], potrzeba = ma + brak, wLod = ma > 0.5;
+  const poz = Math.round(wLod ? ma : potrzeba);
+  const pole = `<div class="wpisz"><label class="wpisz-pole"><input type="text" inputmode="decimal" id="mam-q" value="${String(poz).replace('.', ',')}" aria-label="Ile ${wLod ? 'masz' : 'dodać'}"><span>${esc(u)}</span></label></div><input type="hidden" id="mam-p" value="${esc(prod)}"><input type="hidden" id="mam-u" value="${esc(u)}"><input type="hidden" id="mam-s" value="${ma}">`;
+  $('#modal-box').innerHTML = wLod
+    ? `<div class="okno-gora"><h2>${esc(prod)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+      <p class="mute">W lodówce masz <b>${fmtStan(ma, u)}</b>. Na wybrane dni potrzeba razem <b>${fmtStan(potrzeba, u)}</b>, więc do kupienia zostaje <b>${esc(p.ile)}</b>${p.dop ? ` (${esc(p.dop)})` : ''}.</p>
+      ${p.reszta && p.reszta.ulamek > 0.6 ? `<p class="mute"><b>Brakuje tylko ok. ${fmtStan(brak, u)}, a trzeba by kupić całe opakowanie</b>, z którego zostanie ${fmtStan(p.reszta.q, p.reszta.u)}. Jeśli wystarczy Ci to, co masz, wybierz „Mam wystarczająco”, żeby tego nie kupować na zapas.</p>` : ''}
+      <p class="mute">Jeśli w domu masz więcej, wpisz, ile masz naprawdę:</p>${pole}
+      <button class="btn glowny szeroki" id="mamZapisz">Zapisz ilość</button>
+      <button class="btn szeroki" data-mam-dopisz="${esc(prod)}" style="margin-top:8px">Mam wystarczająco (uzupełnij brakujące)</button>`
+    : `<div class="okno-gora"><h2>${esc(prod)}</h2><button class="btn maly" data-zamknij>Zamknij</button></div>
+      <p class="mute"><b>Tego nie ma w lodówce.</b>${p.stanInna ? ` Masz ${esc(p.stanInna)}, ale w innej jednostce niż w przepisach.` : ''} Na wybrane dni potrzeba <b>${fmtStan(potrzeba, u)}</b>. Ile chcesz dodać do lodówki?</p>${pole}
+      <button class="btn glowny szeroki" id="mamZapisz">Dodaj do lodówki</button>`;
+  $('#modal').hidden = false;
+  setTimeout(() => { const i = $('#mam-q'); if (i) { i.focus(); i.select(); } }, 60);
+}
+function zapiszMam() {
+  const pr = $('#mam-p').value, u = $('#mam-u').value, s0 = parseFloat($('#mam-s').value) || 0, v = parseFloat(String($('#mam-q').value).replace(',', '.'));
+  if (!(v >= 0)) { pokazToast('Wpisz ilość, np. 500'); return; }
+  zmienLodowke(pr, u, v - s0);
+  const lod = lodowka[pr] && lodowka[pr][u];
+  if (lod != null && Math.abs(lod) < 0.01) { delete lodowka[pr][u]; if (!Object.keys(lodowka[pr]).length) delete lodowka[pr]; LS.set('lodowka', lodowka); Z([[['lodowka', pr, u], undefined]]); }
+  $('#modal').hidden = true; rysuj();
+  pokazToast(`${pr}: w lodówce ${fmtStan(v, u)}`);
+}
 function widokZakupy() {
   const dost = dniDostepne(), wyb = wybraneDni(), z = zakupyDni(wyb), dzis = isoDzis();
   const klucz = kluczKup, wszystkie = ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]);
@@ -3366,7 +3395,7 @@ function widokZakupy() {
       + l.slice().sort((a, b) => !!odhK(klucz(a.produkt)) - !!odhK(klucz(b.produkt)) || (uk ? (uk.tr[a.produkt] != null ? uk.tr[a.produkt] : uk.sr[kod]) - (uk.tr[b.produkt] != null ? uk.tr[b.produkt] : uk.sr[kod]) : 0) || a.produkt.localeCompare(b.produkt, 'pl')).map(p => {
         const k = klucz(p.produkt), on = !!odhK(k);
         const ci = cmp.info[p.produkt], cenyTxt = ci && Object.keys(ci.c).length > 1 ? Object.entries(ceny[p.produkt] || {}).filter(([sk]) => ci.c[sk] != null).sort((a, b) => cenaX(a[1]) - cenaX(b[1])).map(([sk, v]) => `${sk} ${zl(cenaX(v))}/${jednCeny(v.u)}`).join(' · ') : '';
-        const info = [p.dop, p.stan ? `w lodówce: ${p.stan}` : '', p.stanInna ? `w lodówce masz ${p.stanInna}, ale w innej jednostce niż w przepisach, więc tego nie odliczam` : '', cenyTxt ? `taniej: ${cenyTxt}` : '', p.uwagaAuto].filter(Boolean).join(' · ');
+        const info = [p.dop, p.stan ? `masz w lodówce ${p.stan}, a potrzeba razem ${p.potrzebaTxt}` : '', p.stanInna ? `w lodówce masz ${p.stanInna}, ale w innej jednostce niż w przepisach, więc tego nie odliczam` : '', cenyTxt ? `taniej: ${cenyTxt}` : '', p.uwagaAuto].filter(Boolean).join(' · ');
         const mam = `<button class="zuzyj-btn mam-btn" data-mam="${esc(p.produkt)}">Mam to w domu</button>`, zw = p.pomysly ? `<button class="zuzyj-btn" data-zuzyj="${esc(p.produkt)}">Zostanie ok. ${esc(fmtStan(Math.round(p.pomysly.strata.q * 10) / 10, p.pomysly.strata.u))} i się zepsuje. Jak to zużyć? ›</button>` : '';
         return `<label class="zk-poz ${on ? 'kupione' : ''}"><input type="checkbox" data-kup="${esc(k)}" ${on ? 'checked' : ''}><span class="zk-ptak"></span><span class="zk-tx"><b>${esc(p.produkt)}${SEZON[p.produkt] && SEZON[p.produkt].includes(miesiac()) ? ' <i class="sezon-lisc" title="w sezonie" aria-label="w sezonie">sezon</i>' : ''}</b>${info ? `<small>${esc(info)}</small>` : ''}${zw}${mam}</span><span class="zk-ile">${esc(p.ile)}</span></label>`;
       }).join('') + `</div></section>`;
@@ -3963,37 +3992,33 @@ function duchCiala(p) {   // { mn, dKg, dCm, od } albo null, gdy nie ma z czym p
   if (!Object.keys(mn).length) return null;
   return { mn, dKg: w.length > 1 ? wLast[1] - wFirst[1] : null, dCm: ile ? dCm : null, od, ruszyla: Object.values(mn).some(v => Math.abs(v - 1) > 0.012) };
 }
-// Postać: skóra z objętością (cieniowanie krawędzi, światło z lewej), twarz, fryzura, ubranie sportowe i buty. Ubranie w kolorze osoby (currentColor).
-function ubranie(p, k, id) {
-  const kob = p === 'ona', cia = `<path d="${k.reka}"/><path d="${k.rekaL}"/><path d="${k.tulow}"/><ellipse cx="100" cy="34" rx="17" ry="21"/>`;
-  const defs = `<defs>
-    <linearGradient id="sk-sk-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d9c4"/><stop offset=".5" stop-color="#eebfa3"/><stop offset="1" stop-color="#dfa586"/></linearGradient>
-    <linearGradient id="sk-ub-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity="1"/><stop offset="1" stop-color="currentColor" stop-opacity=".78"/></linearGradient>
-    <linearGradient id="sk-dol-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f55"/><stop offset="1" stop-color="#22263a"/></linearGradient>
-    <linearGradient id="sk-wl-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${kob ? '#7a4a33' : '#5a4033'}"/><stop offset="1" stop-color="${kob ? '#3d2218' : '#2a1d17'}"/></linearGradient>
-    <radialGradient id="sk-hl-${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <filter id="sk-bl-${id}" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="3.6"/></filter>
-  </defs>`;
-  const wlosyTyl = kob ? `<path d="M115,21 C138,22 148,48 141,82 C138,96 133,104 129,114 C127,94 129,72 125,56 C122,44 118,32 115,21 Z" fill="url(#sk-wl-${id})"/><path d="M128,50 C132,66 132,86 130,102" stroke="#fff" stroke-opacity=".18" stroke-width="1.2" fill="none" stroke-linecap="round"/>` : '';
-  const twarz = `<g class="twarz"><ellipse cx="93.6" cy="34.5" rx="1.5" ry="1.8" fill="#35231f"/><ellipse cx="106.4" cy="34.5" rx="1.5" ry="1.8" fill="#35231f"/><circle cx="94.1" cy="33.8" r=".5" fill="#fff"/><circle cx="106.9" cy="33.8" r=".5" fill="#fff"/>
-    <path d="M90.6,30.4 Q93.6,28.6 96.4,30.2 M103.6,30.2 Q106.4,28.6 109.4,30.4" stroke="${kob ? '#4a2c20' : '#3a281f'}" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-    <path d="M100,36 Q101.8,39.4 99.4,40" stroke="#c98c70" stroke-opacity=".7" stroke-width=".9" fill="none" stroke-linecap="round"/>
-    <path d="M95.8,43.4 Q100,46.6 104.2,43.4" stroke="#b3524f" stroke-width="1.3" fill="none" stroke-linecap="round"/>${kob ? '<ellipse cx="89.6" cy="40" rx="3.2" ry="2" fill="#f08a8a" fill-opacity=".35"/><ellipse cx="110.4" cy="40" rx="3.2" ry="2" fill="#f08a8a" fill-opacity=".35"/>' : ''}</g>`;
-  const wlosyPrzod = kob
-    ? `<path d="M81,33 C78,6 122,6 119,33 C114,23 108,17 100,16 C92,17 86,22 81,33 Z" fill="url(#sk-wl-${id})"/><path d="M88,20 Q100,11 113,19" stroke="#fff" stroke-opacity=".3" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="118" cy="26" r="3.2" fill="currentColor"/>`
-    : `<path d="M81,34 C78,8 122,8 119,34 C117,25 111,20 104,19 C97,19 88,23 81,34 Z" fill="url(#sk-wl-${id})"/><path d="M89,19 Q101,11 113,17" stroke="#fff" stroke-opacity=".28" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-  const gora = kob
-    ? `<path d="M70,82 Q100,99 130,82 L133,132 Q100,139 67,132 Z" fill="url(#sk-ub-${id})"/><path d="M70,82 Q100,99 130,82 M67,132 Q100,139 133,132" stroke="#fff" stroke-opacity=".5" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M82,98 Q100,108 118,98" stroke="#000" stroke-opacity=".16" stroke-width="1.4" fill="none"/><path d="M100,100 L100,132" stroke="#000" stroke-opacity=".1" stroke-width="1" fill="none"/>`
-    : `<path d="M52,80 Q100,98 148,80 L160,126 L143,131 L139,176 Q100,182 61,176 L57,131 L40,126 Z" fill="url(#sk-ub-${id})"/><path d="M52,80 Q100,98 148,80" stroke="#fff" stroke-opacity=".5" stroke-width="1.4" fill="none"/><path d="M40,126 L57,131 M160,126 L143,131" stroke="#fff" stroke-opacity=".4" stroke-width="1.2" fill="none"/><path d="M76,110 Q100,122 124,110 M70,146 Q100,156 130,146" stroke="#000" stroke-opacity=".12" stroke-width="1.4" fill="none"/>`;
-  const dol = kob
-    ? `<path d="M62,158 Q100,167 138,158 L147,338 L53,338 Z" fill="url(#sk-dol-${id})"/><path d="M62,158 Q100,167 138,158" stroke="currentColor" stroke-width="2.4" fill="none"/><path d="M68,166 L60,328 M132,166 L140,328" stroke="currentColor" stroke-opacity=".9" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M84,262 Q90,270 98,266 M116,262 Q110,270 102,266" stroke="#fff" stroke-opacity=".12" stroke-width="1.4" fill="none"/>`
-    : `<path d="M60,198 Q100,207 140,198 L148,270 L52,270 Z" fill="url(#sk-dol-${id})"/><path d="M60,198 Q100,207 140,198" stroke="currentColor" stroke-width="2.6" fill="none"/><path d="M64,208 L56,266 M136,208 L144,266" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M52,266 L96,266 M104,266 L148,266" stroke="#fff" stroke-opacity=".22" stroke-width="1.2" fill="none"/>`;
-  const buty = [0, 1].map(l => { const m = l ? (x => 200 - x) : (x => x); return `<g transform="${l ? 'translate(200,0) scale(-1,1)' : ''}"><path d="M103,350 L124,350 Q129,360 127,369 Q126,373 120,373 L103,373 Q100,361 103,350 Z" fill="#f4f6fa"/><path d="M101,370 L127,370 Q128,375 122,376 L103,376 Q99,375 101,370 Z" fill="#c9ced8"/><path d="M108,356 Q116,352 124,357" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M105,364 Q114,361 125,364" stroke="#000" stroke-opacity=".12" stroke-width="1" fill="none"/></g>`; }).join('');
-  const objetosc = `<g clip-path="url(#cl-${id})"><g filter="url(#sk-bl-${id})" fill="none" stroke="#2a0f08" stroke-opacity=".5" stroke-width="10">${cia}</g>
-    <rect x="30" y="0" width="140" height="380" fill="url(#sh-${id})"/>
-    <ellipse cx="${kob ? 91 : 85}" cy="${kob ? 108 : 104}" rx="${kob ? 15 : 19}" ry="11" fill="url(#sk-hl-${id})"/><ellipse cx="84" cy="252" rx="8" ry="26" fill="url(#sk-hl-${id})"/><ellipse cx="53" cy="140" rx="5" ry="26" fill="url(#sk-hl-${id})"/><ellipse cx="100" cy="58" rx="10" ry="4.5" fill="#3a1a10" fill-opacity=".28"/></g>`;
-  return `${defs}${wlosyTyl}<g fill="url(#sk-sk-${id})" stroke="#b47a60" stroke-opacity=".55" stroke-width="1" stroke-linejoin="round">${cia}<ellipse cx="83" cy="36" rx="2.4" ry="4"/><ellipse cx="117" cy="36" rx="2.4" ry="4"/></g>
-    <g clip-path="url(#cl-${id})">${dol}${gora}</g>${objetosc}${buty}<path d="M86,79 Q93,84 100,82 Q107,84 114,79" stroke="#8a5a45" stroke-opacity=".35" stroke-width="1.1" fill="none" stroke-linecap="round"/>${twarz}${wlosyPrzod}`;
+// Awatar jako cień: jedna gładka sylwetka bez twarzy i ubrania, w kolorze osoby (currentColor). Głębia ze szklistego wypełnienia, jasny obrys i miękka poświata
+// na zewnątrz i od środka (przy krawędziach). Obrys rysuję pod wypełnieniem, więc na łączeniach głowy, włosów i ramion nie ma szwów.
+function cienCialo(p, k, id) {
+  const kob = p === 'ona';
+  const glowa = kob
+    ? `<ellipse cx="100" cy="33" rx="15.5" ry="19.5"/><path d="M84,33 C82,10 118,10 116,33 C113,24 107,18.5 100,18 C93,18.5 87,24 84,33 Z"/><path d="M111,21 C134,22 146,50 139,84 C136,98 132,106 128,116 C126,96 128,74 123,58 C120,46 115,33 111,21 Z"/>`
+    : `<ellipse cx="100" cy="33" rx="15.5" ry="19.5"/><path d="M84,34 C82,12 118,12 116,34 C114,26 108,21 100,20.5 C92,21 86,26 84,34 Z"/>`;
+  const wszystko = `${glowa}<path d="${k.tulow}"/><path d="${k.reka}"/><path d="${k.rekaL}"/>`;
+  const jasnosc = (x, y, rx, ry, o) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#cn-hl-${id})" opacity="${o}"/>`;
+  return `<defs>
+    <linearGradient id="cn-fill-${id}" gradientUnits="userSpaceOnUse" x1="0" y1="10" x2="0" y2="376"><stop offset="0" stop-color="#26332e" style="stop-color:color-mix(in srgb, currentColor 30%, #0d1512)"/><stop offset=".5" stop-color="#1a2420" style="stop-color:color-mix(in srgb, currentColor 14%, #0a100d)"/><stop offset="1" stop-color="#101814" style="stop-color:color-mix(in srgb, currentColor 7%, #060a08)"/></linearGradient>
+    <linearGradient id="cn-rim-${id}" gradientUnits="userSpaceOnUse" x1="0" y1="10" x2="0" y2="376"><stop offset="0" stop-color="currentColor" stop-opacity="1"/><stop offset=".55" stop-color="currentColor" stop-opacity=".78"/><stop offset="1" stop-color="currentColor" stop-opacity=".42"/></linearGradient>
+    <linearGradient id="cn-swiatlo-${id}" gradientUnits="userSpaceOnUse" x1="50" y1="0" x2="150" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".42" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <radialGradient id="cn-hl-${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".34"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="cn-bl-${id}" x="-40%" y="-20%" width="180%" height="140%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="cn-bl2-${id}" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="3.6"/></filter>
+    <clipPath id="cn-cl-${id}" clipPathUnits="userSpaceOnUse">${wszystko}</clipPath>
+  </defs>
+  <g class="cn-poswiata" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round" opacity=".42" filter="url(#cn-bl-${id})">${wszystko}</g>
+  <g class="cn-obrys" fill="none" stroke="url(#cn-rim-${id})" stroke-width="2.6" stroke-linejoin="round">${wszystko}</g>
+  <g class="cn-wyp" fill="url(#cn-fill-${id})" stroke="none">${wszystko}</g>
+  <g clip-path="url(#cn-cl-${id})">
+    <g fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="8" stroke-linejoin="round" filter="url(#cn-bl2-${id})">${wszystko}</g>
+    <g fill="none" stroke="url(#cn-swiatlo-${id})" stroke-width="1.4" stroke-linejoin="round">${wszystko}</g>
+    <rect x="30" y="0" width="140" height="380" fill="url(#sh-${id})" opacity=".55"/>
+    ${jasnosc(kob ? 90 : 86, kob ? 106 : 104, kob ? 16 : 20, 30, .9)}${jasnosc(86, 255, 9, 38, .7)}${jasnosc(94, 30, 6, 10, .8)}
+  </g>`;
 }
 function figuraCialo(p, anim) {
   const id = p;
@@ -4023,7 +4048,7 @@ function figuraCialo(p, anim) {
       </defs>
       <ellipse class="podloga" cx="${DX + 100}" cy="372" rx="62" ry="7" fill="url(#cs-${p})"/>
       <g transform="translate(${DX},0)">${kd ? `<g class="duch"><path d="${kd.reka}"/><path d="${kd.rekaL}"/><path d="${kd.tulow}"/></g>` : ''}<g class="oddech"><g class="syl">
-        ${ubranie(p, k, id)}
+        ${cienCialo(p, k, id)}
       </g></g></g>
       ${pasy}
       <rect class="skan" x="${DX + 20}" y="0" width="120" height="3" fill="url(#sk-${p})"/>
@@ -4477,7 +4502,8 @@ document.addEventListener('click', async e => {
   if (t.dataset.pominShake) { const [d, pp] = t.dataset.pominShake.split(':'); zapiszPom(+d, pp, 'shake', true); otwartyDzien = +d; rysuj(); pokazToast(infoPrzeniesienia(+d, [pp]), 'Cofnij', () => { zapiszPom(+d, pp, 'shake', false); rysuj(); }); return; }
   if (t.dataset.przywroc) { const [d, pp, sl] = t.dataset.przywroc.split(':'); zapiszPom(+d, pp, sl, false); otwartyDzien = +d; rysuj(); pokazToast('Przywrócono posiłek'); return; }
   if (t.dataset.zuzyj) { e.preventDefault(); oknoZuzyj(t.dataset.zuzyj); return; }
-  if (t.dataset.mam) { e.preventDefault(); mamWDomu(t.dataset.mam); return; }
+  if (t.dataset.mam) { e.preventDefault(); oknoMamWDomu(t.dataset.mam); return; }
+  if (t.dataset.mamDopisz) { $('#modal').hidden = true; mamWDomu(t.dataset.mamDopisz); return; }
   if (t.dataset.zuzWstaw) { const [st, d, sl, ...id] = t.dataset.zuzWstaw.split('|'); if (st !== plan.start && inny && inny.start === st) przelaczTydzien(); wybierz(+d, sl, id.join('|')); return; }
   if (t.dataset.wsk) { wskazowki[t.dataset.wsk] = 1; LS.set('wskazowki', wskazowki); rysuj(); return; }
   if (t.dataset.intro !== undefined) { pokazIntro(+t.dataset.intro); return; }
@@ -4625,6 +4651,7 @@ document.addEventListener('click', async e => {
   else if (t.dataset.stpm) { const [pp, uu, dl] = t.dataset.stpm.split('|'), cur = (lodowka[pp] || {})[uu] || 0, st = KROK_LOD(uu); zmienLodowke(pp, uu, +dl > 0 ? st : -Math.min(st, cur)); rysuj(); }
   else if (t.dataset.stanusun) { const [pp, uu] = t.dataset.stanusun.split('|'), byl = (lodowka[pp] || {})[uu] || 0; if (lodowka[pp]) { delete lodowka[pp][uu]; if (!Object.keys(lodowka[pp]).length) delete lodowka[pp]; } LS.set('lodowka', lodowka); Z([[['lodowka', pp, uu], undefined]]); rysuj(); pokazToast(`Usunięto: ${pp}`, 'Cofnij', () => { zmienLodowke(pp, uu, byl > 0.5 ? byl : 0.01); rysuj(); }); }
   else if (t.id === 'dodajStan') dodajStanReczny();
+  else if (t.id === 'mamZapisz') zapiszMam();
   else if (t.id === 'szybkie') szybkieDodanie(($('#szybkie-tekst') || {}).value || '');
   else if (t.id === 'spont') oknoSpont();
   else if (t.dataset.przepisSpont) { const x = mozliwosci().find(m => m.d.id === t.dataset.przepisSpont); if (x) pokazPrzepis(garnekSpont(x.d, x.skala), true); }

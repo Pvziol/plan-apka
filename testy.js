@@ -325,7 +325,7 @@
     const i = dzienTyg(), dzis = rozumiemTekst('dziś bez ryb'); prawda(dzis.length === 1 && dzis[0].tryby.bezRyb, '„bez ryb” bez „bez mięsa”');
     prawda(rozumiemTekst('dziś zimno')[0].tryby.zimno, '„zimno”');
     const zak = rozumiemTekst('od ' + DNI_OD[i] + ' do ' + DNI_OD[i] + ' lekko'); prawda(zak.length === 1 && zak[0].d === i && zak[0].tryby.lekko, 'zakres „od X do X”');
-    if (i > 0 && tygodnieZapisane().length < 2) {          // dzień minionego poniedziałku nie ma planu, więc nie wolno zmienić dziś
+    if (i > 1 && tygodnieZapisane().length < 2) {          // dzień minionego poniedziałku nie ma planu, więc nie wolno zmienić dziś (od środy; we wtorek „do wtorku” obejmuje dziś)
       const r = rozumiemTekst('poniedziałek bez mięsa'); rowne(r.length, 0, 'zmiana wylądowała na dziś'); rowne(r.brakDni, ['Poniedziałek'], 'brak informacji o dniu bez planu');
       const r2 = rozumiemTekst('od poniedziałku do wtorku bez mięsa, dziś szybko'); rowne(r2.length, 1, 'tylko dziś ma plan'); prawda(r2.brakDni.includes('Poniedziałek'), 'dni bez planu w zakresie');
     }
@@ -453,7 +453,7 @@
     prawda(tydzienZywy(dodajDni(dz, -6)), 'tydzień kończący się dziś jeszcze trwa');
     prawda(tydzienZywy(dz) && tydzienZywy(dodajDni(dz, 7)), 'bieżący i przyszły tydzień trwają');
     prawda(!tydzienZywy(dodajDni(dz, -7)), 'tydzień zakończony wczoraj już nie trwa');
-    const pon = poniedzialek(); prawda(new Date(pon + 'T12:00:00').getDay() === 1 && pon >= dz, 'poniedzialek() to najbliższy poniedziałek (w niedzielę jutrzejszy)');
+    const pon = poniedzialek(), niedziela = new Date(dz + 'T12:00:00').getDay() === 0; prawda(new Date(pon + 'T12:00:00').getDay() === 1 && (niedziela ? pon > dz : pon <= dz && pon > dodajDni(dz, -7)), 'poniedzialek() to poniedziałek bieżącego tygodnia (w niedzielę jutrzejszy)');
   });
   await test('Pomiary ciała', 'sylwetka z pięcioma obwodami, ocena zmian wg celu, wartości z jedną cyfrą, widok bez błędów', async () => {
     const so = obw;
@@ -669,7 +669,7 @@
       const braki = prognoza(oblicz(plan, cele())).map(x => `${x.produkt} ${Math.round(x.brakuje * 10) / 10} ${x.u}`);
       rowne(braki, [], 'po kupieniu całej listy nic nie powinno brakować');
       const ujemne = [];
-      for (let d = 0; d < 7; d++) { const w = oblicz(plan, cele()); for (const g of w.garnki) for (const dd of dniGarnka(g)) if (dd === d) zjedz(g, d, true); for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) if (q < -0.01) ujemne.push(p + ' ' + q + ' ' + u); }
+      for (let d = dzisIdx(); d < 7; d++) { const w = oblicz(plan, cele()); for (const g of w.garnki) for (const dd of dniGarnka(g)) if (dd === d) zjedz(g, d, true); for (const [p, us] of Object.entries(lodowka)) for (const [u, q] of Object.entries(us)) if (q < -0.01) ujemne.push(p + ' ' + q + ' ' + u); }   // od dziś: wcześniejsze dni nie są w zakupach
       rowne([...new Set(ujemne)], [], 'zjadanie tygodnia nie może schodzić poniżej zera');
     } finally { lodowka = sl; zuzyte = sz; LS.set = lset; rysuj = ry; }
   });
@@ -701,12 +701,12 @@
     const m = document.getElementById('modal'), box = document.getElementById('modal-box'), sv = box.innerHTML, svH = m.hidden;
     try { oknoJutro(); prawda(!m.hidden, 'okno się nie otworzyło'); prawda(box.textContent.includes('Śniadania na jutro') && j.sl.every(g => box.textContent.includes(g.dish.nazwa)), 'okno bez nazw śniadań'); prawda(box.querySelectorAll('[data-jutro-przepis]').length === j.sl.length, 'przycisk przepisu przy każdym śniadaniu'); }
     finally { box.innerHTML = sv; m.hidden = svH; }
-    const karta = kartaJutroLink(), cookable = j.sl.filter(g => !j.weekend && !g.dish.tylko_wybor && sniadaniowy(g)).length;
+    const karta = kartaJutroLink(), cookable = j.sl.filter(g => !j.weekend && !g.dish.tylko_wybor).length;
     prawda(j.sl.every(g => karta.includes(esc(g.dish.nazwa))), 'karta na Dziś pokazuje wszystkie śniadania');
     rowne((karta.match(/data-jutro-gotuj=/g) || []).length, cookable, '„Gotuj teraz” przy każdym śniadaniu do zrobienia wieczorem');
     rowne((karta.match(/data-jutro-ok=/g) || []).length, cookable, 'ptaszek przy każdym śniadaniu do zrobienia wieczorem');
     const koktajl = j.w.dni[j.d].sloty.find(s => s.g.slot === 'm13ona' && !s.odgrzewane);
-    if (koktajl) { prawda(j.sl.includes(koktajl.g) && karta.includes(esc(koktajl.g.dish.nazwa)), 'koktajl dla niej na 13:00 jest wśród śniadań na jutro'); prawda(!new RegExp('data-jutro-gotuj="' + j.sl.indexOf(koktajl.g) + '"').test(karta), 'koktajl bez „Gotuj teraz” (robi się na świeżo)'); }
+    if (koktajl) { prawda(j.sl.includes(koktajl.g) && karta.includes(esc(koktajl.g.dish.nazwa)), 'koktajl dla niej na 13:00 jest wśród śniadań na jutro'); prawda(new RegExp('data-jutro-gotuj="' + j.sl.indexOf(koktajl.g) + '"').test(karta) && new RegExp('data-jutro-ok="' + j.sl.indexOf(koktajl.g) + '"').test(karta) || j.weekend, 'koktajl ma ptaszek i „Gotuj teraz”'); }
     prawda(!/Zobacz<\/button>/.test(karta), 'bez starego przycisku „Zobacz”');
   });
   await test('Meal prep: notatka w przepisie', 'jedna linia na posiłek (nie na wszystkie wystąpienia dania w tygodniu), nieaktualna zapisana sesja nie każe pomijać gotowania, wykonana sesja tak', async () => {
@@ -815,6 +815,56 @@
       prawda(pw.gotowe && pw.zostalo === '', 'wszystko odhaczone: gotowe');
       rowne(postepWieczoru(dzis, null, []).gotowe, true, 'brak jutra i zadań: gotowe');
     } finally { if (raw === null) localStorage.removeItem('wieczOk'); else localStorage.setItem('wieczOk', raw); }
+  });
+  await test('Zakupy: kupione znika z listy', 'po kupieniu pozycja znika z listy do kupienia (lodówka ją pokrywa) i jest w „Kupione”, cofnięcie ją przywraca', async () => {
+    const sl = lodowka, so = odhaczone, si = inny, sw = window._z, lset = LS.set, ry = rysuj;
+    try {
+      LS.set = () => {}; rysuj = () => {}; lodowka = {}; odhaczone = {}; inny = null;
+      const wyb = new Set(dniDostepne().map(x => x.iso)), lista = z => ['świeże', 'zamrażarka', 'zapas'].flatMap(k => z.wynik[k]);
+      let z = zakupyDni(wyb); window._z = z;
+      const p = lista(z).find(x => x.kupno && Object.keys(x.kupno).length === 1); prawda(p, 'brak pozycji do sprawdzenia');
+      odhaczKup(kluczKup(p.produkt), true);
+      z = zakupyDni(wyb); window._z = z;
+      prawda(!lista(z).some(x => x.produkt === p.produkt), 'kupiona pozycja nie jest już „do kupienia”');
+      prawda(ticksWyprawy().some(([k]) => k === kluczKup(p.produkt)), 'pozycja jest w „Kupione w tej wyprawie”');
+      odhaczKup(kluczKup(p.produkt), false);
+      z = zakupyDni(wyb); prawda(lista(z).some(x => x.produkt === p.produkt) && !ticksWyprawy().length, 'po cofnięciu pozycja wraca na listę');
+    } finally { lodowka = sl; odhaczone = so; inny = si; window._z = sw; LS.set = lset; rysuj = ry; }
+  });
+  await test('Zakupy: lista tylko w dniu zakupów', 'lista pokazuje się w poniedziałek i piątek, w pozostałe dni jest bramka z następnym terminem', async () => {
+    const RD = Date;
+    try {
+      const dzien = iso => { const F = new RD(iso + 'T14:00:00'); window.Date = class extends RD { constructor(...a) { if (a.length === 0) super(F.getTime()); else super(...a); } static now() { return F.getTime(); } }; };
+      // 2026-11-23 to poniedziałek
+      const oczek = { '2026-11-23': true, '2026-11-24': false, '2026-11-25': false, '2026-11-26': false, '2026-11-27': true, '2026-11-28': false, '2026-11-29': false };
+      for (const [iso, tak] of Object.entries(oczek)) { dzien(iso); rowne(dzienZakupow(), tak, 'dzień zakupów: ' + iso); }
+    } finally { window.Date = RD; }
+  });
+  await test('Brak w sklepie: pomiń i zamień', 'składnik można pominąć albo zamienić we wszystkich posiłkach z wybranych dni; znika z przepisu, listy i lodówki, a przywrócenie go oddaje', async () => {
+    const sp = plan, si = inny, sz = zuzyte, sw = window._z, szd = zakDni, lset = LS.set, ry = rysuj, zo = zamknijOkno, pt = pokazToast;
+    try {
+      LS.set = () => {}; rysuj = () => {}; zamknijOkno = () => {}; pokazToast = () => {}; plan = JSON.parse(JSON.stringify(plan)); inny = null; zuzyte = {};
+      const dni = dniDostepne().map(x => x.iso); zakDni = dni;
+      const w0 = oblicz(plan, cele()), g0 = w0.garnki.find(g => g.dish.skladniki.some(i => i.produkt && i.ilosc && i.jednostka === 'g' && i.kcal > 0 && !/odżywka|skyr|mleko/.test(i.produkt)));
+      const i0 = g0.dish.skladniki.find(i => i.produkt && i.ilosc && i.jednostka === 'g' && i.kcal > 0 && !/odżywka|skyr|mleko/.test(i.produkt)), prod = i0.produkt;
+      const hity = posilkiZProduktem(prod); prawda(hity.length >= 1, 'składnik znaleziony w posiłkach');
+      const kcal0 = oblicz(plan, cele()).dni[g0.d].on.kcal;
+      oknoBrak(prod); prawda(window._brak && window._brak.hity.length === hity.length, 'okno zna posiłki z tym składnikiem');
+      zastosujBrak(null);
+      const w1 = oblicz(plan, cele()); const g1 = w1.garnki.find(g => g.d === g0.d && g.slot === g0.slot);
+      prawda(!g1.dish.skladniki.some(i => i.produkt === prod) && g1.dish.pominiete.includes(prod), 'składnik pominięty w przepisie');
+      prawda(!skladGarnka(g1).some(s => s[0] === prod), 'brak składnika w lodówce/zużyciu');
+      prawda(Math.abs(w1.dni[g0.d].on.kcal - kcal0) < 3, 'kalorie dnia bez zmian');
+      prawda(notaPominietych(g1).includes(prod), 'notatka o pominiętym składniku w przepisie');
+      const lista = zakupyDni(new Set(dni)); const wszystkie = ['świeże', 'zamrażarka', 'zapas'].flatMap(k => lista.wynik[k]).concat(lista.wynik.masz);
+      const jeszcze = oblicz(plan, cele()).garnki.some(g => g.dish.skladniki.some(i => i.produkt === prod));
+      prawda(jeszcze || !wszystkie.some(x => x.produkt === prod), 'jeśli nigdzie indziej niepotrzebny, znika z listy');
+      // przywrócenie
+      const day = plan.dni[g0.d]; day.zam[g0.slot][i0.zam ? i0.zam.z : prod] = '';
+      const g2 = oblicz(plan, cele()).garnki.find(g => g.d === g0.d && g.slot === g0.slot); prawda(g2.dish.skladniki.some(i => i.produkt === prod), 'przywrócony składnik wraca');
+      // zamiana
+      oknoBrak(prod); const kand = window._brak.kand; if (kand.length) { zastosujBrak(kand[0].prod); const g3 = oblicz(plan, cele()).garnki.find(g => g.d === g0.d && g.slot === g0.slot); prawda(g3.dish.skladniki.some(i => i.produkt === kand[0].prod) && !g3.dish.skladniki.some(i => i.produkt === prod), 'zamiennik zamiast składnika'); }
+    } finally { plan = sp; inny = si; zuzyte = sz; window._z = sw; zakDni = szd; LS.set = lset; rysuj = ry; zamknijOkno = zo; pokazToast = pt; }
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

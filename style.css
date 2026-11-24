@@ -1451,4 +1451,14 @@ button.link { background: none; border: 0; box-shadow: none; color: var(--zielon
 .jutro-link .wiecz-w { margin-top: 0; }
 .jutro-link .wiecz-tx .jutro-nazwa { display: block; padding: 0; }
 .wiecz-w.zrobione .jutro-nazwa { text-decoration: line-through; opacity: .7; }
-
+/* lista zakupów: dwa ciche przyciski przy pozycji, bramka poza dniami zakupów, okno „Brak w sklepie” */
+.zk-pozakcje { display: flex; flex-wrap: wrap; gap: 0 8px; }
+.zk-bramka { display: flex; flex-direction: column; gap: 4px; }
+.zk-bramka p { margin: 4px 0; }
+.zk-brak-lista > div { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.zk-brak-zam { display: flex; flex-wrap: wrap; gap: 8px; }
+.zk-brak-zam .btn { flex: 1 1 140px; }
+.zk-pozakcje .mam-btn { padding: 0 9px; font-size: 11.5px; min-height: 30px; margin-top: 6px; }
+@media (max-width: 340px) { .zk-pozakcje { gap: 0 5px; } .zk-pozakcje .mam-btn { padding: 0 7px; font-size: 11px; } }
+.zk-pozakcje { width: 100%; flex-wrap: nowrap; gap: 6px; }
+.zk-pozakcje .mam-btn { flex: 1 1 0; justify-content: center; text-align: center; white-space: nowrap; padding: 0 4px; }

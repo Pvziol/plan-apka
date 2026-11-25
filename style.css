@@ -1462,3 +1462,12 @@ button.link { background: none; border: 0; box-shadow: none; color: var(--zielon
 @media (max-width: 340px) { .zk-pozakcje { gap: 0 5px; } .zk-pozakcje .mam-btn { padding: 0 7px; font-size: 11px; } }
 .zk-pozakcje { width: 100%; flex-wrap: nowrap; gap: 6px; }
 .zk-pozakcje .mam-btn { flex: 1 1 0; justify-content: center; text-align: center; white-space: nowrap; padding: 0 4px; }
+
+/* OSZCZĘDZANIE BATERII: nic ozdobnego nie chodzi bez przerwy. Tło „zorza”, gradient i bąble w karcie dnia, błyski na przyciskach i paskach oraz unoszenie obrazków są nieruchome
+   (wygląd ten sam, ale bez ciągłego przerysowywania). Rozmycie tła pod kartami i przyciskami usunięte (rozmywało tylko gładki gradient, a każda klatka animacji przeliczała je
+   dla kilkudziesięciu elementów); zostaje tam, gdzie pod spodem przewija się treść (dolny pasek, okna, komunikaty). Animacje na ekranie pomiarów kończą się po kilku cyklach. */
+body::before, body::after { animation: none; filter: none; will-change: auto; }
+.hero, .hero::before, .hero::after, .hero .obr.duzy, .pusty::before, .prep-radar.tak::before, .btn.glowny::after, .pasek i::after { animation: none; }
+.karta, details.dzien, .kafel, .postep > div, .szybka, .seg, .hero-liczby span, .btn, .chip, .wskazowka, .ps-os, .sw-karta, .got-x, .got-skl, .got-sk-krok, .got-lista, .got-panel, .got-t, .got-mic, .got-pelny { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.cialo-svg .oddech, .cialo-svg .duch, .cialo-svg .cn-poswiata, .cialo-svg .sito.sel .halo, .got-et::before { animation-iteration-count: 3; }
+.cialo-scena.anim .duch { animation-iteration-count: 1, 3; }

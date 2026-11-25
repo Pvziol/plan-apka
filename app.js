@@ -2170,7 +2170,22 @@ function gotowaneOsobno(dish, prod) {
 const nazwaSlotu = sl => (PORA[sl] || sl).split(' · ').slice(-1)[0];
 const dzienKrotki = iso => `${DNI_KR[(new Date(iso + 'T12:00:00').getDay() + 6) % 7]} ${krotkaData(iso)}`;
 // Plan sesji: składniki z dań w oknie [od, od + h dni], które opłaca się ugotować raz (max tyle dni, ile wytrzymują w lodówce).
-function planPrepu(od, h) {
+// Użycia (składnik + posiłek + dzień) pokryte zapisanymi sesjami meal prep (wykonanymi albo zaplanowanymi i nadal aktualnymi), z pominięciem sesji pominId.
+function pokryteSesjami(pominId) {
+  const out = new Set();
+  for (const se of sesje) {
+    if (se.id === pominId) continue;
+    if (!se.zrobione && se.od < isoDzis()) continue;                       // niewykonana sesja z przeszłości nic nie pokrywa
+    const ak = se.zrobione ? null : planPrepu(se.od, se.h, true);          // zaplanowana: tylko to, co nadal wynika z obecnego planu
+    for (const k of se.komp) for (const u of k.uzycia) {
+      if (ak && !ak.komp.some(c => c.prod === k.prod && c.uzycia.some(x => x.iso === u.iso && x.slot === u.slot && x.id === u.id))) continue;
+      out.add([k.prod, u.wk, u.id, u.slot, u.iso].join('|'));
+    }
+  }
+  return out;
+}
+// bezSesji = true: plan bez wykluczania tego, co już pokrywają zapisane sesje (do sprawdzania aktualności samych sesji).
+function planPrepu(od, h, bezSesji) {
   const doo = dodajDni(od, h), wg = {}, dzis = isoDzis();
   for (const t of tygodnieZapisane()) {
     const wk = oblicz({ start: t.start, dni: t.dni }, cele());
@@ -2183,6 +2198,10 @@ function planPrepu(od, h) {
       const c = PREP[i.produkt], ilosc = i.ilosc * skala(g, i);
       (wg[i.produkt] = wg[i.produkt] || []).push({ iso, slot: g.slot, id: g.dish.id, dish: g.dish.nazwa, wk: t.start, d: x, suchy: c.u === 'szt.' ? Math.max(1, Math.round(ilosc)) : Math.round(ilosc / 5) * 5 || 5, kto: [...new Set(g.porcje.map(q => q.p))] });
     }
+  }
+  if (!bezSesji && sesje.length) {       // to, co pokrywa już inna zapisana sesja, nie jest podpowiadane drugi raz
+    const pok = pokryteSesjami(od + '_' + h);
+    if (pok.size) for (const prod of Object.keys(wg)) { wg[prod] = wg[prod].filter(x => !pok.has([prod, x.wk, x.id, x.slot, x.iso].join('|'))); if (!wg[prod].length) delete wg[prod]; }
   }
   const komp = [], pojedyncze = []; let min = 0, gar = 0;
   for (const [prod, uz] of Object.entries(wg)) {
@@ -2218,7 +2237,7 @@ function krokiSesji(komp) {
 }
 // Sesje meal prep dotyczące tego posiłku. Tylko jego dzień (garnek na 2 dni: oba dni), a niewykonana sesja liczy się wtedy, gdy jest jeszcze aktualna: nie z przeszłości
 // i nadal zawiera ten składnik w tym posiłku wg obecnego planu (po zmianie dań stara zapisana sesja nie może kazać pomijać gotowania).
-const sesjaAktualna = (se, k, u) => se.zrobione || (se.od >= isoDzis() && (() => { try { return planPrepu(se.od, se.h).komp.some(c => c.prod === k.prod && c.uzycia.some(x => x.iso === u.iso && x.slot === u.slot && x.id === u.id)); } catch (e) { return false; } })());
+const sesjaAktualna = (se, k, u) => se.zrobione || (se.od >= isoDzis() && (() => { try { return planPrepu(se.od, se.h, true).komp.some(c => c.prod === k.prod && c.uzycia.some(x => x.iso === u.iso && x.slot === u.slot && x.id === u.id)); } catch (e) { return false; } })());
 const sesjaDla = (g) => { const dni = dniGarnka(g).map(dd => dodajDni(plan.start, dd)); return sesje.flatMap(se => se.komp.flatMap(k => k.uzycia.filter(u => u.wk === plan.start && u.id === g.dish.id && u.slot === g.slot && dni.includes(u.iso) && sesjaAktualna(se, k, u)).map(u => ({ se, k, u })))); };
 // Który krok przepisu został zrobiony w sesji meal prep (ten składnik ugotowany wcześniej)?
 function krokZSesji(g, tekst) {
@@ -3674,7 +3693,7 @@ function pasekSync() {
   document.body.classList.add('ma-sync-pasek');
   document.body.style.setProperty('--sync-h', el.offsetHeight + 'px');
 }
-setInterval(pasekSync, 4000);
+setInterval(() => { if (!document.hidden) pasekSync(); }, 4000);   // w tle (ekran wygaszony, inna karta) nic nie odświeżam
 function kartaDolacz() {
   const S = window.Sync;
   if (!S || !S.dostepny) return '';

@@ -719,12 +719,13 @@
       if (!rz || rz.uzycia.length < 2) return;   // za mało wystąpień w oknie planu testowego
       zapiszSesje(pl);
       const gar = () => oblicz(plan, cele()).garnki.filter(g => g.dish.id === sid && dni.includes(g.d)), linie = g => (notaPrepu(g).match(/<div>/g) || []).length;
-      for (const g of gar()) rowne(linie(g), rz.uzycia.filter(u => u.iso === dodajDni(plan.start, g.d)).length, 'jedna linia na posiłek, dzień ' + g.d);
-      // po zmianie planu ryż jest tylko w jednym posiłku: zapisana, niewykonana sesja jest nieaktualna
-      const pierwszy = dni.find(d => rz.uzycia.some(u => u.iso === dodajDni(plan.start, d))), inne = DB.pula.m13on.find(x => x.id !== sid).id;
-      dni.filter(d => d !== pierwszy).forEach(d => { plan.dni[d].m13.on = inne; plan.dni[d].ratio = {}; });
+      for (const g of gar()) rowne(linie(g), rz.uzycia.filter(u => u.iso === dodajDni(plan.start, g.d) && u.slot === g.slot && u.id === sid).length, 'jedna linia na posiłek, dzień ' + g.d);
+      // zapisana, niewykonana sesja jest nieaktualna, gdy obecny plan prepu nie zawiera już tego składnika w tym posiłku (symulacja: plan prepu bez składników)
+      const pierwszy = dni.find(d => rz.uzycia.some(u => u.iso === dodajDni(plan.start, d)));
       const g1 = oblicz(plan, cele()).garnki.find(g => g.dish.id === sid && g.d === pierwszy);
-      rowne(notaPrepu(g1), '', 'nieaktualna sesja: bez komunikatu');
+      prawda(notaPrepu(g1).includes('Ryż'), 'aktualna sesja: komunikat jest');
+      const pp = planPrepu; planPrepu = (o, h, b) => (b ? Object.assign({}, pp(o, h, b), { komp: [] }) : pp(o, h, b));
+      try { rowne(notaPrepu(g1), '', 'nieaktualna sesja: bez komunikatu'); } finally { planPrepu = pp; }
       sesje[0].zrobione = true; prawda(notaPrepu(g1).includes('Ryż'), 'wykonana sesja: komunikat jest');
       sesje[0].zrobione = false; sesje[0].od = dodajDni(isoDzis(), -1); rowne(notaPrepu(g1), '', 'niewykonana sesja z przeszłości: bez komunikatu');
     } finally { plan = sp; sesje = ss; LS.set = lset; rysuj = ry; }
@@ -865,6 +866,28 @@
       // zamiana
       oknoBrak(prod); const kand = window._brak.kand; if (kand.length) { zastosujBrak(kand[0].prod); const g3 = oblicz(plan, cele()).garnki.find(g => g.d === g0.d && g.slot === g0.slot); prawda(g3.dish.skladniki.some(i => i.produkt === kand[0].prod) && !g3.dish.skladniki.some(i => i.produkt === prod), 'zamiennik zamiast składnika'); }
     } finally { plan = sp; inny = si; zuzyte = sz; window._z = sw; zakDni = szd; LS.set = lset; rysuj = ry; zamknijOkno = zo; pokazToast = pt; }
+  });
+  await test('Meal prep: bez powtórnych podpowiedzi', 'to, co pokrywa zapisana sesja (wykonana albo zaplanowana), nie jest podpowiadane w innych dniach; sama sesja i plan bez sesji zostają', async () => {
+    const sp = plan, ss = sesje, lset = LS.set, ry = rysuj;
+    try {
+      LS.set = () => {}; rysuj = () => {}; plan = JSON.parse(JSON.stringify(plan)); sesje = [];
+      const sid = [...DB.dania.values()].find(x => x.nazwa.startsWith('Sałatka ryżowa z kurczakiem')).id, a = Math.min(dzisIdx(), 4), dni = [a, a + 1, a + 2].filter(d => d <= 6);
+      dni.forEach(d => { plan.dni[d].m13.on = sid; plan.dni[d].ratio = {}; });
+      const od = isoDzis(), jutro = dodajDni(od, 1), pl = planPrepu(od, prepH), rz = pl.komp.find(c => c.prod === 'ryż');
+      if (!rz || rz.uzycia.length < 2) return;
+      const klucze = pl.komp.flatMap(c => c.uzycia.map(u => c.prod + '|' + u.wk + '|' + u.id + '|' + u.slot + '|' + u.iso));
+      const inneUz = () => planPrepu(jutro, prepH).komp.flatMap(c => c.uzycia.map(u => c.prod + '|' + u.wk + '|' + u.id + '|' + u.slot + '|' + u.iso));
+      prawda(klucze.some(k => inneUz().includes(k)), 'bez sesji to samo jest podpowiadane też jutro (punkt wyjścia testu)');
+      zapiszSesje(pl);
+      prawda(!klucze.some(k => inneUz().includes(k)), 'zaplanowana sesja: te same użycia nie są podpowiadane w innym dniu');
+      rowne(planPrepu(od, prepH).komp.map(c => c.prod).sort(), pl.komp.map(c => c.prod).sort(), 'sama sesja pokazuje swoją zawartość');
+      sesje[0].zrobione = true;
+      prawda(!klucze.some(k => inneUz().includes(k)), 'wykonana sesja: też nie podpowiada drugi raz');
+      sesje[0].zrobione = false; sesje[0].od = dodajDni(od, -1);
+      prawda(klucze.some(k => planPrepu(jutro, prepH).komp.flatMap(c => c.uzycia.map(u => c.prod + '|' + u.wk + '|' + u.id + '|' + u.slot + '|' + u.iso)).includes(k)), 'niewykonana sesja z przeszłości nic nie pokrywa');
+      rowne(planPrepu(jutro, prepH, true).komp.length >= 0, true, 'planPrepu(…, true) działa bez sesji');
+      sesje = []; const bez = planPrepu(jutro, prepH); prawda(bez.komp.length >= 0, 'bez sesji plan jak dawniej');
+    } finally { plan = sp; sesje = ss; LS.set = lset; rysuj = ry; }
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

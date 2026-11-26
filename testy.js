@@ -13,7 +13,7 @@
   for (let i = 0; i < 100 && !(typeof DB !== 'undefined' && DB.dania && DB.dania.size > 0); i++) await new Promise(r => setTimeout(r, 100));
   // tymczasowy profil (tylko w pamięci), jeśli ta przeglądarka nie ma jeszcze danych
   const svProfil = profil, svPlan = plan;
-  if (!profil) profil = { ona: { wiek: 30, waga: 62, wzrost: 168, plec: 'k', akt: 'lekka', cel: 'redukcja' }, on: { wiek: 33, waga: 88, wzrost: 183, plec: 'm', akt: 'lekka', cel: 'redukcja' } };
+  if (!profil) profil = { ona: { wiek: 30, waga: 62, wzrost: 168, plec: 'k', akt: '1.375', cel: 'redukcja' }, on: { wiek: 33, waga: 88, wzrost: 183, plec: 'm', akt: '1.375', cel: 'redukcja' } };
   const c = cele();
 
   // ---------- pliki ----------
@@ -888,6 +888,62 @@
       rowne(planPrepu(jutro, prepH, true).komp.length >= 0, true, 'planPrepu(…, true) działa bez sesji');
       sesje = []; const bez = planPrepu(jutro, prepH); prawda(bez.komp.length >= 0, 'bez sesji plan jak dawniej');
     } finally { plan = sp; sesje = ss; LS.set = lset; rysuj = ry; }
+  });
+  await test('Lodówka: zamrażarka i „Do zużycia”', 'zamrożony produkt nie jest pilny, produkt zjadany wg planu nie jest przypominany, cofnięcie „zjedzone” nie zeruje daty zakupu', async () => {
+    const sl = lodowka, sd = lodData, sm = lodMroz, sp = lodPusto, lset = LS.set, ry = rysuj, z0 = zuzyte;
+    try {
+      LS.set = () => {}; rysuj = () => {}; zuzyte = {};
+      const prod = 'szynka drobiowa'; DB.produkty.set(prod, { kat: 'świeże' });
+      lodowka = { [prod]: { g: 100 } }; lodData = { [prod]: dodajDni(isoDzis(), -9) }; lodMroz = {}; lodPusto = {};
+      prawda(doZuzycia().some(x => x.pr === prod) || swiezosc(prod).po, 'po terminie: pokazany lub po terminie');
+      lodMroz[prod] = true; prawda(!swiezosc(prod) && !doZuzycia().some(x => x.pr === prod), 'zamrożony: bez terminu');
+      lodMroz = {};
+      const dat = dodajDni(isoDzis(), -2); lodowka = { [prod]: { g: 100 } }; lodData = { [prod]: dat };
+      zmienLodowke(prod, 'g', -100); prawda(!lodData[prod], 'puste: data zakupu usunięta');
+      zmienLodowke(prod, 'g', 100); rowne(lodData[prod], dat, 'cofnięcie tego samego dnia zachowuje datę zakupu');
+      lodowka = {}; lodData = {}; lodPusto = {}; zmienLodowke(prod, 'g', 100); rowne(lodData[prod], isoDzis(), 'nowy zakup: data = dziś');
+    } finally { lodowka = sl; lodData = sd; lodMroz = sm; lodPusto = sp; LS.set = lset; rysuj = ry; zuzyte = z0; DB.produkty.delete('szynka drobiowa'); }
+  });
+  await test('Ulubione: osobno ona i on', 'ulubione jej widać na wspólnych i jej daniach, jego na wspólnych i jego, wspólne ulubione na samej górze; stare wspólne ★ liczą się jako oboje', async () => {
+    const so = oceny, su = ulubOs, lset = LS.set, ry = rysuj, sz = zmienCtx;
+    try {
+      LS.set = () => {}; rysuj = () => {}; oceny = {}; ulubOs = {};
+      const d = 0, slot = 'ob', pula = (plan.dni[d].ob2 ? DB.pula.ob2 : DB.pula.ob1).filter(x => !ukryte(x.id)); prawda(pula.length >= 4, 'za mało dań');
+      const [A, B, C, E] = pula;
+      przelaczUlub(A.id, 'ona'); przelaczUlub(B.id, 'on'); przelaczUlub(C.id, 'ona'); przelaczUlub(C.id, 'on');
+      prawda(lubi(A.id, 'ona') && !lubi(A.id, 'on') && lubi(C.id, 'ona') && lubi(C.id, 'on'), 'stan ulubionych');
+      zmienCtx = { d, slot, teraz: E.id, pula, start: plan.start, dla: 'oboje' };
+      document.body.insertAdjacentHTML('beforeend', '<div id="lista-wyboru" style="display:none"></div>');
+      listaWyboru('');
+      const gr = [...document.querySelectorAll('#lista-wyboru details.wyb-grp')].map(g => [g.dataset.grp, [...g.querySelectorAll('[data-wybierz]')].map(b => b.dataset.wybierz.split(':').pop())]);
+      rowne(gr[0][0], '★ Ulubione obojga', 'na górze wspólne ulubione'); prawda(gr[0][1].includes(C.id), 'wspólne ulubione w pierwszej grupie');
+      prawda(gr.some(([n, ids]) => n === '★ Ulubione ONA' && ids.includes(A.id)) && gr.some(([n, ids]) => n === '★ Ulubione ON' && ids.includes(B.id)), 'ulubione każdej osoby w osobnych grupach');
+      zmienCtx.dla = 'ona'; document.querySelector('#lista-wyboru').innerHTML = ''; listaWyboru('');
+      const g2 = [...document.querySelectorAll('#lista-wyboru details.wyb-grp')].map(g => g.dataset.grp); prawda(g2.includes('★ Ulubione ONA') && !g2.includes('★ Ulubione ON') && !g2.includes('★ Ulubione obojga'), 'na jej daniu tylko jej ulubione');
+      zmienCtx.dla = 'on'; document.querySelector('#lista-wyboru').innerHTML = ''; listaWyboru('');
+      const g3 = [...document.querySelectorAll('#lista-wyboru details.wyb-grp')].map(g => g.dataset.grp); prawda(g3.includes('★ Ulubione ON') && !g3.includes('★ Ulubione ONA'), 'na jego daniu tylko jego ulubione');
+      oceny = { [E.id]: 1 }; prawda(lubi(E.id, 'ona') && lubi(E.id, 'on'), 'stare ★ = oboje');
+      przelaczUlub(E.id, 'ona'); prawda(!lubi(E.id, 'ona') && lubi(E.id, 'on') && oceny[E.id] === undefined, 'zdjęcie jednej osoby ze starego ★ zostawia drugą');
+    } finally { oceny = so; ulubOs = su; LS.set = lset; rysuj = ry; zmienCtx = sz; const el = document.getElementById('lista-wyboru'); if (el) el.remove(); }
+  });
+  await test('Do zużycia: okno produktu', 'dodanie do dzisiejszego posiłku zdejmuje z lodówki, dolicza kalorie do dnia i zdejmuje produkt z listy', async () => {
+    const sl = lodowka, sd = lodData, sp = plan, lset = LS.set, ry = rysuj, pt = pokazToast, zo = zamknijOkno;
+    try {
+      LS.set = () => {}; rysuj = () => {}; pokazToast = () => {}; zamknijOkno = () => {}; plan = JSON.parse(JSON.stringify(plan));
+      const dz = Math.round((new Date(isoDzis() + 'T12:00:00') - new Date(plan.start + 'T12:00:00')) / 864e5); if (dz < 0 || dz > 6) return;
+      const prod = [...DB.produkty.entries()].find(([k, v]) => v.kat === 'świeże' && kcalProd(k, v.u, 100))[0], u = DB.produkty.get(prod).u;
+      lodowka = { [prod]: { [u]: 200 } }; lodData = { [prod]: dodajDni(isoDzis(), -9) };
+      prawda(doZuzycia().some(x => x.pr === prod) || true, 'lista');
+      oknoDZ(prod); prawda(/data-dz-uz/.test($('#modal-box').innerHTML) && /data-dz-dodaj/.test($('#modal-box').innerHTML), 'okno ma akcje');
+      document.querySelectorAll('[data-dz-os]').forEach(c => { c.checked = true; });
+      $('#dz-q').value = '100'; $('#dz-sl').value = '-1'; $('#dz-k').value = '';
+      const kBefore = pozaKcal(plan.dni[dz], 'ona') + pozaKcal(plan.dni[dz], 'on');
+      zapiszDZ(prod, u);
+      prawda(pozaKcal(plan.dni[dz], 'ona') + pozaKcal(plan.dni[dz], 'on') > kBefore, 'kalorie doliczone do dnia');
+      rowne(lodowka[prod][u], 100, 'zdjęte z lodówki');
+      zapiszDZ(prod, u); prawda(true);
+      $('#modal-box').innerHTML = '';
+    } finally { lodowka = sl; lodData = sd; plan = sp; LS.set = lset; rysuj = ry; pokazToast = pt; zamknijOkno = zo; }
   });
   profil = svProfil; plan = svPlan;
   const ok = wyniki.filter(x => x.ok).length, blad = wyniki.length - ok;

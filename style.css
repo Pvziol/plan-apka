@@ -1463,6 +1463,7 @@ button.link { background: none; border: 0; box-shadow: none; color: var(--zielon
 .zk-pozakcje { width: 100%; flex-wrap: nowrap; gap: 6px; }
 .zk-pozakcje .mam-btn { flex: 1 1 0; justify-content: center; text-align: center; white-space: nowrap; padding: 0 4px; }
 
+.dz-nazwa { font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
 /* OSZCZĘDZANIE BATERII: nic ozdobnego nie chodzi bez przerwy. Tło „zorza”, gradient i bąble w karcie dnia, błyski na przyciskach i paskach oraz unoszenie obrazków są nieruchome
    (wygląd ten sam, ale bez ciągłego przerysowywania). Rozmycie tła pod kartami i przyciskami usunięte (rozmywało tylko gładki gradient, a każda klatka animacji przeliczała je
    dla kilkudziesięciu elementów); zostaje tam, gdzie pod spodem przewija się treść (dolny pasek, okna, komunikaty). Animacje na ekranie pomiarów kończą się po kilku cyklach. */
